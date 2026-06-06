@@ -370,7 +370,7 @@ select.inp{appearance:none;cursor:pointer;background-image:url("data:image/svg+x
 .lnav{display:flex;align-items:center;justify-content:space-between;padding:20px 48px;}
 .lhero{max-width:900px;margin:0 auto;padding:80px 48px 60px;text-align:center;}
 .leyebrow{display:inline-flex;align-items:center;gap:8px;background:rgba(244,113,26,0.15);border:1px solid rgba(244,113,26,0.3);border-radius:100px;padding:6px 16px;font-size:12px;font-weight:700;color:#FDBA74;letter-spacing:1px;text-transform:uppercase;margin-bottom:28px;}
-.ltitle{font-family:'Playfair Display',serif;font-size:62px;font-weight:900;color:white;line-height:1.08;margin-bottom:20px;}
+.ltitle{font-family:'Playfair Display',serif;font-size:56px;font-weight:900;color:white;line-height:1.08;margin-bottom:20px;}
 .ltitle .hl{color:var(--carrot);}
 .lprimary{background:var(--carrot);color:white;border:none;border-radius:100px;padding:16px 36px;font-size:16px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
 .lprimary:hover{background:var(--carrot-dark);transform:translateY(-2px);box-shadow:0 10px 32px rgba(244,113,26,0.4);}
@@ -493,14 +493,38 @@ select.inp{appearance:none;cursor:pointer;background-image:url("data:image/svg+x
 .stat-src{font-size:11px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:1px;font-weight:700;}
 @media(max-width:760px){.vid-grid,.wp-grid,.stat-grid{grid-template-columns:1fr;}}
 
+/* ── LANDING v2 SECTIONS ── */
+.land-h2{font-family:'Playfair Display',serif;font-size:36px;font-weight:900;line-height:1.18;}
+.sec-pad{padding:64px 48px;}
+.sec-narrow{max-width:820px;margin:0 auto;padding:64px 48px;}
+.split{display:grid;grid-template-columns:1fr 1fr;}
+.split-col{padding:48px 44px;display:flex;flex-direction:column;}
+.split-intro{min-height:340px;}
+.split-badge{display:block;font-size:24px;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:18px;line-height:1.1;}
+.pos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1040px;margin:0 auto;}
+.pos-card{border-radius:20px;padding:32px 28px;}
+.stat-row4{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;max-width:1000px;margin:0 auto;}
+.tri-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
+.duo-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:900px;margin:0 auto;}
+.res2-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
 /* ── MOBILE READABILITY (under 600px) ── */
 @media(max-width:600px){
-  .ltitle{font-size:38px;}
+  .ltitle{font-size:36px;}
   .stitle{font-size:24px;}
+  .land-h2{font-size:26px;}
   .screen{padding:24px 16px 80px;}
   .app-screen{padding:16px 14px 96px;}
   .lhero{padding:48px 24px 40px;}
   .res-hero{padding:40px 24px 24px;}
+  /* landing v2: tighten padding + stack columns */
+  .sec-pad{padding:44px 20px;}
+  .sec-narrow{padding:44px 20px;}
+  .split{grid-template-columns:1fr;}
+  .split-col{padding:30px 22px;}
+  .split-intro{min-height:0;}
+  .pos-grid,.tri-grid,.duo-grid{grid-template-columns:1fr;}
+  .stat-row4{grid-template-columns:1fr 1fr;gap:18px;}
   /* card padding 24 → 16, more breathable on small screens */
   .dcard,.mc,.mp-card,.dual-card,.tcard-body,.mini-treat,.scard-hdr{padding:16px;}
   .lfcard{padding:24px 18px!important;}
@@ -711,48 +735,57 @@ export default function App() {
       {/* ══ LANDING ══════════════════════════════════════════════════ */}
       {screen==="landing"&&(
         <div className="landing">
+          {/* NAV */}
           <nav className="lnav">
-            <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:900,color:"var(--carrot)"}}>🥕 Earn The Carrot</div>
-            <div style={{display:"flex",gap:28,alignItems:"center"}}>
-              <span style={{fontSize:14,color:"rgba(255,255,255,0.55)",cursor:"pointer"}}>How It Works</span>
-              <span style={{fontSize:14,color:"rgba(255,255,255,0.55)",cursor:"pointer"}} onClick={()=>go("resources")}>Why It Works</span>
-              <span style={{fontSize:14,color:"rgba(255,255,255,0.55)",cursor:"pointer"}}>Company</span>
-              <span style={{fontSize:14,color:"rgba(255,255,255,0.55)",cursor:"pointer"}}>Privacy</span>
-              <button className="lprimary" style={{padding:"10px 22px",fontSize:14}} onClick={()=>go("signup")}>Get Started Free</button>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:900,color:"var(--carrot)",cursor:"pointer"}} onClick={()=>go("landing")}>🥕 Earn The Carrot</div>
+            <div style={{display:"flex",gap:22,alignItems:"center",flexWrap:"wrap"}}>
+              {[
+                {l:"For Teams"},{l:"For Reps"},{l:"How It Works"},{l:"Company"},
+                {l:"Why It Works",act:()=>go("resources")},
+              ].map(n=>(
+                <span key={n.l} style={{fontSize:14,color:"rgba(255,255,255,0.55)",cursor:"pointer"}} onClick={n.act}>{n.l}</span>
+              ))}
+              <button className="lprimary" style={{padding:"10px 22px",fontSize:14}} onClick={()=>go("signup")}>Get a Team Demo</button>
             </div>
           </nav>
+
+          {/* ── SECTION 1 — HERO ── */}
           <div className="lhero">
             <div style={{fontSize:80,textAlign:"center",animation:"bounce 2s ease infinite",marginBottom:16}}>🥕</div>
-            <div className="leyebrow">🥕 For Sales People, By Sales People</div>
-            <h1 className="ltitle">Stop chasing a <span className="hl">number.</span><br/>Start chasing your <span className="hl">dream.</span></h1>
-            <p style={{fontSize:20,color:"rgba(255,255,255,0.65)",lineHeight:1.65,maxWidth:640,margin:"0 auto 14px"}}>
-              Too many salespeople grind toward a quota they don't connect with. Earn The Carrot helps you decode your comp plan, see what you actually take home, and turn your commission into real rewards you can see and touch.
+            <div className="leyebrow">🥕 For Sales Leaders &amp; Their Teams</div>
+            <h1 className="ltitle">Stop Managing Numbers.<br/>Start Motivating <span className="hl">People.</span></h1>
+            <p style={{fontSize:18,color:"rgba(255,255,255,0.65)",lineHeight:1.6,maxWidth:660,margin:"0 auto 36px"}}>
+              Every sales person wants to win. Earn The Carrot gives them a plan to get there — and a personal reason to see it through.
             </p>
-            <p style={{fontSize:16,fontWeight:700,color:"var(--gold)",marginBottom:40}}>"Too much stick out there. We need more carrots." 🥕</p>
-            <div style={{display:"flex",gap:14,justifyContent:"center",marginBottom:60}}>
-              <button className="lprimary" onClick={()=>go("signup")}>Start Earning Your Carrot →</button>
-              <button className="lsecondary" onClick={()=>go("upload")}>See a Demo</button>
+            <div style={{display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap"}}>
+              <button className="lprimary" onClick={()=>go("signup")}>Get a Team Demo →</button>
+              <button className="lsecondary" onClick={()=>go("upload")}>Try It Free</button>
             </div>
           </div>
-          <div className="lfgrid">
-            {[
-              {icon:"📄",t:"Decode Your Comp Plan",d:"AI reads every line of your comp plan — surfacing hidden clauses, decelerators, clawbacks, and the fine print that quietly shapes your real take-home."},
-              {icon:"🥕",t:"Visualize Your Carrots",d:"Turn your commission into real rewards you can see and touch. Mini, medium, and big carrots — all funded by the money you earn above quota."},
-              {icon:"🎯",t:"Track What Matters",d:"Set a Floor you refuse to miss and a Stretch that changes your year. We build the daily playbook and track every metric that gets you there."},
-            ].map((f,i)=>(
-              <div className="lfcard" key={i} style={{padding:"40px 32px"}}>
-                <div style={{fontSize:64,marginBottom:18}}>{f.icon}</div>
-                <div style={{fontSize:21,fontWeight:700,color:"white",marginBottom:12}}>{f.t}</div>
-                <div style={{fontSize:15,color:"rgba(255,255,255,0.55)",lineHeight:1.6}}>{f.d}</div>
-              </div>
-            ))}
-          </div>
-          <div className="pain-section">
-            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:36,fontWeight:900,color:"white",marginBottom:14,textAlign:"center"}}>The problem with sales motivation today</h2>
-            <p style={{fontSize:16,color:"rgba(255,255,255,0.5)",textAlign:"center",marginBottom:32}}>Most tools focus on the company's goals, not yours. That's backwards.</p>
 
-            {/* The 1992 playbook — a moment of humor before we get serious */}
-            <div style={{background:"#1A1208",border:"1px solid rgba(244,113,26,0.2)",borderRadius:24,padding:"44px 32px",textAlign:"center",marginBottom:40}}>
+          {/* ── SECTION 2 — STAT SHOCK ── */}
+          <div className="sec-pad" style={{background:"#1A1208"}}>
+            <h2 className="land-h2" style={{color:"white",textAlign:"center",maxWidth:780,margin:"0 auto 44px"}}>The numbers that should keep every sales leader up at night</h2>
+            <div className="stat-row4">
+              {[
+                {n:"16%",t:"of reps hit quota in 2024",s:"Kixie"},
+                {n:"89%",t:"of sellers feel burned out",s:"Gartner"},
+                {n:"$115,000",t:"average cost to replace one rep",s:"Everstage"},
+                {n:"35%",t:"annual sales rep turnover",s:"Industry average"},
+              ].map((x,i)=>(
+                <div key={i} style={{textAlign:"center"}}>
+                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:"var(--carrot)",lineHeight:1,marginBottom:12}}>{x.n}</div>
+                  <div style={{fontSize:15,color:"rgba(255,255,255,0.7)",lineHeight:1.5,marginBottom:8}}>{x.t}</div>
+                  <div style={{fontSize:12,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:"rgba(255,255,255,0.35)"}}>Source: {x.s}</div>
+                </div>
+              ))}
+            </div>
+            <p style={{textAlign:"center",fontSize:17,fontStyle:"italic",color:"var(--carrot)",marginTop:44}}>The old playbook isn't working. It's time for a new one.</p>
+          </div>
+
+          {/* ── SECTION 3 — GLENGARRY MOMENT ── */}
+          <div className="sec-narrow">
+            <div style={{background:"#1A1208",border:"1px solid rgba(244,113,26,0.2)",borderRadius:24,padding:"44px 32px",textAlign:"center"}}>
               <div style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:900,color:"white",marginBottom:30}}>The 1992 Sales Motivation Playbook</div>
               <div style={{display:"flex",flexDirection:"column",gap:20,maxWidth:440,margin:"0 auto"}}>
                 {[
@@ -767,53 +800,179 @@ export default function App() {
                 ))}
               </div>
               <div style={{height:1,background:"rgba(255,255,255,0.12)",maxWidth:440,margin:"32px auto 22px"}}/>
-              <div style={{fontSize:15,fontStyle:"italic",color:"var(--carrot)",marginBottom:12,lineHeight:1.5}}>"Sound familiar? Most companies are still running the same playbook."</div>
+              <div style={{fontSize:15,fontStyle:"italic",color:"var(--carrot)",marginBottom:12,lineHeight:1.5}}>"Thirty years later, most companies are still running the same playbook."</div>
               <div style={{fontSize:17,fontWeight:700,color:"white"}}>Earn The Carrot was built to change that.</div>
             </div>
+          </div>
 
-            <div className="pgrid">
+          {/* ── SECTION 4 — TRANSITION ── */}
+          <div className="sec-narrow" style={{paddingTop:0,textAlign:"center"}}>
+            <p style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontStyle:"italic",fontWeight:700,color:"var(--gold)",lineHeight:1.5,maxWidth:760,margin:"0 auto"}}>
+              "We built Earn The Carrot for both sides of the sales relationship — because the best leaders never forget what it felt like to be a rep."
+            </p>
+          </div>
+
+          {/* ── SECTION 5 — SPLIT SCREEN ── */}
+          <div style={{padding:"0 24px 72px"}}>
+            <div className="split" style={{maxWidth:1200,margin:"0 auto",borderRadius:28,overflow:"hidden",border:"1px solid var(--border)",boxShadow:"0 24px 60px rgba(0,0,0,0.3)"}}>
+
+              {/* LEFT — FOR SALES LEADERS */}
+              <div className="split-col" style={{background:"var(--cream)",borderTop:"4px solid #F4711A"}}>
+                <span className="split-badge" style={{color:"var(--carrot)"}}>For Sales Leaders</span>
+                <div className="split-intro">
+                <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:900,color:"var(--ink)",marginBottom:18,lineHeight:1.2}}>You remember what it felt like.</h3>
+                {[
+                  "The Sunday anxiety before a tough Monday. Not knowing if you'd hit your number. A manager who only talked to you about late-stage deals — never about building the pipeline that would save next quarter.",
+                  "Now you're responsible for 20, 30, 50 reps feeling that same thing every day.",
+                  "Your first-line managers are firefighting. So focused on closing this quarter that next quarter's pipeline is starving. They're not leading — they're reacting.",
+                  "The newest generation of sales reps won't respond to pressure and leaderboards. They want to be led. They want coaching. They want to know their work means something beyond a quota.",
+                ].map((p,i)=>(
+                  <p key={i} style={{fontSize:16,color:"var(--muted)",lineHeight:1.65,marginBottom:16}}>{p}</p>
+                ))}
+                </div>
+                <div style={{fontSize:16,fontWeight:700,color:"var(--ink)",margin:"26px 0 18px",lineHeight:1.5}}>Earn The Carrot gives your managers the tools to actually lead — powered by AI:</div>
+                {[
+                  {e:"🤖",t:"AI reads every comp plan — surfaces hidden clawbacks, caps, and fine print before they become paycheck surprises"},
+                  {e:"🧠",t:"AI builds each rep's personal territory plan — works backwards from their goals using deal history, close rates, and pipeline coverage"},
+                  {e:"👤",t:"AI identifies what motivates each rep — personality type, motivation style, generational profile. Coaches your managers on how to lead each person individually"},
+                  {e:"📊",t:"AI coaches reps weekly — analyzes activity vs plan, tells each rep exactly what to do more of to stay on track"},
+                  {e:"🔮",t:"AI improves your forecast — when every rep executes a real plan, pipeline visibility goes from guesswork to science"},
+                ].map((b,i)=>(
+                  <div key={i} style={{display:"flex",gap:16,alignItems:"flex-start",marginBottom:18}}>
+                    <span style={{fontSize:48,flexShrink:0,width:58,textAlign:"center",lineHeight:1}}>{b.e}</span>
+                    <span style={{fontSize:16,color:"var(--ink)",lineHeight:1.55}}>{b.t}</span>
+                  </div>
+                ))}
+                <div style={{fontSize:16,fontWeight:700,color:"var(--ink)",margin:"26px 0 16px"}}>What sales leaders can expect:</div>
+                <div className="res2-grid">
+                  {[
+                    {e:"📈",t:"Better Forecasting",d:"Reps who plan consistently produce predictable pipelines"},
+                    {e:"💰",t:"More Revenue",d:"Motivated reps don't stop at 1pm on Friday"},
+                    {e:"🤝",t:"Less Turnover",d:"Reps who feel seen and supported stay longer"},
+                    {e:"🌟",t:"Better Culture",d:"Purpose beats pressure every time"},
+                  ].map((r,i)=>(
+                    <div key={i} style={{background:"white",border:"1px solid var(--border)",borderRadius:16,padding:"18px 16px"}}>
+                      <div style={{fontSize:48,marginBottom:10,lineHeight:1}}>{r.e}</div>
+                      <div style={{fontSize:16,fontWeight:700,color:"var(--ink)",marginBottom:5}}>{r.t}</div>
+                      <div style={{fontSize:15,color:"var(--muted)",lineHeight:1.5}}>{r.d}</div>
+                    </div>
+                  ))}
+                </div>
+                <button className="lprimary" style={{marginTop:28}} onClick={()=>go("signup")}>Get a Team Demo →</button>
+              </div>
+
+              {/* RIGHT — FOR SALES REPS */}
+              <div className="split-col" style={{background:"var(--cream)",borderTop:"4px solid #2D6A4F"}}>
+                <span className="split-badge" style={{color:"var(--green)"}}>For Sales Reps</span>
+                <div className="split-intro">
+                <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:900,color:"var(--ink)",marginBottom:18,lineHeight:1.2}}>You got into sales because you wanted to win.</h3>
+                {[
+                  "Not to hit a number on someone else's spreadsheet. To win. To earn. To build something for yourself and the people you love.",
+                  "But somewhere between the comp plan and the paycheck, it stopped feeling personal.",
+                  "You're grinding through calls you don't feel like making. Your manager only talks to you about late-stage deals. You don't really know what you'll take home at the end of the month. And nobody has ever asked you what you're actually working toward.",
+                ].map((p,i)=>(
+                  <p key={i} style={{fontSize:16,color:"var(--muted)",lineHeight:1.65,marginBottom:16}}>{p}</p>
+                ))}
+                </div>
+                <div style={{fontSize:17,fontWeight:700,color:"var(--ink)",margin:"22px 0 18px"}}>Earn The Carrot was built for you.</div>
+                {[
+                  {e:"📄",t:"Your comp plan decoded — every clause, clawback, and cap explained in plain English. No more paycheck surprises."},
+                  {e:"💰",t:"Your real take-home pay — exactly what hits your bank at 100%, 125%, and 150% of plan after every deduction"},
+                  {e:"🤖",t:"AI builds your personal plan — tell us your target and your carrots, and AI works backwards to tell you exactly how many calls, meetings, and demos you need every single day"},
+                  {e:"🥕",t:"Your carrots — connect your daily work to the Italy trip, the boat, the college fund. The things that actually make you push harder"},
+                  {e:"📈",t:"AI coaches you weekly — tells you what you hit, what you missed, and exactly what to do more of next week"},
+                  {e:"🔔",t:"Reminders that mean something — not \"make more calls\" but \"you're 6 calls away from your latte and 847 away from Italy. Let's go.\""},
+                ].map((b,i)=>(
+                  <div key={i} style={{display:"flex",gap:16,alignItems:"flex-start",marginBottom:18}}>
+                    <span style={{fontSize:48,flexShrink:0,width:58,textAlign:"center",lineHeight:1}}>{b.e}</span>
+                    <span style={{fontSize:16,color:"var(--ink)",lineHeight:1.55}}>{b.t}</span>
+                  </div>
+                ))}
+                <p style={{fontSize:18,fontStyle:"italic",color:"var(--carrot)",lineHeight:1.5,margin:"24px 0 0",fontWeight:600}}>
+                  "Nobody gets fired up about hitting 100% of plan. But they do get fired up about the dream vacation, the new house, the boat, the car, the thing that makes it all worth it."
+                </p>
+                <button className="btn btn-s" style={{marginTop:24}} onClick={()=>go("upload")}>Try It Free →</button>
+              </div>
+
+            </div>
+          </div>
+
+          {/* ── SECTION 6 — UNIFYING STATEMENT ── */}
+          <div className="sec-pad" style={{background:"#1A1208",textAlign:"center"}}>
+            <p style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,color:"white",maxWidth:840,margin:"0 auto",lineHeight:1.4}}>
+              When reps win personally, companies win commercially.<br/>
+              <span style={{color:"var(--carrot)"}}>That's not a coincidence — it's the whole point.</span>
+            </p>
+          </div>
+
+          {/* ── SECTION 7 — COMPETITIVE POSITIONING ── */}
+          <div className="sec-pad" style={{background:"var(--cream)"}}>
+            <h2 className="land-h2" style={{color:"var(--ink)",textAlign:"center",maxWidth:780,margin:"0 auto 10px"}}>Every other tool motivates through competition or fear.</h2>
+            <p style={{textAlign:"center",fontSize:17,color:"var(--muted)",maxWidth:700,margin:"0 auto 40px",lineHeight:1.55}}>Earn The Carrot is the only platform that motivates through personal purpose.</p>
+            <div className="pos-grid">
               {[
-                {icon:"😤",t:"\"Exceed your number\" isn't motivating",d:"Hitting 110% quota doesn't make you want to work harder. It just feels like more pressure."},
-                {icon:"📝",t:"Nobody reads their comp plan",d:"Hidden clawbacks and caps are buried in fine print. Most reps find out when their paycheck is smaller than expected."},
-                {icon:"🏆",t:"Only one person can be #1",d:"Leaderboards make 99% of your team feel like losers. That kills morale across the board."},
-                {icon:"💸",t:"You don't know what you take home",d:"The gap between gross OTE and actual take-home can be 35–40%. Most reps have no idea."},
-              ].map((p,i)=>(
-                <div className="pcard" key={i} style={{padding:24}}>
-                  <div style={{fontSize:64,marginBottom:16}}>{p.icon}</div>
-                  <div style={{fontSize:16,fontWeight:700,color:"#FCA5A5",marginBottom:6}}>{p.t}</div>
-                  <div style={{fontSize:14,color:"rgba(255,255,255,0.45)",lineHeight:1.6}}>{p.d}</div>
+                {t:"Leaderboard Tools",d:"Show reps how they rank against each other. Creates winners and losers.",e:"😤",hl:false},
+                {t:"CRM & Forecasting",d:"Built for the company's numbers. Not for the human doing the work.",e:"📊",hl:false},
+                {t:"Earn The Carrot",d:"Built for the rep first. When reps win personally, companies win commercially.",e:"🥕",hl:true},
+              ].map((c,i)=>(
+                <div key={i} className="pos-card" style={c.hl?{background:"#1A1208",border:"2px solid var(--carrot)"}:{background:"white",border:"1.5px solid var(--border)"}}>
+                  <div style={{fontSize:48,marginBottom:16,lineHeight:1}}>{c.e}</div>
+                  <div style={{fontSize:18,fontWeight:700,color:c.hl?"var(--carrot)":"var(--ink)",marginBottom:10}}>{c.t}</div>
+                  <div style={{fontSize:15,color:c.hl?"rgba(255,255,255,0.72)":"var(--muted)",lineHeight:1.6}}>{c.d}</div>
                 </div>
               ))}
             </div>
-            <div style={{textAlign:"center",fontSize:13,fontWeight:700,color:"var(--gold)",letterSpacing:2,margin:"20px 0"}}>→ EARN THE CARROT FIXES THIS ←</div>
-            <div className="sgrid">
+          </div>
+
+          {/* ── SECTION 8 — SCIENCE TEASER ── */}
+          <div className="sec-pad" style={{background:"#0F0A05"}}>
+            <h2 className="land-h2" style={{color:"white",textAlign:"center",marginBottom:40}}>The science backs it up.</h2>
+            <div className="tri-grid" style={{maxWidth:1040,margin:"0 auto"}}>
               {[
-                {icon:"🥕",t:"Chase your dream, not a number",d:"\"I want to take my family to Italy\" is 10x more motivating than hitting 120% of plan."},
-                {icon:"🔍",t:"AI reads the fine print for you",d:"We surface every hidden clause, cap, and gotcha so you know exactly how your plan works."},
-                {icon:"🎯",t:"Win against yourself, not others",d:"Everyone has their own floor and stretch. Everyone can win. Motivation goes up across the team."},
-                {icon:"🏦",t:"See your real take-home instantly",d:"Know exactly what hits your bank at your floor and stretch — after every deduction."},
+                {q:"The secret to high performance isn't rewards and punishments, but that deeply human need to direct our own lives.",a:"Daniel Pink",m:"Author of Drive · TED Talk: 35M+ views"},
+                {q:"People are not driven by logic. They are driven by emotion, meaning, and the invisible forces that connect their actions to what matters most to them.",a:"Tony Robbins",m:"Why We Do What We Do · TED Talk"},
+                {q:"Optimistic sales people outperform pessimists by 57% — even when pessimists have better skills.",a:"Forbes / Seligman",m:"Research finding"},
               ].map((s,i)=>(
-                <div className="scard2" key={i} style={{padding:24}}>
-                  <div style={{fontSize:64,marginBottom:16}}>{s.icon}</div>
-                  <div style={{fontSize:16,fontWeight:700,color:"#86EFAC",marginBottom:6}}>{s.t}</div>
-                  <div style={{fontSize:14,color:"rgba(255,255,255,0.45)",lineHeight:1.6}}>{s.d}</div>
+                <div key={i} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:18,padding:28,display:"flex",flexDirection:"column"}}>
+                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:44,color:"var(--carrot)",lineHeight:0.8,height:24}}>“</div>
+                  <p style={{fontSize:16,color:"rgba(255,255,255,0.85)",lineHeight:1.6,fontStyle:"italic",marginBottom:18,flex:1}}>{s.q}</p>
+                  <div style={{fontSize:15,fontWeight:700,color:"var(--carrot)"}}>{s.a}</div>
+                  <div style={{fontSize:13,color:"rgba(255,255,255,0.45)",marginTop:3}}>{s.m}</div>
                 </div>
               ))}
             </div>
+            <div style={{textAlign:"center",marginTop:36}}>
+              <span style={{fontSize:16,fontWeight:700,color:"var(--carrot)",cursor:"pointer"}} onClick={()=>go("resources")}>Read the Research and Watch the Videos →</span>
+            </div>
           </div>
-          <div style={{textAlign:"center",padding:"0 48px 80px"}}>
-            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:36,fontWeight:900,color:"white",marginBottom:14}}>Ready to earn your carrot?</h2>
-            <p style={{fontSize:16,color:"rgba(255,255,255,0.5)",marginBottom:32}}>Free to start. No credit card. No company data stored.</p>
-            <button className="lprimary" style={{fontSize:18,padding:"18px 48px"}} onClick={()=>go("signup")}>🥕 Get Started Free</button>
+
+          {/* ── SECTION 9 — FINAL DUAL CTA ── */}
+          <div className="sec-pad" style={{background:"#1A1208"}}>
+            <div className="duo-grid">
+              <div style={{textAlign:"center",padding:"12px"}}>
+                <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:900,color:"white",marginBottom:12}}>For Sales Leaders</h3>
+                <p style={{fontSize:16,color:"rgba(255,255,255,0.6)",lineHeight:1.55,maxWidth:340,margin:"0 auto 20px"}}>Give your managers the tools to actually lead — not just manage numbers.</p>
+                <button className="lprimary" onClick={()=>go("signup")}>Get a Team Demo →</button>
+              </div>
+              <div style={{textAlign:"center",padding:"12px"}}>
+                <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:900,color:"white",marginBottom:12}}>For Sales Reps</h3>
+                <p style={{fontSize:16,color:"rgba(255,255,255,0.6)",lineHeight:1.55,maxWidth:340,margin:"0 auto 20px"}}>Finally an app built for you — not just for your company's quota.</p>
+                <button className="lsecondary" onClick={()=>go("upload")}>Try It Free →</button>
+              </div>
+            </div>
+            <p style={{textAlign:"center",fontSize:14,color:"rgba(255,255,255,0.4)",marginTop:30}}>No credit card required. Setup takes 10 minutes.</p>
           </div>
-          <footer style={{borderTop:"1px solid rgba(255,255,255,0.08)",padding:"32px 48px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:900,color:"var(--carrot)"}}>🥕 Earn The Carrot</div>
-            <div style={{display:"flex",gap:24}}>
-              {["Privacy Policy","Terms of Service","Contact"].map(l=>(
-                <span key={l} style={{fontSize:13,color:"rgba(255,255,255,0.35)",cursor:"pointer"}}>{l}</span>
+
+          {/* ── FOOTER ── */}
+          <footer style={{borderTop:"1px solid rgba(255,255,255,0.08)",padding:"36px 48px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:900,color:"var(--carrot)",cursor:"pointer"}} onClick={()=>go("landing")}>🥕 Earn The Carrot</div>
+            <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+              {["Privacy Policy","Terms of Service","Company","Contact","Why It Works"].map(l=>(
+                <span key={l} style={{fontSize:14,color:"rgba(255,255,255,0.35)",cursor:"pointer"}} onClick={l==="Why It Works"?()=>go("resources"):undefined}>{l}</span>
               ))}
             </div>
-            <div style={{fontSize:12,color:"rgba(255,255,255,0.2)"}}>© 2025 EarnTheCarrot.com</div>
+            <div style={{fontSize:13,color:"rgba(255,255,255,0.2)"}}>© 2025 EarnTheCarrot.com</div>
+            <div style={{width:"100%",textAlign:"center",fontSize:13,fontStyle:"italic",color:"var(--gold)",marginTop:8}}>Too much stick out there. We need more carrots. 🥕</div>
           </footer>
         </div>
       )}
