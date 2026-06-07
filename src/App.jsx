@@ -1,6 +1,6 @@
 // STYLE RULE: No hyphens or em dashes used as pauses in visible text.
 // Use periods or commas instead. Numeric ranges like 10-15 are fine.
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Area, AreaChart, Label } from "recharts";
 
 const S = `
@@ -549,6 +549,8 @@ export default function App() {
   const [suPass, setSuPass]   = useState("");
   const [planFile, setPlanFile] = useState(null);
   const [planFiles, setPlanFiles] = useState([]);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const fileInputRef = useRef(null);
   const [comp, setComp] = useState({ base: 150000, quota: 1500000, commissionRate: 8, accelerator: 1.5 });
   const [editField, setEditField] = useState(null);
   const [editVal, setEditVal] = useState("");
@@ -1923,8 +1925,8 @@ export default function App() {
   // ══ UPLOAD (files for Coach to review) ═══════════════════════════════
   if (screen === "upload") {
     const fmtSize = (b) => (b < 1024 * 1024 ? Math.round(b / 1024) + " KB" : (b / 1024 / 1024).toFixed(1) + " MB");
-    const addFiles = (fileList) => setPlanFiles((prev) => [...prev, ...Array.from(fileList || [])].slice(0, 10));
-    const removeFile = (i) => setPlanFiles((prev) => prev.filter((_, j) => j !== i));
+    const addFiles = (fileList) => setUploadedFiles((prev) => [...prev, ...Array.from(fileList || [])].slice(0, 10));
+    const removeFile = (i) => setUploadedFiles((prev) => prev.filter((_, j) => j !== i));
     return (
       <div className="up-wrap">
         <style>{S}</style>
@@ -1937,14 +1939,20 @@ export default function App() {
           <h1 className="up-h1">Upload Your Files for Coach to Review</h1>
           <p className="up-sub">Drop in anything related to your compensation. Coach will figure out what each file is and use everything to build your earnings picture.</p>
 
-          <label className="up-zone">
-            <input
-              type="file"
-              multiple
-              accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
-              style={{ display: "none" }}
-              onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
-            />
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept=".pdf,.doc,.docx,.txt,.eml"
+            style={{ display: "none" }}
+            onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
+          />
+          <div
+            className="up-zone"
+            onClick={() => fileInputRef.current && fileInputRef.current.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}
+          >
             <div>
               <div className="up-zone-ico">📄</div>
               <div className="up-zone-t">Drop your files here</div>
@@ -1952,11 +1960,11 @@ export default function App() {
               <div className="up-zone-hint">PDF, Word, or text files · Up to 10 files · 20MB each</div>
               <div className="up-zone-link">or click to browse</div>
             </div>
-          </label>
+          </div>
 
-          {planFiles.length > 0 && (
+          {uploadedFiles.length > 0 && (
             <div className="up-list">
-              {planFiles.map((f, i) => (
+              {uploadedFiles.map((f, i) => (
                 <div className="up-file" key={i}>
                   <span className="up-file-ico">📄</span>
                   <span className="up-file-name">{f.name}</span>
@@ -1976,7 +1984,7 @@ export default function App() {
             <div className="up-next-line"><span className="up-next-num">3</span><span>Coach shows you your full earnings analysis and real take-home numbers</span></div>
           </div>
 
-          <button className="up-cta" disabled={planFiles.length === 0} onClick={() => goFlow("confirm")}>Review My Plan →</button>
+          <button className="up-cta" disabled={uploadedFiles.length === 0} onClick={() => goFlow("confirm")}>Review My Plan →</button>
         </div>
       </div>
     );
