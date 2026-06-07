@@ -2375,7 +2375,7 @@ function CompSummaryScreen({ onContinue }) {
         {/* HEADER */}
         <div className="page-header">
           <div className="page-eyebrow">Step 2 of 6 · Comp Plan Review</div>
-          <h1 className="page-title">Here's What We <span>Found</span></h1>
+          <h1 className="page-title">Here's What Coach <span>Found</span></h1>
           <p className="page-sub">We read your plan and did two things. We pulled out every number, and decoded what leadership is actually trying to get you to do.</p>
         </div>
 
