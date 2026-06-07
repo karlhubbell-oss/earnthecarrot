@@ -341,7 +341,39 @@ select.ob-inp{appearance:none;cursor:pointer;background-image:url("data:image/sv
 .ob-401k{background:var(--green-light);border:1.5px solid var(--green);border-radius:16px;padding:18px 20px;margin-bottom:20px;}
 .ob-401k-msg{font-size:15px;font-weight:700;color:var(--green);margin-bottom:6px;}
 .ob-401k-sub{font-size:13px;color:#2D6A4F;opacity:0.9;line-height:1.5;}
-@media(max-width:480px){.ob-row{grid-template-columns:1fr;}}
+/* carrot bridge */
+.cb-wrap{min-height:100vh;background:var(--dark);color:white;display:flex;align-items:center;justify-content:center;padding:40px 24px;}
+.cb-inner{max-width:560px;width:100%;animation:fadeUp 0.4s ease;}
+.cb-label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--carrot);margin-bottom:16px;}
+.cb-headline{font-family:'Playfair Display',serif;font-size:34px;font-weight:900;color:white;line-height:1.2;margin-bottom:14px;}
+.cb-amt{color:var(--carrot);}
+.cb-sub{font-size:17px;color:rgba(255,255,255,0.6);margin-bottom:28px;}
+.cb-input{width:100%;padding:16px 18px;border:1.5px solid rgba(255,255,255,0.2);border-radius:14px;font-size:18px;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.06);color:white;margin-bottom:16px;}
+.cb-input:focus{outline:none;border-color:var(--carrot);}
+.cb-input::placeholder{color:rgba(255,255,255,0.35);}
+.cb-pills{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:30px;}
+.cb-pill{padding:9px 16px;border-radius:100px;border:1.5px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.8);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+.cb-pill:hover{border-color:var(--carrot);color:white;}
+.cb-pill.on{background:var(--carrot);border-color:var(--carrot);color:white;}
+.cb-btn{width:100%;padding:16px;border-radius:100px;border:none;background:var(--carrot);color:white;font-size:17px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+.cb-btn:hover{background:var(--carrot-dark);}
+.cb-btn:disabled{opacity:0.4;cursor:not-allowed;}
+/* pitch */
+.pitch-wrap{min-height:100vh;background:var(--dark);color:white;padding:48px 24px;}
+.pitch-inner{max-width:560px;margin:0 auto;animation:fadeUp 0.4s ease;}
+.pitch-carrot-callout{background:rgba(244,113,26,0.12);border:1px solid rgba(244,113,26,0.35);border-radius:14px;padding:14px 18px;font-size:15px;color:#FDBA74;font-weight:700;margin-bottom:24px;}
+.pitch-headline{font-family:'Playfair Display',serif;font-size:32px;font-weight:900;color:white;line-height:1.2;margin-bottom:22px;}
+.pitch-contrast{margin-bottom:24px;}
+.pitch-mgr{font-size:16px;color:rgba(255,255,255,0.55);line-height:1.6;margin-bottom:10px;}
+.pitch-coach{font-size:17px;font-weight:700;color:white;line-height:1.6;}
+.pitch-checks{margin-bottom:28px;}
+.pitch-check{display:flex;align-items:flex-start;gap:12px;padding:11px 0;font-size:15px;color:rgba(255,255,255,0.85);border-bottom:1px solid rgba(255,255,255,0.06);}
+.pitch-check:last-child{border-bottom:none;}
+.pitch-check-ico{color:#86EFAC;font-weight:800;flex-shrink:0;}
+.pitch-cta{width:100%;padding:18px;border-radius:100px;border:none;background:var(--carrot);color:white;font-size:17px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+.pitch-cta:hover{background:var(--carrot-dark);transform:translateY(-2px);box-shadow:0 12px 36px rgba(244,113,26,0.4);}
+.pitch-note{text-align:center;font-size:13px;color:rgba(255,255,255,0.45);margin-top:14px;}
+@media(max-width:480px){.ob-row{grid-template-columns:1fr;}.cb-headline{font-size:27px;}.pitch-headline{font-size:26px;}}
 `;
 
 export default function App() {
@@ -373,6 +405,7 @@ export default function App() {
   const [trackingMethod, setTrackingMethod] = useState("manual");
   const [activeTab, setActiveTab] = useState("home");
   const [todayLog, setTodayLog] = useState({});
+  const [carrotAnswer, setCarrotAnswer] = useState("");
 
   // ── ONBOARDING CALCULATIONS ──
   const k401Limit = K401_LIMITS[suAge] ?? 23500;
@@ -1232,6 +1265,9 @@ export default function App() {
                 <div style={{ fontSize: 13, opacity: 0.9, marginTop: 6 }}>
                   On pace for {fmt(calcNet(calcGross(targetPct)))} take home
                 </div>
+                {carrotAnswer && (
+                  <div style={{ fontSize: 13, opacity: 0.95, marginTop: 8, fontWeight: 700 }}>🥕 Your carrot: {carrotAnswer}</div>
+                )}
               </div>
               <div className="ob-sec-h" style={{ marginTop: 0 }}>Today's activities</div>
               {metrics.map((m) => {
@@ -1301,7 +1337,69 @@ export default function App() {
 
   // ══ COMP PLAN SUMMARY (full-screen mockup) ═══════════════════════════
   if (screen === "summary") {
-    return <CompSummaryScreen onContinue={() => goFlow("paycheck")} />;
+    return <CompSummaryScreen onContinue={() => goFlow("carrot_bridge")} />;
+  }
+
+  // ══ CARROT BRIDGE ════════════════════════════════════════════════════
+  if (screen === "carrot_bridge") {
+    const stretchTakeHome = calcNet(calcGross(125));
+    const PICKS = ["Family vacation", "Pay off debt", "New car", "Home improvement", "Save it"];
+    return (
+      <div className="cb-wrap">
+        <style>{S}</style>
+        <style>{OB_STYLES}</style>
+        <div className="cb-inner">
+          <div className="cb-label">One Question Before We Continue</div>
+          <h1 className="cb-headline">If you hit your stretch goal and pocketed <span className="cb-amt">{fmt(stretchTakeHome)}</span> this year...</h1>
+          <p className="cb-sub">What would you do with it?</p>
+          <input
+            className="cb-input"
+            value={carrotAnswer}
+            onChange={(e) => setCarrotAnswer(e.target.value)}
+            placeholder="e.g. Pay off my car, Family trip to Hawaii, New boat"
+            autoFocus
+            onKeyDown={(e) => { if (e.key === "Enter" && carrotAnswer.trim()) goFlow("pitch"); }}
+          />
+          <div className="cb-pills">
+            {PICKS.map((p) => (
+              <button key={p} className={`cb-pill ${carrotAnswer === p ? "on" : ""}`} onClick={() => setCarrotAnswer(p)}>{p}</button>
+            ))}
+          </div>
+          <button className="cb-btn" disabled={!carrotAnswer.trim()} onClick={() => goFlow("pitch")}>Continue →</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ══ PITCH ════════════════════════════════════════════════════════════
+  if (screen === "pitch") {
+    return (
+      <div className="pitch-wrap">
+        <style>{S}</style>
+        <style>{OB_STYLES}</style>
+        <div className="pitch-inner">
+          <div className="pitch-carrot-callout">🥕 Your carrot: {carrotAnswer || "Your goal"}</div>
+          <h1 className="pitch-headline">Your Manager Will Give You a Call List. Coach Gives You a Plan.</h1>
+          <div className="pitch-contrast">
+            <p className="pitch-mgr">Your manager says: make 50 calls, book 10 meetings, hit your number.</p>
+            <p className="pitch-coach">Coach says: here's exactly what you need to do to get to {carrotAnswer || "your carrot"}.</p>
+          </div>
+          <div className="pitch-checks">
+            {[
+              "Build a personalized territory strategy",
+              "Determine the activities that drive results",
+              "Understand how many opportunities you need",
+              "Track progress toward your goals",
+              "Stay motivated all year",
+            ].map((c, i) => (
+              <div key={i} className="pitch-check"><span className="pitch-check-ico">✓</span><span>{c}</span></div>
+            ))}
+          </div>
+          <button className="pitch-cta" onClick={() => goFlow("paycheck")}>Build My Success Plan →</button>
+          <p className="pitch-note">Upgrade to Pro · $9.99/month or $99/year</p>
+        </div>
+      </div>
+    );
   }
 
   // ══ ONBOARDING STEP SCREENS ══════════════════════════════════════════
