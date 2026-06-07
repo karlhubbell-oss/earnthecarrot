@@ -1547,28 +1547,20 @@ export default function App() {
     );
   }
 
-  // ══ CONFIRM (what Coach found + quick questions) ═════════════════════
+  // ══ CONFIRM (deduction questions) ════════════════════════════════════
   if (screen === "confirm") {
     const intendedK = grossAt100 * k401Pct / 100;
     const annualK = Math.min(intendedK, k401Limit);
     const monthly = intendedK / 12;
     const monthsToMax = monthly > 0 ? k401Limit / monthly : Infinity;
     const maxMonth = monthsToMax > 0 && monthsToMax < 12 ? MONTHS[Math.floor(monthsToMax)] : null;
-    const rows = [
-      { key: "repName", label: "Rep Name", display: repName || "Not found, tap to add", raw: repName, missing: !repName, found: false },
-      { key: "base", label: "Base Salary", display: fmt(comp.base), raw: comp.base, found: true },
-      { key: "quota", label: "Annual Quota", display: fmt(comp.quota), raw: comp.quota, found: true },
-      { key: "commissionRate", label: "Commission Rate", display: comp.commissionRate + "%", raw: comp.commissionRate, found: true },
-      { key: "accelerator", label: "Accelerator", display: comp.accelerator + "x", raw: comp.accelerator, found: true },
-      { key: "payFreq", label: "Pay Frequency", display: payFreq, raw: payFreq, found: false },
+    const willMax = intendedK >= k401Limit;
+    const BRACKETS = [
+      { key: "Under 50", label: "Under 50, max $23,500" },
+      { key: "50-59", label: "Age 50 to 59, max $31,000" },
+      { key: "60-63", label: "Age 60 to 63, max $34,750" },
+      { key: "64+", label: "Age 64 and older, max $31,000" },
     ];
-    const NUM_FIELDS = ["base", "quota", "commissionRate", "accelerator"];
-    const saveRow = () => {
-      if (NUM_FIELDS.includes(editField)) setComp((c) => ({ ...c, [editField]: parseFloat(editVal) || 0 }));
-      else if (editField === "repName") setRepName(editVal);
-      else if (editField === "payFreq") setPayFreq(editVal);
-      setEditField(null);
-    };
     return (
       <div className="cf-wrap">
         <style>{S}</style>
@@ -1578,52 +1570,15 @@ export default function App() {
           <div className="cf-step">Step 2 of 6</div>
         </div>
         <div className="cf-screen">
-          <h1 className="cf-h1">Confirm What We Know</h1>
+          <h1 className="cf-h1">Help Coach Understand Your True Take-Home Pay</h1>
 
-          {/* SECTION 1 — What Coach Found */}
-          <div className="cf-card">
-            <div className="cf-card-hdr">
-              <div className="cf-card-title">
-                <span>🥕 Here is what Coach found in your plan</span>
-                <span className="cf-badge green">AI Extracted</span>
-              </div>
-            </div>
-            {rows.map((r) => (
-              <div className="cf-row" key={r.key}>
-                <div className="cf-row-body">
-                  <div className="cf-row-label">{r.label}</div>
-                  {editField === r.key ? (
-                    <div className="cf-edit">
-                      <input
-                        className="cf-einp"
-                        type={NUM_FIELDS.includes(r.key) ? "number" : "text"}
-                        value={editVal}
-                        onChange={(e) => setEditVal(e.target.value)}
-                        autoFocus
-                        onKeyDown={(e) => e.key === "Enter" && saveRow()}
-                      />
-                      <button className="cf-save" onClick={saveRow}>Save</button>
-                      <button className="cf-cancel" onClick={() => setEditField(null)}>Cancel</button>
-                    </div>
-                  ) : (
-                    <>
-                      <div className={`cf-row-val ${r.missing ? "missing" : ""}`}>{r.display}</div>
-                      <span className={`cf-tag ${r.found ? "found" : "verify"}`}>{r.found ? "📄 Found on plan" : "⚠️ Please verify"}</span>
-                    </>
-                  )}
-                </div>
-                {editField !== r.key && <button className="cf-ebtn" onClick={() => startEdit(r.key, r.raw)}>✏️ Edit</button>}
-              </div>
-            ))}
-          </div>
-
-          {/* SECTION 2 — Help Coach Understand You */}
           <div className="cf-card">
             <div className="cf-card-hdr">
               <div className="cf-card-title"><span>A few quick questions so Coach can calculate your real take-home</span></div>
               <div className="cf-card-sub">This takes less than 60 seconds</div>
             </div>
 
+            {/* Q1 — State */}
             <div className="cf-q">
               <div className="cf-q-label">What state do you live in?</div>
               <div className="cf-q-hint">Used to calculate your state income tax</div>
@@ -1633,19 +1588,29 @@ export default function App() {
               </select>
             </div>
 
+            {/* Q2 — 401k bracket + contribution */}
             <div className="cf-q">
-              <div className="cf-q-label">What percentage of your salary do you contribute to your 401k?</div>
-              <input className="ob-slider" type="range" min="0" max="25" step="0.5" value={k401Pct} onChange={(e) => setK401Pct(+e.target.value)} />
-              <div className="cf-q-calc">{k401Pct}% · Annual contribution: ~{fmt(annualK)}</div>
-              {maxMonth && <div className="cf-q-calc">You will max out around {maxMonth}</div>}
+              <div className="cf-q-label">Which 401k contribution bracket are you in?</div>
+              <div className="cf-q-hint">We use this to calculate your maximum annual contribution. We are not asking your age.</div>
+              <div className="bs-pills" style={{ marginBottom: 16 }}>
+                {BRACKETS.map((b) => (
+                  <button key={b.key} className={`bs-opt ${suAge === b.key ? "on" : ""}`} onClick={() => setSuAge(b.key)}>{b.label}</button>
+                ))}
+              </div>
+              <div className="cf-q-label">What percentage of your salary do you contribute?</div>
+              <input className="ob-slider" type="range" min="0" max="100" step="0.5" value={k401Pct} onChange={(e) => setK401Pct(+e.target.value)} />
+              <div className="cf-q-calc">{k401Pct}% · Annual contribution: ~{fmt(annualK)}{maxMonth ? ` · You will max out around ${maxMonth}` : ""}</div>
+              {willMax && <span className="cf-badge green" style={{ display: "inline-block", marginTop: 8 }}>✓ You will max out your 401k this year</span>}
             </div>
 
+            {/* Q3 — Health */}
             <div className="cf-q">
               <div className="cf-q-label">What is your monthly health insurance premium?</div>
-              <div className="cf-q-hint">Your portion after employer contribution</div>
-              <input className="ob-inp" type="number" value={healthMo} onChange={(e) => setHealthMo(+e.target.value)} placeholder="0" />
+              <div className="cf-q-hint">Your portion after employer contribution · Based on single person coverage</div>
+              <input className="ob-inp" type="number" value={healthMo} onChange={(e) => setHealthMo(+e.target.value)} placeholder="200" />
             </div>
 
+            {/* Q4 — Other deductions */}
             <div className="cf-q">
               <div className="cf-q-label">Any other monthly deductions?</div>
               <div className="cf-q-hint">Dental, vision, FSA, parking, etc.</div>
