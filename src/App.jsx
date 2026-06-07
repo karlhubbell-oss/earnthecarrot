@@ -475,6 +475,33 @@ select.ob-inp{appearance:none;cursor:pointer;background-image:url("data:image/sv
 .bs-done{background:var(--green-light);border:1.5px solid var(--green);border-radius:16px;padding:18px 20px;margin-top:20px;}
 .bs-done-t{font-size:16px;font-weight:700;color:var(--green);margin-bottom:12px;}
 @media(max-width:680px){.bs-cols{grid-template-columns:1fr;}.ca-plans{grid-template-columns:1fr;}.bs-strat{position:static;}}
+/* upload screen */
+.up-wrap{min-height:100vh;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;}
+.up-screen{max-width:600px;margin:0 auto;padding:30px 20px 90px;animation:fadeUp 0.35s ease;}
+.up-h1{font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:var(--ink);line-height:1.15;margin-bottom:12px;}
+.up-sub{font-size:17px;color:var(--muted);line-height:1.6;max-width:500px;margin-bottom:26px;}
+.up-zone{border:2px dashed var(--border);border-radius:20px;min-height:200px;background:white;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;cursor:pointer;transition:all 0.2s;}
+.up-zone:hover{border-color:var(--carrot);background:var(--carrot-light);}
+.up-zone-ico{font-size:48px;margin-bottom:12px;}
+.up-zone-t{font-size:18px;font-weight:700;color:var(--ink);margin-bottom:6px;}
+.up-zone-s{font-size:15px;color:var(--muted);line-height:1.5;margin-bottom:10px;max-width:440px;margin-left:auto;margin-right:auto;}
+.up-zone-hint{font-size:13px;color:var(--muted);margin-bottom:8px;}
+.up-zone-link{font-size:14px;color:var(--carrot);font-weight:700;}
+.up-list{margin-top:16px;display:flex;flex-direction:column;gap:8px;}
+.up-file{display:flex;align-items:center;gap:12px;padding:12px 16px;background:white;border:1.5px solid var(--border);border-radius:12px;}
+.up-file-ico{font-size:18px;flex-shrink:0;}
+.up-file-name{flex:1;min-width:0;font-size:14px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.up-file-size{font-size:13px;color:var(--muted);flex-shrink:0;}
+.up-file-x{flex-shrink:0;background:none;border:none;color:#DC2626;font-size:20px;line-height:1;cursor:pointer;padding:0 4px;}
+.up-priv{display:flex;gap:10px;background:var(--green-light);border:1px solid var(--green);border-radius:14px;padding:16px;font-size:14px;color:var(--green);line-height:1.55;margin-top:20px;}
+.up-next{background:var(--carrot-light);border:1.5px solid rgba(244,113,26,0.3);border-radius:14px;padding:16px;margin-top:12px;}
+.up-next-t{font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--carrot-dark);margin-bottom:10px;}
+.up-next-line{display:flex;gap:8px;font-size:14px;color:var(--ink);line-height:1.5;margin-bottom:6px;}
+.up-next-line:last-child{margin-bottom:0;}
+.up-next-num{color:var(--carrot);font-weight:800;flex-shrink:0;}
+.up-cta{width:100%;padding:18px;border-radius:100px;border:none;background:var(--carrot);color:white;font-size:18px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;margin-top:24px;}
+.up-cta:hover:not(:disabled){background:var(--carrot-dark);transform:translateY(-2px);box-shadow:0 12px 36px rgba(244,113,26,0.4);}
+.up-cta:disabled{background:rgba(244,113,26,0.4);cursor:not-allowed;}
 /* carrot bridge */
 .cb-wrap{min-height:100vh;background:var(--dark);color:white;display:flex;align-items:center;justify-content:center;padding:40px 24px;}
 .cb-inner{max-width:560px;width:100%;animation:fadeUp 0.4s ease;}
@@ -521,6 +548,7 @@ export default function App() {
   const [suAge, setSuAge]     = useState("Under 50");
   const [suPass, setSuPass]   = useState("");
   const [planFile, setPlanFile] = useState(null);
+  const [planFiles, setPlanFiles] = useState([]);
   const [comp, setComp] = useState({ base: 150000, quota: 1500000, commissionRate: 8, accelerator: 1.5 });
   const [editField, setEditField] = useState(null);
   const [editVal, setEditVal] = useState("");
@@ -1892,43 +1920,64 @@ export default function App() {
     );
   }
 
-  // ══ ONBOARDING STEP SCREENS ══════════════════════════════════════════
-  if (screen === "upload" || FLOW.includes(screen)) {
-    const idx = FLOW.indexOf(screen);
-    let body = null;
-
-    if (screen === "upload") {
-      body = (
-        <>
-          <div className="ob-eyebrow">Step 2 of 6 · Compensation plan</div>
-          <h1 className="ob-h1">Upload your comp plan</h1>
-          <p className="ob-subt">Drop in your compensation plan PDF. Coach reads every line.</p>
-          <label className={`ob-drop ${planFile ? "has" : ""}`}>
-            <input type="file" accept="application/pdf" style={{ display: "none" }} onChange={(e) => setPlanFile(e.target.files[0] || null)} />
-            <div style={{ fontSize: 40, marginBottom: 10 }}>{planFile ? "✅" : "📄"}</div>
-            <div style={{ fontSize: 17, fontWeight: 700 }}>{planFile ? planFile.name : "Click to upload your PDF"}</div>
-            <div style={{ fontSize: 15, color: "var(--muted)", marginTop: 4 }}>{planFile ? "Tap to choose a different file" : "PDF up to 20 MB"}</div>
-          </label>
-          <div className="ob-note"><span>🔒</span><span>Your plan is private. We use it only to build your personal earnings model and never share it.</span></div>
-          <button className="ob-btn" disabled={!planFile} onClick={() => goFlow("confirm")}>Review My Plan</button>
-        </>
-      );
-    }
-
+  // ══ UPLOAD (files for Coach to review) ═══════════════════════════════
+  if (screen === "upload") {
+    const fmtSize = (b) => (b < 1024 * 1024 ? Math.round(b / 1024) + " KB" : (b / 1024 / 1024).toFixed(1) + " MB");
+    const addFiles = (fileList) => setPlanFiles((prev) => [...prev, ...Array.from(fileList || [])].slice(0, 10));
+    const removeFile = (i) => setPlanFiles((prev) => prev.filter((_, j) => j !== i));
     return (
-      <div className="ob">
+      <div className="up-wrap">
         <style>{S}</style>
         <style>{OB_STYLES}</style>
-        <div className="ob-top">
-          <button className="ob-back" onClick={() => goFlow(idx <= 0 ? "landing" : FLOW[idx - 1])}>← Back</button>
-          <div className="ob-progress">
-            {FLOW.map((s, i) => (
-              <div key={s} className={`ob-dot ${i === idx ? "active" : i < idx ? "done" : ""}`} title={FLOW_LABELS[i]} />
-            ))}
-          </div>
-          <div className="ob-steplbl">{idx >= 0 ? `${idx + 1} / ${FLOW.length}` : ""}</div>
+        <div className="cf-top">
+          <button className="ob-back" onClick={() => goFlow("landing")}>← Back</button>
+          <div className="cf-step">Step 1 of 6</div>
         </div>
-        <div className="ob-screen">{body}</div>
+        <div className="up-screen">
+          <h1 className="up-h1">Upload Your Files for Coach to Review</h1>
+          <p className="up-sub">Drop in anything related to your compensation. Coach will figure out what each file is and use everything to build your earnings picture.</p>
+
+          <label className="up-zone">
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+              style={{ display: "none" }}
+              onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
+            />
+            <div>
+              <div className="up-zone-ico">📄</div>
+              <div className="up-zone-t">Drop your files here</div>
+              <div className="up-zone-s">Comp plans, prior year plans, SPIFF emails, quota change notices, bonus letters, anything works</div>
+              <div className="up-zone-hint">PDF, Word, or text files · Up to 10 files · 20MB each</div>
+              <div className="up-zone-link">or click to browse</div>
+            </div>
+          </label>
+
+          {planFiles.length > 0 && (
+            <div className="up-list">
+              {planFiles.map((f, i) => (
+                <div className="up-file" key={i}>
+                  <span className="up-file-ico">📄</span>
+                  <span className="up-file-name">{f.name}</span>
+                  <span className="up-file-size">{fmtSize(f.size)}</span>
+                  <button className="up-file-x" onClick={() => removeFile(i)}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="up-priv"><span>🔒</span><span>Your files are private. Coach uses them only to build your personal earnings model and never shares them with anyone.</span></div>
+
+          <div className="up-next">
+            <div className="up-next-t">What Happens Next</div>
+            <div className="up-next-line"><span className="up-next-num">1</span><span>Coach reads your files and identifies your compensation structure</span></div>
+            <div className="up-next-line"><span className="up-next-num">2</span><span>You confirm what Coach found and add your state and 401k details</span></div>
+            <div className="up-next-line"><span className="up-next-num">3</span><span>Coach shows you your full earnings analysis and real take-home numbers</span></div>
+          </div>
+
+          <button className="up-cta" disabled={planFiles.length === 0} onClick={() => goFlow("confirm")}>Review My Plan →</button>
+        </div>
       </div>
     );
   }
