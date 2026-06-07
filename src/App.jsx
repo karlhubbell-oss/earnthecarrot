@@ -444,6 +444,15 @@ select.ob-inp{appearance:none;cursor:pointer;background-image:url("data:image/sv
 .rpm-pill:hover{border-color:var(--carrot);color:var(--carrot);}
 .rpm-pill.on{background:var(--carrot);border-color:var(--carrot);color:white;}
 .rpm-img-label{font-size:13px;font-weight:700;color:#1A1208;margin:18px 0 10px;}
+.rpm-findbtn{width:100%;background:white;border:1.5px solid var(--carrot);color:var(--carrot);border-radius:12px;padding:14px;font-weight:600;font-size:15px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:18px;display:flex;align-items:center;justify-content:center;gap:8px;}
+.rpm-findbtn:hover{background:var(--carrot-light);}
+.rpm-findbtn:disabled{opacity:0.75;cursor:default;}
+.rpm-findhint{font-size:13px;color:#7A6A55;text-align:center;margin-top:8px;}
+.rpm-imgbox{position:relative;width:100%;height:200px;border-radius:16px;overflow:hidden;margin-top:18px;background:linear-gradient(135deg,#F4711A,#E9C46A,#2D6A4F);display:flex;align-items:center;justify-content:center;}
+.rpm-imgbox img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.rpm-imgbox-fallback{position:relative;z-index:1;color:white;font-weight:800;font-size:18px;text-align:center;padding:16px;text-shadow:0 1px 4px rgba(0,0,0,0.4);}
+.rpm-imgcap{text-align:center;color:var(--carrot);font-weight:700;font-size:14px;margin-top:10px;}
+.rpm-retry{display:block;margin:6px auto 0;background:none;border:none;color:#7A6A55;font-size:13px;cursor:pointer;text-decoration:underline;font-family:'DM Sans',sans-serif;}
 .rpm-goldbox{background:var(--gold-light);border:1.5px solid var(--gold);border-radius:16px;padding:16px 20px;font-size:14px;color:#7A5C00;line-height:1.6;margin-bottom:20px;}
 .rpm-card{background:white;border:1px solid #EDE0CC;border-radius:20px;overflow:hidden;margin-bottom:20px;}
 .rpm-card-hdr{padding:18px 20px 0;}
@@ -613,6 +622,8 @@ export default function App() {
   const [todayLog, setTodayLog] = useState({});
   const [carrotAnswer, setCarrotAnswer] = useState("");
   const [carrotImage, setCarrotImage] = useState(null);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const [carrotCost, setCarrotCost] = useState("");
   const [selectedPlan, setSelectedPlan] = useState("pro");
   const [dealSize, setDealSize] = useState("");
@@ -1653,6 +1664,16 @@ export default function App() {
     const monthsNeeded = +carrotCost > 0 && extraPerMonth > 0 ? Math.ceil(+carrotCost / extraPerMonth) : null;
     const costMonth = monthsNeeded ? MONTHS[Math.min(11, monthsNeeded - 1)] : null;
     const PICKS = ["Family vacation", "Pay off debt", "New car", "Home improvement", "Save it"];
+    const findImage = () => {
+      setImageError(false);
+      setCarrotImage(null);
+      setImageLoading(true);
+      setTimeout(() => {
+        const q = encodeURIComponent(carrotAnswer.split(" ").slice(0, 3).join(","));
+        setCarrotImage(`https://source.unsplash.com/600x400/?${q}`);
+        setImageLoading(false);
+      }, 2000);
+    };
     return (
       <div className="rpm-wrap">
         <style>{S}</style>
@@ -1722,8 +1743,27 @@ export default function App() {
               <div className="rpm-money"><span>$</span><input type="number" value={carrotCost} onChange={(e) => setCarrotCost(e.target.value)} placeholder="e.g. 8000" /></div>
               <div className="rpm-q-hint">Optional, helps Coach make your nudges more specific</div>
 
-              <div className="rpm-img-label">Add a photo of your carrot (optional)</div>
-              <CarrotImageBox image={carrotImage} onImageChange={setCarrotImage} />
+              {carrotAnswer.trim() && !carrotImage && (
+                <>
+                  <button className="rpm-findbtn" disabled={imageLoading} onClick={findImage}>
+                    {imageLoading
+                      ? <><span style={{ animation: "azspin 1s linear infinite", display: "inline-block" }}>🥕</span> Finding your image...</>
+                      : "Find My Carrot Image 🥕"}
+                  </button>
+                  <div className="rpm-findhint">Coach will find a photo that matches your goal</div>
+                </>
+              )}
+
+              {carrotImage && (
+                <>
+                  <div className="rpm-imgbox">
+                    {!imageError && <img src={carrotImage} alt={carrotAnswer} onError={() => setImageError(true)} />}
+                    {imageError && <div className="rpm-imgbox-fallback">{carrotAnswer}</div>}
+                  </div>
+                  <div className="rpm-imgcap">{carrotAnswer}</div>
+                  <button className="rpm-retry" onClick={findImage}>Not quite? Try again</button>
+                </>
+              )}
 
               {carrotAnswer.trim() && (
                 <div className="rpm-nudge">
