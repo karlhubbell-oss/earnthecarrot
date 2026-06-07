@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 const S = `
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
@@ -172,9 +172,218 @@ const CARROT_CARDS = [
 
 const ACTIVITY_STEPS = ["Calls", "Meetings", "Opportunities", "Deals", "Commission"];
 
+// ── ONBOARDING DATA / HELPERS ────────────────────────────────────────
+const STATE_TAXES = {
+  "Alabama":2.5,"Alaska":0,"Arizona":2.5,"Arkansas":4.4,"California":9.3,
+  "Colorado":4.4,"Connecticut":5.0,"Delaware":5.2,"Florida":0,"Georgia":5.49,
+  "Hawaii":7.9,"Idaho":5.8,"Illinois":4.95,"Indiana":3.05,"Iowa":4.4,
+  "Kansas":5.2,"Kentucky":4.0,"Louisiana":3.0,"Maine":7.15,"Maryland":5.1,
+  "Massachusetts":5.0,"Michigan":4.25,"Minnesota":6.8,"Mississippi":4.7,
+  "Missouri":4.8,"Montana":6.75,"Nebraska":5.2,"Nevada":0,"New Hampshire":0,
+  "New Jersey":6.37,"New Mexico":4.9,"New York":6.85,"North Carolina":4.5,
+  "North Dakota":2.5,"Ohio":3.5,"Oklahoma":4.75,"Oregon":9.9,"Pennsylvania":3.07,
+  "Rhode Island":4.75,"South Carolina":6.4,"South Dakota":0,"Tennessee":0,
+  "Texas":0,"Utah":4.65,"Vermont":6.6,"Virginia":5.75,"Washington":0,
+  "West Virginia":5.12,"Wisconsin":5.3,"Wyoming":0,"Washington D.C.":8.5,
+};
+const STATES = Object.keys(STATE_TAXES).sort();
+const AGE_BRACKETS = ["Under 50", "50-59", "60-63", "64+"];
+const K401_LIMITS = { "Under 50": 23500, "50-59": 31000, "60-63": 34750, "64+": 31000 };
+
+function getFedBracket(income) {
+  if (income <= 11925)  return { rate: 10 };
+  if (income <= 48475)  return { rate: 12 };
+  if (income <= 103350) return { rate: 22 };
+  if (income <= 197300) return { rate: 24 };
+  if (income <= 250525) return { rate: 32 };
+  if (income <= 626350) return { rate: 35 };
+  return { rate: 37 };
+}
+const fmt = (n) => "$" + Math.round(n || 0).toLocaleString();
+
+const FLOW = ["signup", "upload", "summary", "paycheck", "carrots", "playbook"];
+const FLOW_LABELS = ["Account", "Upload", "Summary", "Paycheck", "Carrots", "Playbook"];
+const DASH_TABS = [
+  { key: "home", ico: "🏠", lbl: "Home" },
+  { key: "update", ico: "✏️", lbl: "Update" },
+  { key: "carrots", ico: "🥕", lbl: "Carrots" },
+  { key: "plan", ico: "📋", lbl: "My Plan" },
+  { key: "settings", ico: "⚙️", lbl: "Settings" },
+];
+
+const OB_STYLES = `
+.ob{min-height:100vh;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;}
+.ob-top{position:sticky;top:0;z-index:50;background:rgba(255,250,244,0.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:14px 20px;}
+.ob-back{background:white;border:1.5px solid var(--border);border-radius:100px;padding:7px 16px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;}
+.ob-back:hover{border-color:var(--carrot);color:var(--carrot);}
+.ob-progress{flex:1;display:flex;gap:6px;align-items:center;justify-content:center;}
+.ob-dot{width:8px;height:8px;border-radius:50%;background:var(--border);transition:all 0.3s;}
+.ob-dot.active{background:var(--carrot);width:26px;border-radius:4px;}
+.ob-dot.done{background:var(--green);}
+.ob-steplbl{font-size:13px;font-weight:700;color:var(--muted);min-width:48px;text-align:right;}
+.ob-screen{max-width:560px;margin:0 auto;padding:34px 20px 70px;animation:fadeUp 0.35s ease;}
+.ob-eyebrow{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--carrot);margin-bottom:8px;}
+.ob-h1{font-family:'Playfair Display',serif;font-size:30px;font-weight:900;color:var(--ink);margin-bottom:8px;line-height:1.15;}
+.ob-subt{font-size:15px;color:var(--muted);line-height:1.55;margin-bottom:26px;}
+.ob-field{margin-bottom:18px;}
+.ob-label{display:block;font-size:13px;font-weight:700;color:var(--ink);margin-bottom:6px;}
+.ob-inp{width:100%;padding:13px 16px;border:1.5px solid var(--border);border-radius:12px;font-size:16px;font-family:'DM Sans',sans-serif;background:white;color:var(--ink);}
+.ob-inp:focus{outline:none;border-color:var(--carrot);}
+select.ob-inp{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237A6A55' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;}
+.ob-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.ob-btn{width:100%;padding:16px;border-radius:100px;border:none;background:var(--carrot);color:white;font-size:17px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;margin-top:10px;}
+.ob-btn:hover{background:var(--carrot-dark);}
+.ob-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.ob-card{background:white;border:1.5px solid var(--border);border-radius:18px;padding:20px;margin-bottom:16px;}
+.ob-note{background:var(--green-light);border:1px solid var(--green);border-radius:12px;padding:12px 16px;font-size:13px;color:var(--green);line-height:1.5;margin-bottom:20px;display:flex;gap:10px;}
+.ob-drop{border:2px dashed var(--border);border-radius:18px;padding:44px 24px;text-align:center;cursor:pointer;background:white;transition:all 0.2s;margin-bottom:16px;}
+.ob-drop:hover{border-color:var(--carrot);background:var(--carrot-light);}
+.ob-drop.has{border-style:solid;border-color:var(--green);background:var(--green-light);}
+.ob-coach{background:linear-gradient(145deg,#0F0A05,#2D1A0A);border-radius:20px;padding:22px;color:white;margin-bottom:18px;}
+.ob-coach-badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:rgba(244,113,26,0.25);color:#FDBA74;margin-bottom:12px;}
+.ob-coach-line{font-size:14px;line-height:1.65;color:rgba(255,255,255,0.85);margin-bottom:8px;}
+.ob-coach-line:last-child{margin-bottom:0;}
+.ob-ote{background:linear-gradient(135deg,var(--carrot),var(--carrot-dark));border-radius:20px;padding:26px;color:white;margin-bottom:18px;text-align:center;}
+.ob-ote-lbl{font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;opacity:0.85;margin-bottom:6px;}
+.ob-ote-val{font-family:'Playfair Display',serif;font-size:46px;font-weight:900;line-height:1;}
+.ob-split{display:flex;gap:12px;margin-top:18px;}
+.ob-split-item{flex:1;background:rgba(255,255,255,0.16);border-radius:12px;padding:12px;}
+.ob-split-k{font-size:11px;opacity:0.85;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.ob-split-v{font-size:18px;font-weight:800;}
+.ob-stat{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--border);}
+.ob-stat:last-child{border-bottom:none;}
+.ob-stat-lbl{font-size:14px;color:var(--muted);}
+.ob-stat-sub{font-size:11px;color:var(--muted);opacity:0.8;}
+.ob-stat-val{font-size:17px;font-weight:700;color:var(--ink);text-align:right;}
+.ob-stat-val.green{color:var(--green);}
+.ob-stat-val.red{color:#DC2626;}
+.ob-tabs{display:flex;gap:6px;background:var(--cream);border:1.5px solid var(--border);border-radius:14px;padding:5px;margin-bottom:22px;}
+.ob-tab{flex:1;padding:11px 6px;border:none;background:none;border-radius:10px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;color:var(--muted);}
+.ob-tab.on{background:white;color:var(--carrot);box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+.ob-slider{width:100%;accent-color:var(--carrot);cursor:pointer;margin:8px 0 4px;}
+.ob-target{font-family:'Playfair Display',serif;font-size:54px;font-weight:900;color:var(--carrot);text-align:center;line-height:1;}
+.ob-target-sub{text-align:center;font-size:13px;color:var(--muted);margin-bottom:10px;}
+.ob-add{width:100%;padding:13px;border:2px dashed var(--border);border-radius:14px;background:white;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;color:var(--muted);font-size:14px;}
+.ob-add:hover{border-color:var(--carrot);color:var(--carrot);}
+.ob-add:disabled{opacity:0.45;cursor:not-allowed;}
+.ob-del{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;}
+.ob-del:hover{color:#DC2626;}
+.ob-pill-row{display:flex;gap:8px;flex-wrap:wrap;}
+.ob-pill{padding:8px 14px;border-radius:100px;border:1.5px solid var(--border);background:white;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--muted);}
+.ob-pill.on{border-color:var(--carrot);background:var(--carrot);color:white;}
+.ob-toggle{display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--ink);font-weight:600;}
+.ob-track{width:44px;height:25px;border-radius:100px;background:var(--border);position:relative;transition:all 0.2s;flex-shrink:0;}
+.ob-track.on{background:var(--green);}
+.ob-knob{position:absolute;top:2.5px;left:2.5px;width:20px;height:20px;border-radius:50%;background:white;transition:all 0.2s;}
+.ob-track.on .ob-knob{left:21.5px;}
+.ob-opt{border:2px solid var(--border);border-radius:14px;padding:16px;cursor:pointer;background:white;margin-bottom:10px;transition:all 0.2s;}
+.ob-opt:hover{border-color:var(--carrot);}
+.ob-opt.on{border-color:var(--carrot);background:var(--carrot-light);}
+.ob-money-line{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-radius:12px;background:rgba(244,113,26,0.1);border:1px solid rgba(244,113,26,0.3);margin-bottom:14px;}
+.ob-money-line .v{font-family:'Playfair Display',serif;font-size:22px;font-weight:900;color:var(--carrot-dark);}
+.ob-sec-h{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;margin:26px 0 4px;}
+.ob-sec-sub{font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5;}
+/* dashboard */
+.ob-dash{max-width:560px;margin:0 auto;padding:20px 16px 170px;animation:fadeUp 0.35s ease;}
+.ob-dash-hero{background:linear-gradient(135deg,var(--carrot),var(--carrot-dark));border-radius:22px;padding:26px;color:white;margin-bottom:20px;position:relative;overflow:hidden;}
+.ob-dash-hero::after{content:'🥕';position:absolute;right:18px;top:50%;transform:translateY(-50%);font-size:72px;opacity:0.13;}
+.ob-dash-name{font-size:14px;opacity:0.9;margin-bottom:6px;}
+.ob-dash-pct{font-family:'Playfair Display',serif;font-size:46px;font-weight:900;line-height:1;}
+.ob-prog-bar{height:12px;background:var(--border);border-radius:6px;overflow:hidden;margin:8px 0 6px;}
+.ob-prog-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--carrot));border-radius:6px;transition:width 0.6s ease;}
+.ob-metric{background:white;border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;}
+.ob-metric-hdr{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.ob-status{font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;}
+.st-stretch{background:var(--green-light);color:var(--green);}
+.st-floor{background:#EFF6FF;color:#1D4ED8;}
+.st-below{background:#FEE2E2;color:#DC2626;}
+.ob-carrotbar{position:fixed;bottom:62px;left:0;right:0;z-index:60;background:linear-gradient(135deg,#1A1208,#2D1A0A);color:white;padding:10px 16px;border-top:1px solid rgba(244,113,26,0.25);}
+.ob-carrotbar-inner{max-width:560px;margin:0 auto;}
+.ob-cb-top{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:rgba(255,255,255,0.7);}
+.ob-cb-amt{font-family:'Playfair Display',serif;font-size:16px;font-weight:900;color:var(--carrot);}
+.ob-cb-track{height:8px;background:rgba(255,255,255,0.15);border-radius:5px;overflow:hidden;margin-top:6px;}
+.ob-cb-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--carrot),var(--green));border-radius:5px;transition:width 0.6s ease;}
+.ob-tabbar{position:fixed;bottom:0;left:0;right:0;z-index:70;display:flex;background:rgba(255,250,244,0.98);backdrop-filter:blur(10px);border-top:1px solid var(--border);}
+.ob-tabbar-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px 11px;border:none;background:none;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--muted);}
+.ob-tabbar-tab.on{color:var(--carrot);}
+.ob-tabbar-ico{font-size:19px;line-height:1;}
+.ob-tabbar-lbl{font-size:10px;font-weight:700;}
+@media(max-width:480px){.ob-row{grid-template-columns:1fr;}}
+`;
+
 export default function App() {
   const [screen, setScreen] = useState("landing");
   const [scrolled, setScrolled] = useState(false);
+
+  // ── ONBOARDING STATE ──
+  const [suName, setSuName]   = useState("");
+  const [suEmail, setSuEmail] = useState("");
+  const [suState, setSuState] = useState("");
+  const [suAge, setSuAge]     = useState("Under 50");
+  const [suPass, setSuPass]   = useState("");
+  const [planFile, setPlanFile] = useState(null);
+  const [comp] = useState({ base: 150000, quota: 1500000, commissionRate: 8, accelerator: 1.5 });
+  const [k401Pct, setK401Pct]   = useState(6);
+  const [healthMo, setHealthMo] = useState(200);
+  const [carrotTab, setCarrotTab] = useState("big");
+  const [bigCarrots, setBigCarrots] = useState([{ id: 1, name: "Family trip to Hawaii", cost: 12000 }]);
+  const [medCarrots, setMedCarrots] = useState([{ id: 1, name: "Weekend getaway", cost: 2500, period: "Quarterly" }]);
+  const [targetPct, setTargetPct] = useState(110);
+  const [metrics, setMetrics] = useState([
+    { id: 1, emoji: "📞", label: "Cold calls", freq: "Daily", floor: 10, stretch: 15, reminder: true, treat: "" },
+    { id: 2, emoji: "🤝", label: "Discovery meetings", freq: "Weekly", floor: 5, stretch: 8, reminder: false, treat: "" },
+  ]);
+  const [trackingMethod, setTrackingMethod] = useState("manual");
+  const [activeTab, setActiveTab] = useState("home");
+  const [todayLog, setTodayLog] = useState({});
+
+  // ── ONBOARDING CALCULATIONS ──
+  const k401Limit = K401_LIMITS[suAge] ?? 23500;
+  const stateTaxPct = STATE_TAXES[suState] ?? 0;
+  const rate = comp.commissionRate / 100;
+  function calcGross(pct) {
+    const att = pct / 100;
+    const commission = att <= 1
+      ? comp.quota * att * rate
+      : comp.quota * rate + comp.quota * (att - 1) * rate * comp.accelerator;
+    return comp.base + commission;
+  }
+  function calcNet(gross) {
+    const k = Math.min(gross * k401Pct / 100, k401Limit);
+    const health = healthMo * 12;
+    const taxable = Math.max(0, gross - k - health);
+    const fed = taxable * getFedBracket(gross).rate / 100;
+    const st = taxable * stateTaxPct / 100;
+    const fica = gross * 0.0765;
+    return gross - fed - st - fica - k - health;
+  }
+  const grossAt100 = useMemo(() => calcGross(100), [comp, suAge, k401Pct, healthMo, suState]);
+  const commAt100 = comp.quota * rate;
+  const carrotMoney = useMemo(
+    () => Math.max(0, calcNet(calcGross(targetPct)) - calcNet(grossAt100)),
+    [targetPct, comp, suAge, k401Pct, healthMo, suState]
+  );
+  function pctToFund(cost) {
+    if (!cost) return null;
+    const base = calcNet(grossAt100);
+    for (let p = 101; p <= 300; p++) {
+      if (calcNet(calcGross(p)) - base >= cost) return p;
+    }
+    return null;
+  }
+  const bigCarrotGoal = bigCarrots.reduce((s, c) => s + (+c.cost || 0), 0);
+
+  function updateMetric(id, patch) {
+    setMetrics((p) => p.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+  }
+  function metricStatus(count, m) {
+    const c = +count || 0;
+    if (c >= (+m.stretch || 0)) return { label: "Stretch hit", cls: "st-stretch" };
+    if (c >= (+m.floor || 0))   return { label: "Floor cleared", cls: "st-floor" };
+    return { label: "Below floor", cls: "st-below" };
+  }
+
+  const goFlow = (s) => { setScreen(s); window.scrollTo(0, 0); };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -195,7 +404,7 @@ export default function App() {
             <a className="nav-link" href="#coach">Meet Coach</a>
             <a className="nav-link" href="#pricing">Pricing</a>
           </div>
-          <button className="nav-cta" onClick={() => setScreen("onboarding")}>
+          <button className="nav-cta" onClick={() => goFlow("signup")}>
             Build My Playbook
           </button>
         </nav>
@@ -214,7 +423,7 @@ export default function App() {
           <p className="hero-sub">
             Coach helps salespeople understand how they get paid, build a personalized success plan, and stay focused on the actions that drive results.
           </p>
-          <button className="hero-cta" onClick={() => setScreen("onboarding")}>
+          <button className="hero-cta" onClick={() => goFlow("signup")}>
             Build My Personal Playbook →
           </button>
           <div className="hero-hint">
@@ -937,7 +1146,7 @@ export default function App() {
               <div className="closing-line">Build a plan to exceed quota.</div>
               <div className="closing-line">Earn your carrot.</div>
             </div>
-            <button className="closing-cta" onClick={() => setScreen("onboarding")}>
+            <button className="closing-cta" onClick={() => goFlow("signup")}>
               Build My Personal Playbook →
             </button>
           </div>
@@ -961,33 +1170,368 @@ export default function App() {
     );
   }
 
-  return (
-    <>
-      <style>{S}</style>
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "var(--dark)",
-        }}
-      >
-        <button
-          onClick={() => setScreen("landing")}
-          style={{
-            color: "white",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: 16,
-            fontFamily: "'DM Sans',sans-serif",
-          }}
-        >
-          Back to home
-        </button>
+  // ══ DASHBOARD (terminal screen) ══════════════════════════════════════
+  if (screen === "dashboard") {
+    let remaining = carrotMoney;
+    const funded = bigCarrots.map((c) => {
+      const applied = Math.min(remaining, +c.cost || 0);
+      remaining = Math.max(0, remaining - (+c.cost || 0));
+      return { ...c, applied };
+    });
+    const activeMeta = DASH_TABS.find((t) => t.key === activeTab);
+    return (
+      <div className="ob">
+        <style>{S}</style>
+        <style>{OB_STYLES}</style>
+        <div className="ob-dash">
+          {activeTab === "home" && (
+            <>
+              <div className="ob-dash-hero">
+                <div className="ob-dash-name">Welcome back{suName ? `, ${suName.split(" ")[0]}` : ""}</div>
+                <div className="ob-dash-pct">{targetPct}% of plan</div>
+                <div style={{ fontSize: 13, opacity: 0.9, marginTop: 6 }}>
+                  On pace for {fmt(calcNet(calcGross(targetPct)))} take home
+                </div>
+              </div>
+              <div className="ob-sec-h" style={{ marginTop: 0 }}>Today's activities</div>
+              {metrics.map((m) => {
+                const v = todayLog[m.id] || 0;
+                const s = metricStatus(v, m);
+                return (
+                  <div key={m.id} className="ob-metric">
+                    <div className="ob-metric-hdr">
+                      <span style={{ fontSize: 18 }}>{m.emoji}</span>
+                      <strong style={{ flex: 1 }}>{m.label}</strong>
+                      <span className={`ob-status ${s.cls}`}>{s.label}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <button className="ob-del" style={{ fontSize: 22 }} onClick={() => setTodayLog({ ...todayLog, [m.id]: Math.max(0, v - 1) })}>−</button>
+                      <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 24, fontWeight: 900, minWidth: 36, textAlign: "center" }}>{v}</span>
+                      <button className="ob-del" style={{ fontSize: 22 }} onClick={() => setTodayLog({ ...todayLog, [m.id]: v + 1 })}>+</button>
+                      <span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 8 }}>Floor {m.floor} · Stretch {m.stretch}</span>
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="ob-sec-h">Big carrot progress</div>
+              {funded.map((c) => {
+                const pctFill = +c.cost > 0 ? Math.min(100, (c.applied / c.cost) * 100) : 0;
+                return (
+                  <div key={c.id} className="ob-card">
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <strong>{c.name || "Big Carrot"}</strong>
+                      <span style={{ fontSize: 13, color: "var(--muted)" }}>{fmt(c.applied)} / {fmt(c.cost)}</span>
+                    </div>
+                    <div className="ob-prog-bar"><div className="ob-prog-fill" style={{ width: `${pctFill}%` }} /></div>
+                    <div style={{ fontSize: 12, color: "var(--muted)" }}>{Math.round(pctFill)}% funded</div>
+                  </div>
+                );
+              })}
+            </>
+          )}
+          {activeTab !== "home" && (
+            <div style={{ textAlign: "center", padding: "80px 20px", color: "var(--muted)" }}>
+              <div style={{ fontSize: 42, marginBottom: 12 }}>{activeMeta?.ico}</div>
+              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: "var(--ink)", marginBottom: 6 }}>{activeMeta?.lbl}</div>
+              <p>Coming soon.</p>
+            </div>
+          )}
+        </div>
+
+        {/* persistent carrot motivation bar */}
+        <div className="ob-carrotbar">
+          <div className="ob-carrotbar-inner">
+            <div className="ob-cb-top"><span>🥕 Carrot money earned</span><span className="ob-cb-amt">{fmt(carrotMoney)}</span></div>
+            <div className="ob-cb-track"><div className="ob-cb-fill" style={{ width: `${bigCarrotGoal > 0 ? Math.min(100, (carrotMoney / bigCarrotGoal) * 100) : 0}%` }} /></div>
+          </div>
+        </div>
+
+        {/* bottom tab bar */}
+        <div className="ob-tabbar">
+          {DASH_TABS.map((t) => (
+            <button key={t.key} className={`ob-tabbar-tab ${activeTab === t.key ? "on" : ""}`} onClick={() => { setActiveTab(t.key); window.scrollTo(0, 0); }}>
+              <span className="ob-tabbar-ico">{t.ico}</span>
+              <span className="ob-tabbar-lbl">{t.lbl}</span>
+            </button>
+          ))}
+        </div>
       </div>
-    </>
+    );
+  }
+
+  // ══ ONBOARDING STEP SCREENS ══════════════════════════════════════════
+  if (FLOW.includes(screen)) {
+    const idx = FLOW.indexOf(screen);
+    let body = null;
+
+    if (screen === "signup") {
+      body = (
+        <>
+          <div className="ob-eyebrow">Step 1 of 6 · Create account</div>
+          <h1 className="ob-h1">Create your account</h1>
+          <p className="ob-subt">A few details so Coach can personalize your earnings math.</p>
+          <div className="ob-field">
+            <label className="ob-label">Full name</label>
+            <input className="ob-inp" value={suName} onChange={(e) => setSuName(e.target.value)} placeholder="Jordan Rivera" />
+          </div>
+          <div className="ob-field">
+            <label className="ob-label">Work email</label>
+            <input className="ob-inp" type="email" value={suEmail} onChange={(e) => setSuEmail(e.target.value)} placeholder="you@company.com" />
+          </div>
+          <div className="ob-row">
+            <div className="ob-field">
+              <label className="ob-label">State</label>
+              <select className="ob-inp" value={suState} onChange={(e) => setSuState(e.target.value)}>
+                <option value="">Select state</option>
+                {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="ob-field">
+              <label className="ob-label">Age bracket</label>
+              <select className="ob-inp" value={suAge} onChange={(e) => setSuAge(e.target.value)}>
+                {AGE_BRACKETS.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+          </div>
+          <p className="ob-sec-sub" style={{ marginTop: -8 }}>Age bracket sets your 401k contribution limit ({fmt(K401_LIMITS[suAge])} per year).</p>
+          <div className="ob-field">
+            <label className="ob-label">Password</label>
+            <input className="ob-inp" type="password" value={suPass} onChange={(e) => setSuPass(e.target.value)} placeholder="Create a password" />
+          </div>
+          <button className="ob-btn" disabled={!suName || !suEmail || !suState || !suPass} onClick={() => goFlow("upload")}>Create My Account</button>
+        </>
+      );
+    } else if (screen === "upload") {
+      body = (
+        <>
+          <div className="ob-eyebrow">Step 2 of 6 · Compensation plan</div>
+          <h1 className="ob-h1">Upload your comp plan</h1>
+          <p className="ob-subt">Drop in your compensation plan PDF. Coach reads every line.</p>
+          <label className={`ob-drop ${planFile ? "has" : ""}`}>
+            <input type="file" accept="application/pdf" style={{ display: "none" }} onChange={(e) => setPlanFile(e.target.files[0] || null)} />
+            <div style={{ fontSize: 38, marginBottom: 10 }}>{planFile ? "✅" : "📄"}</div>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>{planFile ? planFile.name : "Click to upload your PDF"}</div>
+            <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4 }}>{planFile ? "Tap to choose a different file" : "PDF up to 20 MB"}</div>
+          </label>
+          <div className="ob-note"><span>🔒</span><span>Your plan is private. We use it only to build your personal earnings model and never share it.</span></div>
+          <button className="ob-btn" disabled={!planFile} onClick={() => goFlow("summary")}>Analyze My Plan</button>
+        </>
+      );
+    } else if (screen === "summary") {
+      body = (
+        <>
+          <div className="ob-eyebrow">Step 3 of 6 · Plan analysis</div>
+          <h1 className="ob-h1">Here is your plan</h1>
+          <p className="ob-subt">Coach analyzed your compensation plan. Here is what stood out.</p>
+          <div className="ob-coach">
+            <span className="ob-coach-badge">🥕 Coach analysis</span>
+            <p className="ob-coach-line">Your base salary is {fmt(comp.base)} with an annual quota of {fmt(comp.quota)}.</p>
+            <p className="ob-coach-line">You earn {comp.commissionRate}% commission, with a {comp.accelerator}x accelerator on everything above 100% of quota.</p>
+            <p className="ob-coach-line">Hit quota and you are looking at {fmt(grossAt100)} on-target earnings. The accelerator means overperformance pays off fast.</p>
+          </div>
+          <div className="ob-ote">
+            <div className="ob-ote-lbl">On-target earnings</div>
+            <div className="ob-ote-val">{fmt(grossAt100)}</div>
+            <div className="ob-split">
+              <div className="ob-split-item"><div className="ob-split-k">Base</div><div className="ob-split-v">{fmt(comp.base)}</div></div>
+              <div className="ob-split-item"><div className="ob-split-k">Commission</div><div className="ob-split-v">{fmt(commAt100)}</div></div>
+            </div>
+          </div>
+          <button className="ob-btn" onClick={() => goFlow("paycheck")}>See My Paycheck</button>
+        </>
+      );
+    } else if (screen === "paycheck") {
+      const gross = grossAt100;
+      const k = Math.min(gross * k401Pct / 100, k401Limit);
+      const health = healthMo * 12;
+      const taxable = Math.max(0, gross - k - health);
+      const fed = taxable * getFedBracket(gross).rate / 100;
+      const st = taxable * stateTaxPct / 100;
+      const fica = gross * 0.0765;
+      const net = calcNet(gross);
+      const netBaseAlone = calcNet(comp.base);
+      const commTakeHome = net - netBaseAlone;
+      body = (
+        <>
+          <div className="ob-eyebrow">Step 4 of 6 · Take-home</div>
+          <h1 className="ob-h1">Your real paycheck</h1>
+          <p className="ob-subt">At 100% of quota, here is what actually lands in your bank account.</p>
+          <div className="ob-card">
+            <label className="ob-label">401k contribution: {k401Pct}%</label>
+            <input className="ob-slider" type="range" min="0" max="50" value={k401Pct} onChange={(e) => setK401Pct(+e.target.value)} />
+            <p className="ob-sec-sub" style={{ marginBottom: 6 }}>Limit for {suAge}: {fmt(k401Limit)} per year · contributing {fmt(k)}</p>
+            <label className="ob-label" style={{ marginTop: 10 }}>Health insurance: {fmt(healthMo)} per month</label>
+            <input className="ob-slider" type="range" min="0" max="1500" step="25" value={healthMo} onChange={(e) => setHealthMo(+e.target.value)} />
+          </div>
+          <div className="ob-card">
+            <div className="ob-stat"><div className="ob-stat-lbl">Base take home</div><div className="ob-stat-val">{fmt(netBaseAlone)}</div></div>
+            <div className="ob-stat"><div className="ob-stat-lbl">Commission take home</div><div className="ob-stat-val green">{fmt(commTakeHome)}</div></div>
+            <div className="ob-stat"><div><div className="ob-stat-lbl">401k (pre-tax)</div><div className="ob-stat-sub">reduces taxable income</div></div><div className="ob-stat-val">−{fmt(k)}</div></div>
+            <div className="ob-stat"><div><div className="ob-stat-lbl">Health (pre-tax)</div><div className="ob-stat-sub">reduces taxable income</div></div><div className="ob-stat-val">−{fmt(health)}</div></div>
+            <div className="ob-stat"><div><div className="ob-stat-lbl">Federal tax ({getFedBracket(gross).rate}%)</div><div className="ob-stat-sub">on income after pre-tax</div></div><div className="ob-stat-val red">−{fmt(fed)}</div></div>
+            <div className="ob-stat"><div><div className="ob-stat-lbl">State tax ({stateTaxPct}%)</div><div className="ob-stat-sub">{suState || "—"}</div></div><div className="ob-stat-val red">−{fmt(st)}</div></div>
+            <div className="ob-stat"><div><div className="ob-stat-lbl">FICA (7.65%)</div><div className="ob-stat-sub">on full gross</div></div><div className="ob-stat-val red">−{fmt(fica)}</div></div>
+            <div className="ob-stat"><div className="ob-stat-lbl" style={{ fontWeight: 800, color: "var(--ink)" }}>Total take home</div><div className="ob-stat-val green">{fmt(net)}</div></div>
+          </div>
+          <button className="ob-btn" onClick={() => goFlow("carrots")}>Set My Carrots</button>
+        </>
+      );
+    } else if (screen === "carrots") {
+      body = (
+        <>
+          <div className="ob-eyebrow">Step 5 of 6 · Your carrots</div>
+          <h1 className="ob-h1">Define your carrots</h1>
+          <p className="ob-subt">The rewards you are working toward. This is your why.</p>
+          <div className="ob-tabs">
+            {[["big", "Big"], ["medium", "Medium"], ["mini", "Mini"]].map(([k, l]) => (
+              <button key={k} className={`ob-tab ${carrotTab === k ? "on" : ""}`} onClick={() => setCarrotTab(k)}>{l}</button>
+            ))}
+          </div>
+          {carrotTab === "big" && (
+            <>
+              {bigCarrots.map((c) => {
+                const p = pctToFund(+c.cost);
+                return (
+                  <div key={c.id} className="ob-card">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                      <strong>Big Carrot</strong>
+                      <button className="ob-del" onClick={() => setBigCarrots(bigCarrots.filter((x) => x.id !== c.id))}>×</button>
+                    </div>
+                    <input className="ob-inp" style={{ marginBottom: 10 }} placeholder="What is it?" value={c.name} onChange={(e) => setBigCarrots(bigCarrots.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x))} />
+                    <input className="ob-inp" type="number" placeholder="Cost" value={c.cost} onChange={(e) => setBigCarrots(bigCarrots.map((x) => x.id === c.id ? { ...x, cost: +e.target.value } : x))} />
+                    {+c.cost > 0 && <p className="ob-sec-sub" style={{ marginTop: 8 }}>{p ? `Fully funded at ${p}% of plan` : "Beyond 300% of plan"}</p>}
+                  </div>
+                );
+              })}
+              <button className="ob-add" disabled={bigCarrots.length >= 2} onClick={() => setBigCarrots([...bigCarrots, { id: bigCarrots.reduce((m, c) => Math.max(m, c.id), 0) + 1, name: "", cost: 0 }])}>
+                + Add Big Carrot{bigCarrots.length >= 2 ? " (max 2)" : ""}
+              </button>
+            </>
+          )}
+          {carrotTab === "medium" && (
+            <>
+              {medCarrots.map((c) => (
+                <div key={c.id} className="ob-card">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <strong>Medium Carrot</strong>
+                    <button className="ob-del" onClick={() => setMedCarrots(medCarrots.filter((x) => x.id !== c.id))}>×</button>
+                  </div>
+                  <input className="ob-inp" style={{ marginBottom: 10 }} placeholder="What is it?" value={c.name} onChange={(e) => setMedCarrots(medCarrots.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x))} />
+                  <div className="ob-row">
+                    <input className="ob-inp" type="number" placeholder="Cost" value={c.cost} onChange={(e) => setMedCarrots(medCarrots.map((x) => x.id === c.id ? { ...x, cost: +e.target.value } : x))} />
+                    <select className="ob-inp" value={c.period} onChange={(e) => setMedCarrots(medCarrots.map((x) => x.id === c.id ? { ...x, period: e.target.value } : x))}>
+                      {["Monthly", "Quarterly", "Twice a year"].map((p) => <option key={p}>{p}</option>)}
+                    </select>
+                  </div>
+                </div>
+              ))}
+              <button className="ob-add" onClick={() => setMedCarrots([...medCarrots, { id: medCarrots.reduce((m, c) => Math.max(m, c.id), 0) + 1, name: "", cost: 0, period: "Quarterly" }])}>+ Add Medium Carrot</button>
+            </>
+          )}
+          {carrotTab === "mini" && (
+            <>
+              <p className="ob-sec-sub">One small treat tied to each activity. You earn it when you hit that activity's stretch goal.</p>
+              {metrics.map((m) => (
+                <div key={m.id} className="ob-card">
+                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>{m.emoji} {m.label}</div>
+                  <input className="ob-inp" placeholder="Mini treat (e.g. fancy coffee)" value={m.treat} onChange={(e) => updateMetric(m.id, { treat: e.target.value })} />
+                </div>
+              ))}
+            </>
+          )}
+          <button className="ob-btn" onClick={() => goFlow("playbook")}>Build My Playbook</button>
+        </>
+      );
+    } else if (screen === "playbook") {
+      const gross = calcGross(targetPct);
+      const net = calcNet(gross);
+      const netBaseAlone = calcNet(comp.base);
+      const commTakeHome = net - netBaseAlone;
+      body = (
+        <>
+          <div className="ob-eyebrow">Step 6 of 6 · Your playbook</div>
+          <h1 className="ob-h1">Your personal playbook</h1>
+          <p className="ob-subt">Set your target, then tune the activities that get you there.</p>
+          <div className="ob-card">
+            <div className="ob-target">{targetPct}%</div>
+            <div className="ob-target-sub">of plan target</div>
+            <input className="ob-slider" type="range" min="50" max="300" value={targetPct} onChange={(e) => setTargetPct(+e.target.value)} />
+            <div className="ob-stat"><div className="ob-stat-lbl">Base take home</div><div className="ob-stat-val">{fmt(netBaseAlone)}</div></div>
+            <div className="ob-stat"><div className="ob-stat-lbl">Commission take home</div><div className="ob-stat-val green">{fmt(commTakeHome)}</div></div>
+          </div>
+          {targetPct > 100 && (
+            <div className="ob-money-line"><span style={{ fontWeight: 700 }}>🥕 Carrot money (above 100%)</span><span className="v">{fmt(carrotMoney)}</span></div>
+          )}
+          <div className="ob-sec-h">Your activities</div>
+          <p className="ob-sec-sub">Floor keeps you on track. Stretch unlocks your mini carrot.</p>
+          {metrics.map((m) => (
+            <div key={m.id} className="ob-card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 10, flexWrap: "wrap" }}>
+                <strong>{m.emoji} {m.label}</strong>
+                <div className="ob-pill-row">
+                  {["Daily", "Weekly", "Monthly"].map((f) => (
+                    <button key={f} className={`ob-pill ${m.freq === f ? "on" : ""}`} onClick={() => updateMetric(m.id, { freq: f })}>{f}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="ob-row">
+                <div><label className="ob-label">Floor</label><input className="ob-inp" type="number" value={m.floor} onChange={(e) => updateMetric(m.id, { floor: +e.target.value })} /></div>
+                <div><label className="ob-label">Stretch</label><input className="ob-inp" type="number" value={m.stretch} onChange={(e) => updateMetric(m.id, { stretch: +e.target.value })} /></div>
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <button className="ob-toggle" onClick={() => updateMetric(m.id, { reminder: !m.reminder })}>
+                  <span className={`ob-track ${m.reminder ? "on" : ""}`}><span className="ob-knob" /></span> Reminder
+                </button>
+              </div>
+              <div className="ob-field" style={{ marginTop: 12, marginBottom: 0 }}>
+                <label className="ob-label">Mini carrot treat</label>
+                <input className="ob-inp" placeholder="e.g. fancy coffee" value={m.treat} onChange={(e) => updateMetric(m.id, { treat: e.target.value })} />
+              </div>
+            </div>
+          ))}
+          <div className="ob-sec-h">How will you track?</div>
+          {[
+            ["manual", "✍️ Manual entry", "Log your numbers each day or week"],
+            ["crm", "🔗 Connect CRM", "Pull activities automatically from your CRM"],
+            ["csv", "📊 CSV upload", "Upload a weekly export"],
+          ].map(([k, t, d]) => (
+            <div key={k} className={`ob-opt ${trackingMethod === k ? "on" : ""}`} onClick={() => setTrackingMethod(k)}>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{t}</div>
+              <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 2 }}>{d}</div>
+            </div>
+          ))}
+          <button className="ob-btn" onClick={() => goFlow("dashboard")}>Go to My Dashboard</button>
+        </>
+      );
+    }
+
+    return (
+      <div className="ob">
+        <style>{S}</style>
+        <style>{OB_STYLES}</style>
+        <div className="ob-top">
+          <button className="ob-back" onClick={() => goFlow(idx === 0 ? "landing" : FLOW[idx - 1])}>← Back</button>
+          <div className="ob-progress">
+            {FLOW.map((s, i) => (
+              <div key={s} className={`ob-dot ${i === idx ? "active" : i < idx ? "done" : ""}`} title={FLOW_LABELS[i]} />
+            ))}
+          </div>
+          <div className="ob-steplbl">{idx + 1} / {FLOW.length}</div>
+        </div>
+        <div className="ob-screen">{body}</div>
+      </div>
+    );
+  }
+
+  // ── fallback: any unknown screen returns home ──
+  return (
+    <div className="ob">
+      <style>{S}</style>
+      <style>{OB_STYLES}</style>
+      <div className="ob-screen">
+        <button className="ob-btn" onClick={() => goFlow("landing")}>Back to home</button>
+      </div>
+    </div>
   );
 }
 
