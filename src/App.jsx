@@ -1939,28 +1939,43 @@ export default function App() {
           <h1 className="up-h1">Upload Your Files for Coach to Review</h1>
           <p className="up-sub">Drop in anything related to your compensation. Coach will figure out what each file is and use everything to build your earnings picture.</p>
 
+          <div
+            onClick={() => fileInputRef.current && fileInputRef.current.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const dropped = Array.from(e.dataTransfer.files);
+              setUploadedFiles((prev) => [...prev, ...dropped]);
+            }}
+            style={{
+              border: "2px dashed #EDE0CC",
+              borderRadius: 20,
+              padding: "48px 32px",
+              textAlign: "center",
+              cursor: "pointer",
+              background: "white",
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ fontSize: 48, marginBottom: 12 }}>📄</div>
+            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Drop your files here</div>
+            <div style={{ fontSize: 15, color: "#7A6A55", marginBottom: 8 }}>Comp plans, prior year plans, SPIFF emails, quota changes</div>
+            <div style={{ fontSize: 13, color: "#7A6A55" }}>PDF, Word, or text files · Up to 10 files · 20MB each</div>
+            <div style={{ fontSize: 13, color: "#F4711A", marginTop: 8, fontWeight: 600 }}>or click to browse</div>
+          </div>
+
           <input
             ref={fileInputRef}
             type="file"
-            multiple
             accept=".pdf,.doc,.docx,.txt,.eml"
+            multiple
             style={{ display: "none" }}
-            onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
+            onChange={(e) => {
+              const selected = Array.from(e.target.files);
+              setUploadedFiles((prev) => [...prev, ...selected]);
+              e.target.value = "";
+            }}
           />
-          <div
-            className="up-zone"
-            onClick={() => fileInputRef.current && fileInputRef.current.click()}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}
-          >
-            <div>
-              <div className="up-zone-ico">📄</div>
-              <div className="up-zone-t">Drop your files here</div>
-              <div className="up-zone-s">Comp plans, prior year plans, SPIFF emails, quota change notices, bonus letters, anything works</div>
-              <div className="up-zone-hint">PDF, Word, or text files · Up to 10 files · 20MB each</div>
-              <div className="up-zone-link">or click to browse</div>
-            </div>
-          </div>
 
           {uploadedFiles.length > 0 && (
             <div className="up-list">
