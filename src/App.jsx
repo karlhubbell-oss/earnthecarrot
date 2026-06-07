@@ -361,8 +361,8 @@ export default function App() {
                 {[
                   { e: "📄", t: "Reads the compensation plan" },
                   { e: "💰", t: "Calculates earnings scenarios" },
-                  { e: "🎯", t: "Builds a personalized success plan" },
-                  { e: "📈", t: "Shows target and stretch paths" },
+                  { e: "💰", t: "Builds your earnings model" },
+                  { e: "🎯", t: "Creates a personalized success plan" },
                   { e: "🥕", t: "Connects earnings goals to personal rewards" },
                 ].map((row, i) => (
                   <div key={i} className="prob-card-line"><span>{row.e}</span><span>{row.t}</span></div>
@@ -373,65 +373,10 @@ export default function App() {
 
             <div className="prob-final">
               <p className="prob-final-title">The Spreadsheet Was Never The Goal.</p>
-              <p className="prob-final-sub">The goal was always to understand how to win. Coach helps you do both.</p>
+              <p className="prob-final-sub">Most salespeople build spreadsheets because they are trying to answer a much bigger question: What do I need to do to succeed this year? Coach helps answer that question.</p>
               <p className="prob-final-line">Understand how you get paid.</p>
               <p className="prob-final-line">Build a personalized success plan.</p>
               <p className="prob-final-line">Stay focused on the actions that drive results.</p>
-            </div>
-          </div>
-        </section>
-
-        {/* STOP BUILDING COMMISSION SPREADSHEETS */}
-        <section className="ss-section">
-          <div className="ss-inner">
-            <div className="sec-label">The Spreadsheet Problem</div>
-            <h2 className="sec-title">Stop Building Commission Spreadsheets.</h2>
-            <div className="ss-body">
-              {[
-                "Every motivated sales rep eventually does the same thing.",
-                "They receive a compensation plan. They read it. Then they open Excel.",
-                "They build a commission calculator to estimate earnings, track commissions, and figure out whether they have enough pipeline to hit quota.",
-                "The problem is that most of these spreadsheets are difficult to maintain, often inaccurate, and quickly become outdated.",
-                "Coach automatically builds the earnings model for you and then helps you build a plan around it.",
-              ].map((line, i) => (
-                <p key={i} className="ss-line">{line}</p>
-              ))}
-            </div>
-            <div className="ss-cols">
-              <div className="ss-col today">
-                <div className="ss-col-label">Today</div>
-                {[
-                  "Receive Compensation Plan",
-                  "Build Spreadsheet",
-                  "Update Formulas",
-                  "Guess At Earnings",
-                  "Wonder If You Will Hit Quota",
-                ].map((step, i, arr) => (
-                  <div key={i}>
-                    <div className="ss-step">{step}</div>
-                    {i < arr.length - 1 && <div className="ss-arrow">↓</div>}
-                  </div>
-                ))}
-              </div>
-              <div className="ss-col coach">
-                <div className="ss-col-label">With Coach</div>
-                {[
-                  "Upload Compensation Plan",
-                  "Coach Builds Earnings Model",
-                  "Upload Pipeline",
-                  "See Target And Stretch Scenarios",
-                  "Know Exactly What To Do Next",
-                ].map((step, i, arr) => (
-                  <div key={i}>
-                    <div className="ss-step">{step}</div>
-                    {i < arr.length - 1 && <div className="ss-arrow">↓</div>}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="ss-closing">
-              <p className="ss-closing-muted">No spreadsheets. No formulas. No guesswork.</p>
-              <p className="ss-closing-bold">Just a plan built specifically for you.</p>
             </div>
           </div>
         </section>
