@@ -413,7 +413,12 @@ select.ob-inp{appearance:none;cursor:pointer;background-image:url("data:image/sv
 .rpm-num-v{font-family:'Playfair Display',serif;font-size:30px;font-weight:900;color:white;line-height:1;}
 .rpm-num-v.net{font-size:38px;color:#86EFAC;}
 .rpm-num-sub{font-size:12px;color:rgba(255,255,255,0.5);margin-top:8px;line-height:1.4;}
-.rpm-range{width:100%;accent-color:var(--carrot);cursor:pointer;margin:6px 0 16px;}
+.rpm-range{width:100%;accent-color:var(--carrot);cursor:pointer;height:24px;margin:8px 0 4px;-webkit-appearance:none;appearance:none;background:transparent;}
+.rpm-range::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:rgba(255,255,255,0.15);}
+.rpm-range::-moz-range-track{height:8px;border-radius:4px;background:rgba(255,255,255,0.15);}
+.rpm-range::-moz-range-progress{height:8px;border-radius:4px;background:var(--carrot);}
+.rpm-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:24px;height:24px;border-radius:50%;background:var(--carrot);margin-top:-8px;cursor:pointer;}
+.rpm-range::-moz-range-thumb{width:24px;height:24px;border:none;border-radius:50%;background:var(--carrot);cursor:pointer;}
 .rpm-track{height:10px;background:rgba(255,255,255,0.12);border-radius:5px;overflow:hidden;}
 .rpm-track-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--carrot));border-radius:5px;transition:width 0.15s ease;}
 .rpm-markers{position:relative;height:44px;margin-top:10px;}
@@ -1625,7 +1630,6 @@ export default function App() {
     const net100 = calcNet(calcGross(100));
     const stretchNet = calcNet(calcGross(125));
     const diff = stretchNet - net100;
-    const fillPct = ((sliderValue - 50) / (200 - 50)) * 100;
     const PICKS = ["Family vacation", "Pay off debt", "New car", "Home improvement", "Save it"];
     return (
       <div className="rpm-wrap">
@@ -1654,7 +1658,6 @@ export default function App() {
               </div>
             </div>
             <input className="rpm-range" type="range" min="50" max="200" step="5" value={sliderValue} onChange={(e) => setSliderValue(+e.target.value)} />
-            <div className="rpm-track"><div className="rpm-track-fill" style={{ width: `${fillPct}%` }} /></div>
             <div className="rpm-markers">
               {MARKERS.map((m) => (
                 <div key={m.pct} className={`rpm-marker ${sliderValue >= m.pct ? "on" : ""}`} style={{ left: `${((m.pct - 50) / 150) * 100}%` }}>
