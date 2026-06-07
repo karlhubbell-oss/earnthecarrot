@@ -128,7 +128,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--dark);color:var(--ink);}
   border-radius:16px;padding:28px 32px;
 }
 .prob-bottom-bold{font-size:21px;font-weight:700;color:white;margin-bottom:10px;}
-.prob-bottom-muted{font-size:18px;color:rgba(255,255,255,0.55);line-height:1.65;}
+.prob-bottom-muted{font-size:18px;color:rgba(255,255,255,0.5);line-height:1.65;}
 .prob-sub{font-size:19px;color:rgba(255,255,255,0.55);line-height:1.6;margin-bottom:36px;}
 .prob-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:28px;}
 .prob-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:16px;padding:24px;}
@@ -137,11 +137,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--dark);color:var(--ink);}
 .prob-card-label.orange{color:var(--carrot);}
 .prob-card-label.red{color:#FCA5A5;}
 .prob-card-line{font-size:17px;color:rgba(255,255,255,0.8);line-height:1.5;margin-bottom:10px;display:flex;gap:8px;align-items:flex-start;}
-.prob-card-note{font-size:15px;color:rgba(255,255,255,0.55);line-height:1.6;margin-top:14px;}
+.prob-card-note{font-size:15px;color:rgba(255,255,255,0.45);line-height:1.6;margin-top:14px;}
 .prob-final{background:rgba(15,10,5,0.6);border:1.5px solid rgba(244,113,26,0.4);border-radius:20px;padding:32px;text-align:center;}
 .prob-final-title{font-family:'Playfair Display',serif;font-size:30px;font-weight:900;color:white;margin-bottom:12px;}
 .prob-final-sub{font-size:19px;color:rgba(255,255,255,0.7);line-height:1.6;margin-bottom:20px;}
-.prob-final-line{font-size:16px;color:rgba(255,255,255,0.55);line-height:1.8;}
+.prob-final-line{font-size:16px;color:rgba(255,255,255,0.45);line-height:1.8;}
 
 /* ── RESPONSIVE ── */
 @media(max-width:768px){
@@ -352,7 +352,7 @@ select.ob-inp{appearance:none;cursor:pointer;background-image:url("data:image/sv
 .cb-sub{font-size:19px;color:rgba(255,255,255,0.6);margin-bottom:28px;}
 .cb-input{width:100%;padding:16px 18px;border:1.5px solid rgba(255,255,255,0.2);border-radius:14px;font-size:20px;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.06);color:white;margin-bottom:16px;}
 .cb-input:focus{outline:none;border-color:var(--carrot);}
-.cb-input::placeholder{color:rgba(255,255,255,0.55);}
+.cb-input::placeholder{color:rgba(255,255,255,0.35);}
 .cb-pills{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:30px;}
 .cb-pill{padding:9px 16px;border-radius:100px;border:1.5px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.8);font-size:16px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
 .cb-pill:hover{border-color:var(--carrot);color:white;}
@@ -374,7 +374,7 @@ select.ob-inp{appearance:none;cursor:pointer;background-image:url("data:image/sv
 .pitch-check-ico{color:#86EFAC;font-weight:800;flex-shrink:0;}
 .pitch-cta{width:100%;padding:18px;border-radius:100px;border:none;background:var(--carrot);color:white;font-size:19px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
 .pitch-cta:hover{background:var(--carrot-dark);transform:translateY(-2px);box-shadow:0 12px 36px rgba(244,113,26,0.4);}
-.pitch-note{text-align:center;font-size:15px;color:rgba(255,255,255,0.55);margin-top:14px;}
+.pitch-note{text-align:center;font-size:15px;color:rgba(255,255,255,0.45);margin-top:14px;}
 @media(max-width:480px){.ob-row{grid-template-columns:1fr;}.cb-headline{font-size:29px;}.pitch-headline{font-size:28px;}}
 `;
 
@@ -671,7 +671,7 @@ export default function App() {
           .coach-section{background:var(--dark);padding:96px 24px;}
           .coach-inner{max-width:900px;margin:0 auto;}
           .coach-quote{font-size:21px;font-style:italic;color:rgba(255,255,255,0.7);margin-bottom:12px;line-height:1.6;}
-          .coach-coachsub{font-size:18px;color:rgba(255,255,255,0.55);margin-bottom:48px;}
+          .coach-coachsub{font-size:18px;color:rgba(255,255,255,0.5);margin-bottom:48px;}
           .coach-role-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:40px;}
           .coach-role-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:16px;padding:24px;display:flex;gap:18px;align-items:flex-start;}
           .coach-role-icon{width:56px;height:56px;border-radius:50%;border:1.5px solid rgba(244,113,26,0.5);background:rgba(244,113,26,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -680,11 +680,11 @@ export default function App() {
           .coach-role-title{font-size:18px;font-weight:700;color:white;display:inline-block;border-bottom:2px solid var(--carrot);padding-bottom:3px;}
           .coach-role-tag{font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--carrot);background:rgba(244,113,26,0.15);border-radius:100px;padding:3px 10px;}
           .coach-role-desc{font-size:16px;color:rgba(255,255,255,0.55);line-height:1.6;margin-top:10px;}
-          .coach-ask-label{font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.55);margin-bottom:16px;}
+          .coach-ask-label{font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:16px;}
           .coach-q-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:44px;}
           .coach-q-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:18px 20px;font-size:17px;font-style:italic;color:rgba(255,255,255,0.75);line-height:1.5;}
           .coach-bottom-row{display:flex;flex-wrap:wrap;gap:32px;align-items:baseline;}
-          .coach-br-muted{font-size:19px;color:rgba(255,255,255,0.55);}
+          .coach-br-muted{font-size:19px;color:rgba(255,255,255,0.45);}
           .coach-br-bold{font-size:19px;font-weight:700;color:white;}
 
           /* ── MOST COMPANIES ── */
@@ -708,17 +708,17 @@ export default function App() {
           /* ── CHATGPT VS COACH ── */
           .compare-section{background:var(--dark2);padding:96px 24px;}
           .compare-inner{max-width:860px;margin:0 auto;}
-          .compare-p{font-size:18px;color:rgba(255,255,255,0.55);line-height:1.7;margin-bottom:14px;}
+          .compare-p{font-size:18px;color:rgba(255,255,255,0.5);line-height:1.7;margin-bottom:14px;}
           .compare-wrap{border-radius:16px;overflow:hidden;margin:36px 0 28px;}
           .compare-table{width:100%;border-collapse:collapse;}
           .compare-table th{padding:14px 18px;font-size:15px;font-weight:700;letter-spacing:0.5px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.08);}
           .compare-table td{padding:13px 18px;font-size:16px;border-bottom:1px solid rgba(255,255,255,0.06);}
           .compare-table tr:last-child td{border-bottom:none;}
-          .th-feature{color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.03);}
-          .th-generic{color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.03);text-align:center!important;}
+          .th-feature{color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.03);}
+          .th-generic{color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.03);text-align:center!important;}
           .th-coach{color:var(--carrot);background:rgba(244,113,26,0.1);text-align:center!important;}
           .td-feature{color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.02);}
-          .td-generic{color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.02);text-align:center!important;}
+          .td-generic{color:rgba(255,255,255,0.3);background:rgba(255,255,255,0.02);text-align:center!important;}
           .td-coach{color:#86EFAC;background:rgba(244,113,26,0.05);text-align:center!important;font-weight:600;}
           .compare-callout{background:rgba(244,113,26,0.08);border:1.5px solid rgba(244,113,26,0.25);border-radius:14px;padding:22px 28px;font-size:19px;font-style:italic;color:rgba(255,255,255,0.8);text-align:center;}
 
@@ -1175,8 +1175,8 @@ export default function App() {
           .closing-inner{max-width:700px;margin:0 auto;}
           .closing-carrot{font-size:66px;display:inline-block;animation:bounce 2.2s ease-in-out infinite;margin-bottom:28px;}
           .closing-title{font-family:'Playfair Display',serif;font-size:54px;font-weight:900;color:white;line-height:1.1;margin-bottom:24px;}
-          .closing-sub{font-size:19px;color:rgba(255,255,255,0.55);line-height:1.65;margin-bottom:16px;}
-          .closing-note{font-size:18px;color:rgba(255,255,255,0.55);line-height:1.6;margin-bottom:36px;}
+          .closing-sub{font-size:19px;color:rgba(255,255,255,0.5);line-height:1.65;margin-bottom:16px;}
+          .closing-note{font-size:18px;color:rgba(255,255,255,0.4);line-height:1.6;margin-bottom:36px;}
           .closing-lines{margin-bottom:36px;display:flex;flex-direction:column;gap:8px;}
           .closing-line{font-size:18px;font-weight:700;color:var(--carrot);}
           .closing-cta{background:var(--carrot);color:white;border:none;border-radius:100px;padding:18px 42px;font-size:19px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
@@ -1187,10 +1187,10 @@ export default function App() {
           .footer-inner{max-width:1060px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;}
           .footer-logo{font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--carrot);}
           .footer-links{display:flex;gap:6px;align-items:center;}
-          .footer-link{font-size:15px;color:rgba(255,255,255,0.55);cursor:pointer;transition:color 0.2s;background:none;border:none;font-family:'DM Sans',sans-serif;}
+          .footer-link{font-size:15px;color:rgba(255,255,255,0.4);cursor:pointer;transition:color 0.2s;background:none;border:none;font-family:'DM Sans',sans-serif;}
           .footer-link:hover{color:rgba(255,255,255,0.7);}
-          .footer-dot{color:rgba(255,255,255,0.55);font-size:15px;padding:0 2px;}
-          .footer-tagline{font-size:15px;font-style:italic;color:rgba(255,255,255,0.55);}
+          .footer-dot{color:rgba(255,255,255,0.18);font-size:15px;padding:0 2px;}
+          .footer-tagline{font-size:15px;font-style:italic;color:rgba(255,255,255,0.22);}
 
           /* ── RESPONSIVE PART 4 ── */
           @media(max-width:768px){
@@ -1758,7 +1758,7 @@ const CS_STYLES = `
   .cs-root .ai-banner-icon { font-size:30px; flex-shrink: 0; }
   .cs-root .ai-banner-text { flex: 1; }
   .cs-root .ai-banner-title { font-size:16px; font-weight: 700; color: white; margin-bottom: 2px; }
-  .cs-root .ai-banner-sub { font-size:15px; color: rgba(255,255,255,0.75); }
+  .cs-root .ai-banner-sub { font-size:14px; color: rgba(255,255,255,0.6); }
   .cs-root .ai-confidence { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
   .cs-root .ai-confidence-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ADE80; animation: csPulse 2s ease infinite; }
   .cs-root .ai-confidence-label { font-size:14px; font-weight: 700; color: #4ADE80; }
@@ -1768,7 +1768,7 @@ const CS_STYLES = `
   .cs-root .coach-header-icon { font-size:26px; }
   .cs-root .coach-header-text { flex: 1; }
   .cs-root .coach-header-title { font-size:17px; font-weight: 700; color: white; margin-bottom: 2px; }
-  .cs-root .coach-header-sub { font-size:14px; color: rgba(255,255,255,0.7); }
+  .cs-root .coach-header-sub { font-size:14px; color: rgba(255,255,255,0.5); }
   .cs-root .coach-header-badge { font-size:13px; font-weight: 700; padding: 4px 10px; border-radius: 100px; background: rgba(244,113,26,0.25); color: #FDBA74; }
 
   .cs-root .big-picture { padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); }
@@ -1903,7 +1903,7 @@ function PayoutCurve() {
         <div style={{ fontWeight: 700, color: "white", marginBottom: 8 }}>{label}% of Quota</div>
         {gross && <div style={{ color: "#F4711A", fontWeight: 700 }}>Total: ${(gross.value / 1000).toFixed(0)}k</div>}
         {comm && <div style={{ color: "#E9C46A" }}>Commission: ${(comm.value / 1000).toFixed(0)}k</div>}
-        <div style={{ color: "rgba(255,255,255,0.55)", marginTop: 4 }}>Base: $85k</div>
+        <div style={{ color: "rgba(255,255,255,0.4)", marginTop: 4 }}>Base: $85k</div>
       </div>
     );
   };
@@ -2111,7 +2111,7 @@ function CompSummaryScreen({ onContinue }) {
 
           {/* MOTIVATION METERS */}
           <div style={{ padding: "4px 24px 20px" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(255,255,255,0.55)", marginBottom: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 14 }}>
               What Leadership Is Prioritizing
             </div>
             {CS_MOTIVATIONS.map((m, i) => (
@@ -2126,7 +2126,7 @@ function CompSummaryScreen({ onContinue }) {
                     }} />
                   ))}
                 </div>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", width: 140, flexShrink: 0, textAlign: "right" }}>{m.desc}</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", width: 140, flexShrink: 0, textAlign: "right" }}>{m.desc}</div>
               </div>
             ))}
           </div>
@@ -2285,19 +2285,19 @@ function CompSummaryScreen({ onContinue }) {
           <div style={{ padding: "22px 28px 16px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(255,255,255,0.55)", marginBottom: 6 }}>Your Payout Curve</div>
+                <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Your Payout Curve</div>
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 900, color: "white", marginBottom: 4 }}>How Your Earnings Climb</div>
-                <div style={{ fontSize: 15, color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>See exactly how commission accelerates, or decelerates, at every point in your plan.</div>
+                <div style={{ fontSize: 15, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>See exactly how commission accelerates, or decelerates, at every point in your plan.</div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
                 {[
                   { color: "#F4711A", label: "Total Earnings" },
                   { color: "#E9C46A", label: "Commission Only" },
-                  { color: "rgba(255,255,255,0.55)", label: "Base Salary" },
+                  { color: "rgba(255,255,255,0.2)", label: "Base Salary" },
                 ].map((l, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ width: 24, height: 3, background: l.color, borderRadius: 2 }} />
-                    <span style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", fontWeight: 600 }}>{l.label}</span>
+                    <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{l.label}</span>
                   </div>
                 ))}
               </div>
@@ -2317,7 +2317,7 @@ function CompSummaryScreen({ onContinue }) {
             ].map((m, i) => (
               <div key={i} style={{ padding: "14px 16px", borderRight: i < 3 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
                 <div style={{ fontSize: 20, fontWeight: 900, color: m.color, fontFamily: "'Playfair Display', serif" }}>{m.pct}</div>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", marginBottom: 6 }}>{m.label}</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>{m.label}</div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: "white" }}>{m.earn}</div>
                 <div style={{ fontSize: 13, color: m.color, marginTop: 2 }}>{m.rate} rate</div>
               </div>
