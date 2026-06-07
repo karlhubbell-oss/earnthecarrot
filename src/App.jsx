@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Area, AreaChart, Label } from "recharts";
 
 const S = `
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
@@ -1298,6 +1299,11 @@ export default function App() {
     );
   }
 
+  // ══ COMP PLAN SUMMARY (full-screen mockup) ═══════════════════════════
+  if (screen === "summary") {
+    return <CompSummaryScreen onContinue={() => goFlow("paycheck")} />;
+  }
+
   // ══ ONBOARDING STEP SCREENS ══════════════════════════════════════════
   if (FLOW.includes(screen)) {
     const idx = FLOW.indexOf(screen);
@@ -1354,159 +1360,6 @@ export default function App() {
           </label>
           <div className="ob-note"><span>🔒</span><span>Your plan is private. We use it only to build your personal earnings model and never share it.</span></div>
           <button className="ob-btn" disabled={!planFile} onClick={() => goFlow("summary")}>Analyze My Plan</button>
-        </>
-      );
-    } else if (screen === "summary") {
-      const ote = grossAt100;
-      const fedRate = getFedBracket(ote).rate;
-      const effFed = taxOverrides.fed ?? fedRate;
-      const effState = taxOverrides.state ?? stateTaxPct;
-      const ficaRate = 7.65;
-      const intendedK = ote * k401Pct / 100;
-      const annualK = Math.min(intendedK, k401Limit);
-      const monthly = intendedK / 12;
-      const monthsToMax = monthly > 0 ? k401Limit / monthly : Infinity;
-      const maxMonth = monthsToMax > 0 && monthsToMax < 12 ? MONTHS[Math.floor(monthsToMax)] : null;
-      const willMax = intendedK >= k401Limit;
-      const k401msg = !willMax
-        ? "Increase your 401k % to max it out"
-        : maxMonth
-          ? `🏦 You'll max your 401k around ${maxMonth}`
-          : "🎉 You'll max out your 401k this year!";
-      const taxRatePct = Math.round(effFed + effState + ficaRate);
-      const flatDeductions = ote * (effFed + effState + ficaRate) / 100;
-      const compFields = [
-        { key: "base", name: "Base Salary", display: fmt(comp.base) },
-        { key: "quota", name: "Annual Quota", display: fmt(comp.quota) },
-        { key: "commissionRate", name: "Commission Rate", display: comp.commissionRate + "%" },
-        { key: "accelerator", name: "Accelerator", display: comp.accelerator + "x" },
-      ];
-      body = (
-        <>
-          <div className="ob-eyebrow">Step 3 of 6 · Plan Analysis</div>
-          <h1 className="ob-h1">Here's What We Found</h1>
-
-          {/* Section 1 — Coach Analysis */}
-          <div className="ob-coach">
-            <span className="ob-coach-badge">🥕 Coach analysis</span>
-            <p className="ob-coach-line">Your base salary is {fmt(comp.base)} with an annual quota of {fmt(comp.quota)}.</p>
-            <p className="ob-coach-line">You earn {comp.commissionRate}% commission, with a {comp.accelerator}x accelerator on everything above 100% of quota.</p>
-            <p className="ob-coach-line">Hit quota and you are looking at {fmt(ote)} on-target earnings. The accelerator means overperformance pays off fast.</p>
-          </div>
-
-          {/* Section 2 — OTE Hero */}
-          <div className="ob-ote">
-            <div className="ob-ote-lbl">On-target earnings</div>
-            <div className="ob-ote-val">{fmt(ote)}</div>
-            <div className="ob-split">
-              <div className="ob-split-item" style={{ background: "rgba(0,0,0,0.13)" }}><div className="ob-split-k">Base</div><div className="ob-split-v">{fmt(comp.base)}</div></div>
-              <div className="ob-split-item" style={{ background: "rgba(0,0,0,0.13)" }}><div className="ob-split-k">Commission</div><div className="ob-split-v">{fmt(commAt100)}</div></div>
-            </div>
-          </div>
-
-          {/* Section 3 — Compensation Fields */}
-          <div className="ob-card">
-            <div className="ob-card-hdr">
-              <div className="ob-card-title">💰 Compensation Structure</div>
-              <span className="ob-badge-green">Looks good</span>
-            </div>
-            {compFields.map((f) => (
-              <div key={f.key} className="ob-frow">
-                <div className="ob-fname">{f.name}</div>
-                {editField === f.key ? (
-                  <div className="ob-erow">
-                    <input className="ob-einp" type="number" value={editVal} onChange={(e) => setEditVal(e.target.value)} autoFocus />
-                    <button className="ob-save" onClick={saveComp}>Save</button>
-                    <button className="ob-cancel" onClick={() => setEditField(null)}>Cancel</button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="ob-fval">{f.display}</div>
-                    <button className="ob-ebtn" onClick={() => startEdit(f.key, comp[f.key])}>✏️ Edit</button>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Section 4 — Tax Assumptions */}
-          <div className="ob-tax">
-            <div className="ob-tax-title">🧮 Here's What We're Assuming for Taxes</div>
-            <p className="ob-tax-note">Based on your income and the state you selected, we have pre-filled your tax rates. Tap override to change any number.</p>
-            <div className="ob-tax-row">
-              <div>
-                <div className="ob-tax-lbl">Federal Income Tax</div>
-                <div className="ob-tax-sub">{fedRate}% bracket{taxOverrides.fed != null ? " · overridden" : ""}</div>
-                {editField !== "taxFed" && <button className="ob-tax-override" onClick={() => startEdit("taxFed", effFed)}>Override</button>}
-              </div>
-              {editField === "taxFed" ? (
-                <div className="ob-erow">
-                  <input className="ob-einp" type="number" value={editVal} onChange={(e) => setEditVal(e.target.value)} autoFocus />
-                  <button className="ob-save" onClick={() => saveTax("fed")}>Save</button>
-                  <button className="ob-cancel" onClick={() => setEditField(null)}>Cancel</button>
-                </div>
-              ) : (
-                <div className="ob-tax-val">{effFed}%</div>
-              )}
-            </div>
-            <div className="ob-tax-row">
-              <div>
-                <div className="ob-tax-lbl">{suState || "State"} Income Tax</div>
-                <div className="ob-tax-sub">{effState === 0 ? "No state income tax" : `${effState}% of taxable income`}</div>
-                {editField !== "taxState" && <button className="ob-tax-override" onClick={() => startEdit("taxState", effState)}>Override</button>}
-              </div>
-              {editField === "taxState" ? (
-                <div className="ob-erow">
-                  <input className="ob-einp" type="number" value={editVal} onChange={(e) => setEditVal(e.target.value)} autoFocus />
-                  <button className="ob-save" onClick={() => saveTax("state")}>Save</button>
-                  <button className="ob-cancel" onClick={() => setEditField(null)}>Cancel</button>
-                </div>
-              ) : (
-                <div className="ob-tax-val">{effState}%</div>
-              )}
-            </div>
-            <div className="ob-tax-row">
-              <div>
-                <div className="ob-tax-lbl">Social Security and Medicare (FICA)</div>
-                <div className="ob-tax-sub">Fixed rate on full gross</div>
-              </div>
-              <div className="ob-tax-val">{ficaRate}%</div>
-            </div>
-            <div className="ob-tax-row">
-              <div>
-                <div className="ob-tax-lbl">401k Contribution</div>
-                <div className="ob-tax-sub">From your profile</div>
-              </div>
-              <div className="ob-tax-val">{k401Pct}%</div>
-            </div>
-            <div className="ob-tax-total">
-              <div className="ob-tax-lbl">Total deduction rate</div>
-              <div className="ob-tax-total-v">~{taxRatePct}% · {fmt(flatDeductions)}/yr</div>
-            </div>
-          </div>
-
-          {/* Section 5 — 401k Max-Out */}
-          {k401Pct > 0 && (
-            <div className="ob-401k">
-              <div className="ob-401k-msg">{k401msg}</div>
-              <div className="ob-401k-sub">At {k401Pct}% you contribute ~{fmt(annualK)}/yr · 2025 limit is {fmt(k401Limit)}</div>
-            </div>
-          )}
-
-          {/* SPIFFs (only if uploaded) */}
-          {spiffs.length > 0 && (
-            <div className="ob-card">
-              <div className="ob-card-title" style={{ marginBottom: 10 }}>🎁 SPIFFs and Bonuses</div>
-              {spiffs.map((s, i) => (
-                <div key={i} className="ob-frow">
-                  <div className="ob-fname">{s.name}</div>
-                  <div className="ob-fval">{fmt(s.amount)}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <button className="ob-btn" onClick={() => goFlow("paycheck")}>See My Real Numbers →</button>
         </>
       );
     } else if (screen === "paycheck") {
@@ -1776,5 +1629,516 @@ function CopyButton({ text, className }) {
     <button className={className} onClick={handleCopy}>
       {copied ? "✓ Copied!" : "Copy to clipboard"}
     </button>
+  );
+}
+
+// ── COMP PLAN SUMMARY SCREEN (from comp-summary-mockup) ───────────────
+const CS_STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
+  .cs-root * { box-sizing: border-box; }
+  .cs-root { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--ink); min-height: 100vh; }
+  .cs-root .page { max-width: 760px; margin: 0 auto; padding: 40px 24px; }
+
+  @keyframes csFadeUp { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:translateY(0);} }
+  @keyframes csPulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+  .cs-root .page-header { margin-bottom: 28px; animation: csFadeUp 0.4s ease; }
+  .cs-root .page-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .cs-root .page-title { font-family: 'Playfair Display', serif; font-size: 36px; font-weight: 900; color: var(--ink); line-height: 1.15; margin-bottom: 10px; }
+  .cs-root .page-title span { color: var(--carrot); }
+  .cs-root .page-sub { font-size: 15px; color: var(--muted); line-height: 1.6; max-width: 540px; }
+
+  .cs-root .ai-banner { display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg, #1A1208 0%, #3D2B1A 100%); border-radius: 16px; padding: 18px 22px; margin-bottom: 20px; animation: csFadeUp 0.4s ease 0.1s both; }
+  .cs-root .ai-banner-icon { font-size: 28px; flex-shrink: 0; }
+  .cs-root .ai-banner-text { flex: 1; }
+  .cs-root .ai-banner-title { font-size: 14px; font-weight: 700; color: white; margin-bottom: 2px; }
+  .cs-root .ai-banner-sub { font-size: 12px; color: rgba(255,255,255,0.6); }
+  .cs-root .ai-confidence { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .cs-root .ai-confidence-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ADE80; animation: csPulse 2s ease infinite; }
+  .cs-root .ai-confidence-label { font-size: 12px; font-weight: 700; color: #4ADE80; }
+
+  .cs-root .coach-card { background: linear-gradient(145deg, #0F0A05 0%, #2D1A0A 50%, #1A2D1A 100%); border-radius: 24px; overflow: hidden; margin-bottom: 20px; animation: csFadeUp 0.4s ease 0.15s both; box-shadow: 0 8px 40px rgba(244,113,26,0.15); }
+  .cs-root .coach-header { padding: 20px 24px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 12px; }
+  .cs-root .coach-header-icon { font-size: 24px; }
+  .cs-root .coach-header-text { flex: 1; }
+  .cs-root .coach-header-title { font-size: 15px; font-weight: 700; color: white; margin-bottom: 2px; }
+  .cs-root .coach-header-sub { font-size: 12px; color: rgba(255,255,255,0.5); }
+  .cs-root .coach-header-badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 100px; background: rgba(244,113,26,0.25); color: #FDBA74; }
+
+  .cs-root .big-picture { padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .cs-root .big-picture-label { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #FDBA74; margin-bottom: 12px; }
+  .cs-root .big-picture-text { font-size: 16px; line-height: 1.7; color: rgba(255,255,255,0.92); font-style: italic; border-left: 3px solid var(--carrot); padding-left: 16px; }
+
+  .cs-root .insights-section { padding: 20px 24px; }
+  .cs-root .insights-col-title { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; }
+  .cs-root .insights-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .cs-root .insight-pill { border-radius: 14px; padding: 14px 16px; display: flex; align-items: flex-start; gap: 10px; }
+  .cs-root .insight-pill.do { background: rgba(45,106,79,0.25); border: 1px solid rgba(45,106,79,0.4); }
+  .cs-root .insight-pill.watch { background: rgba(220,38,38,0.2); border: 1px solid rgba(220,38,38,0.35); }
+  .cs-root .insight-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .cs-root .insight-text { font-size: 13px; line-height: 1.5; }
+  .cs-root .insight-pill.do .insight-text { color: #86EFAC; }
+  .cs-root .insight-pill.watch .insight-text { color: #FCA5A5; }
+  .cs-root .insight-headline { font-weight: 700; margin-bottom: 3px; font-size: 13px; }
+  .cs-root .watch-title { color: #FCA5A5; }
+  .cs-root .do-title { color: #86EFAC; }
+
+  .cs-root .section-card { background: white; border: 1.5px solid var(--border); border-radius: 22px; overflow: hidden; margin-bottom: 20px; animation: csFadeUp 0.4s ease both; }
+  .cs-root .card-header { display: flex; align-items: center; gap: 12px; padding: 16px 22px; border-bottom: 1px solid var(--border); background: var(--cream); }
+  .cs-root .card-header-icon { font-size: 20px; }
+  .cs-root .card-header-title { font-size: 15px; font-weight: 700; flex: 1; }
+  .cs-root .badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 100px; }
+  .cs-root .badge-green { background: var(--green-light); color: var(--green); }
+  .cs-root .badge-orange { background: var(--carrot-light); color: var(--carrot-dark); }
+
+  .cs-root .field-row { display: flex; align-items: center; padding: 16px 22px; border-bottom: 1px solid var(--border); transition: background 0.15s; gap: 16px; }
+  .cs-root .field-row:last-child { border-bottom: none; }
+  .cs-root .field-row:hover { background: #FEFCF8; }
+  .cs-root .field-row.missing { background: #FFFBEB; }
+  .cs-root .field-icon { font-size: 18px; width: 32px; text-align: center; flex-shrink: 0; }
+  .cs-root .field-body { flex: 1; min-width: 0; }
+  .cs-root .field-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+  .cs-root .field-value { font-size: 20px; font-weight: 700; color: var(--ink); }
+  .cs-root .field-value.missing-val { font-size: 14px; font-weight: 500; color: var(--carrot); font-style: italic; }
+  .cs-root .field-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .cs-root .field-source { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--green); background: var(--green-light); padding: 2px 8px; border-radius: 100px; margin-top: 4px; font-weight: 600; }
+  .cs-root .edit-btn { flex-shrink: 0; background: none; border: 1.5px solid var(--border); border-radius: 10px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--muted); transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+  .cs-root .edit-btn:hover { border-color: var(--carrot); color: var(--carrot); background: var(--carrot-light); }
+  .cs-root .add-btn { flex-shrink: 0; background: var(--carrot); border: none; border-radius: 10px; padding: 7px 14px; font-size: 12px; font-weight: 700; cursor: pointer; color: white; transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+  .cs-root .inline-edit { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+  .cs-root .inline-input { padding: 8px 12px; border: 1.5px solid var(--carrot); border-radius: 10px; font-size: 15px; font-family: 'DM Sans', sans-serif; width: 180px; color: var(--ink); background: white; }
+  .cs-root .inline-input:focus { outline: none; }
+  .cs-root .save-btn { background: var(--carrot); color: white; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  .cs-root .cancel-btn { background: none; color: var(--muted); border: none; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; padding: 8px; }
+
+  .cs-root .commission-visual { padding: 20px 22px; background: var(--cream); border-top: 1px solid var(--border); }
+  .cs-root .commission-visual-title { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
+  .cs-root .tier-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .cs-root .tier-label { font-size: 12px; font-weight: 600; color: var(--ink); width: 160px; flex-shrink: 0; }
+  .cs-root .tier-bar-track { flex: 1; height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; }
+  .cs-root .tier-bar-fill { height: 100%; border-radius: 5px; }
+  .cs-root .tier-rate { font-size: 13px; font-weight: 700; color: var(--ink); width: 48px; text-align: right; }
+
+  .cs-root .spiff-item { display: flex; align-items: flex-start; gap: 14px; padding: 16px 22px; border-bottom: 1px solid var(--border); }
+  .cs-root .spiff-item:last-child { border-bottom: none; }
+  .cs-root .spiff-emoji { font-size: 24px; flex-shrink: 0; margin-top: 2px; }
+  .cs-root .spiff-body { flex: 1; }
+  .cs-root .spiff-name { font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+  .cs-root .spiff-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .cs-root .spiff-value { font-size: 18px; font-weight: 700; color: var(--green); flex-shrink: 0; }
+
+  .cs-root .concern-box { display: flex; gap: 14px; background: var(--red-light); border: 1px solid #FECACA; border-radius: 14px; padding: 16px 18px; margin-bottom: 20px; animation: csFadeUp 0.4s ease 0.3s both; }
+  .cs-root .concern-title { font-size: 14px; font-weight: 700; color: var(--red); margin-bottom: 3px; }
+  .cs-root .concern-desc { font-size: 13px; color: #7F1D1D; line-height: 1.5; }
+
+  .cs-root .confirm-bar { display: flex; align-items: center; justify-content: space-between; background: white; border: 1.5px solid var(--border); border-radius: 20px; padding: 20px 24px; margin-top: 8px; gap: 16px; animation: csFadeUp 0.4s ease 0.5s both; }
+  .cs-root .confirm-bar-title { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+  .cs-root .confirm-bar-sub { font-size: 13px; color: var(--muted); }
+  .cs-root .confirm-actions { display: flex; gap: 10px; flex-shrink: 0; }
+  .cs-root .btn-confirm { background: var(--carrot); color: white; border: none; border-radius: 100px; padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+  .cs-root .btn-confirm:hover { background: var(--carrot-dark); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(244,113,26,0.3); }
+  .cs-root .btn-fix { background: white; color: var(--ink); border: 1.5px solid var(--border); border-radius: 100px; padding: 12px 20px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+  .cs-root .btn-fix:hover { border-color: var(--carrot); color: var(--carrot); }
+`;
+
+const CS_MOTIVATIONS = [
+  { label: "New Business", level: 9, desc: "Heavily weighted toward new logos" },
+  { label: "Expansion", level: 4, desc: "Renewals & upsells pay less" },
+  { label: "Speed", level: 8, desc: "Fast Start bonus rewards early wins" },
+  { label: "Big Deals", level: 6, desc: "No deal-size accelerator found" },
+];
+
+const CS_DO_INSIGHTS = [
+  { icon: "🏆", headline: "Hit quota fast", text: "Your accelerator jumps to 14% above 100% — the plan is designed to reward blowing past quota, not just hitting it." },
+  { icon: "🆕", headline: "Chase new logos", text: "New Logo SPIFF pays $5K per new customer. Leadership is clearly prioritizing new business over expansion this year." },
+  { icon: "⚡", headline: "Win in Month 1", text: "Fast Start bonus expires after 30 days. Front-load your pipeline now — this $2,500 is gone if you miss it." },
+  { icon: "📅", headline: "Close before quarter end", text: "Commission pays on booking date. Deals that slip to next quarter reset your accelerator progress." },
+];
+
+const CS_WATCH_INSIGHTS = [
+  { icon: "⚠️", headline: "The 75% cliff is real", text: "Below 75% quota you earn nothing in commission — just base. Don't let yourself sit at 60% thinking you're making progress." },
+  { icon: "🔄", headline: "Renewals won't move the needle", text: "Renewal commissions are half the rate of new business. If you spend Q3 on renewals you'll likely miss the accelerator." },
+  { icon: "📉", headline: "Sandbagging backfires here", text: "Holding deals for next quarter resets your accelerator tier. The math strongly favors closing now." },
+];
+
+function PayoutCurve() {
+  const BASE = 85000;
+  const QUOTA = 600000;
+
+  const data = [];
+  for (let pct = 0; pct <= 175; pct += 5) {
+    const att = pct / 100;
+    let commission = 0;
+    if (att <= 0.75) {
+      commission = QUOTA * att * 0.05;
+    } else if (att <= 1.0) {
+      commission = QUOTA * 0.75 * 0.05 + QUOTA * (att - 0.75) * 0.08;
+    } else if (att <= 1.5) {
+      commission = QUOTA * 0.75 * 0.05 + QUOTA * 0.25 * 0.08 + QUOTA * Math.min(att - 1, 0.5) * 0.14;
+      if (att > 1.5) commission += QUOTA * (att - 1.5) * 0.08;
+    } else {
+      commission = QUOTA * 0.75 * 0.05 + QUOTA * 0.25 * 0.08 + QUOTA * 0.5 * 0.14 + QUOTA * (att - 1.5) * 0.06;
+    }
+    const gross = BASE + commission;
+    data.push({
+      pct,
+      gross: Math.round(gross / 1000) * 1000,
+      commission: Math.round(commission / 1000) * 1000,
+      base: BASE,
+    });
+  }
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (!active || !payload || !payload.length) return null;
+    const gross = payload.find((p) => p.dataKey === "gross");
+    const comm = payload.find((p) => p.dataKey === "commission");
+    return (
+      <div style={{ background: "#1A1208", border: "1px solid rgba(244,113,26,0.3)", borderRadius: 12, padding: "12px 16px", fontSize: 13 }}>
+        <div style={{ fontWeight: 700, color: "white", marginBottom: 8 }}>{label}% of Quota</div>
+        {gross && <div style={{ color: "#F4711A", fontWeight: 700 }}>Total: ${(gross.value / 1000).toFixed(0)}k</div>}
+        {comm && <div style={{ color: "#E9C46A" }}>Commission: ${(comm.value / 1000).toFixed(0)}k</div>}
+        <div style={{ color: "rgba(255,255,255,0.4)", marginTop: 4 }}>Base: $85k</div>
+      </div>
+    );
+  };
+
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 20 }}>
+        <defs>
+          <linearGradient id="grossGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#F4711A" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#F4711A" stopOpacity={0.02} />
+          </linearGradient>
+          <linearGradient id="commGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#E9C46A" stopOpacity={0.2} />
+            <stop offset="95%" stopColor="#E9C46A" stopOpacity={0.02} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+        <XAxis dataKey="pct" stroke="rgba(255,255,255,0.2)" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} tickFormatter={(v) => v + "%"} />
+        <YAxis stroke="rgba(255,255,255,0.2)" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} tickFormatter={(v) => "$" + (v / 1000).toFixed(0) + "k"} width={52} />
+        <Tooltip content={<CustomTooltip />} />
+        <ReferenceLine x={75} stroke="#E9C46A" strokeDasharray="4 4" strokeWidth={1.5}>
+          <Label value="75% cliff" fill="#E9C46A" fontSize={10} position="insideTopRight" offset={4} />
+        </ReferenceLine>
+        <ReferenceLine x={100} stroke="#F4711A" strokeDasharray="4 4" strokeWidth={1.5}>
+          <Label value="Quota" fill="#F4711A" fontSize={10} position="insideTopRight" offset={4} />
+        </ReferenceLine>
+        <ReferenceLine x={150} stroke="#2D6A4F" strokeDasharray="4 4" strokeWidth={1.5}>
+          <Label value="Decelerator" fill="#86EFAC" fontSize={10} position="insideTopRight" offset={4} />
+        </ReferenceLine>
+        <Area type="monotone" dataKey="commission" stroke="#E9C46A" strokeWidth={1.5} fill="url(#commGrad)" dot={false} />
+        <Area type="monotone" dataKey="gross" stroke="#F4711A" strokeWidth={2.5} fill="url(#grossGrad)" dot={false} />
+        <Line type="monotone" dataKey="base" stroke="rgba(255,255,255,0.15)" strokeWidth={1} dot={false} strokeDasharray="3 3" />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+function CompSummaryScreen({ onContinue }) {
+  const [editing, setEditing] = useState(null);
+  const [editVal, setEditVal] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
+  const [comp, setComp] = useState({ base: 85000, quota: 600000, ote: 133000, payFreq: "Semi-monthly (24x/year)" });
+
+  function startEdit(field, val) { setEditing(field); setEditVal(String(val)); }
+  function saveEdit() { setComp((c) => ({ ...c, [editing]: parseFloat(editVal) || c[editing] })); setEditing(null); }
+
+  const tiers = [
+    { range: "0–75% of quota", rate: 5, color: "#E9C46A", width: 30 },
+    { range: "75–100% of quota", rate: 8, color: "#F4711A", width: 55 },
+    { range: "100%+ (Accelerator)", rate: 14, color: "#2D6A4F", width: 85 },
+  ];
+
+  const spiffs = [
+    { emoji: "🆕", name: "New Logo SPIFF", desc: "Sign a net-new logo customer in Q3", value: "$5,000", confirmed: true },
+    { emoji: "📅", name: "Fast Start Bonus", desc: "Hit 50% of quota by end of Month 1", value: "$2,500", confirmed: true },
+    { emoji: "🎪", name: "Event Attendance Bonus", desc: "Get 3+ customers to attend the annual summit", value: "$500", confirmed: false },
+  ];
+
+  return (
+    <div className="cs-root">
+      <style>{S}</style>
+      <style>{CS_STYLES}</style>
+      <div className="page">
+
+        {/* HEADER */}
+        <div className="page-header">
+          <div className="page-eyebrow">Step 2 of 6 · Comp Plan Review</div>
+          <h1 className="page-title">Here's What We <span>Found</span></h1>
+          <p className="page-sub">We read your plan and did two things — pulled out every number, and decoded what leadership is actually trying to get you to do.</p>
+        </div>
+
+        {/* AI BANNER */}
+        <div className="ai-banner">
+          <div className="ai-banner-icon">🤖</div>
+          <div className="ai-banner-text">
+            <div className="ai-banner-title">AI read: Q3 2025 Sales Compensation Plan.pdf</div>
+            <div className="ai-banner-sub">Found base salary · 3-tier commission structure · OTE · 3 active SPIFFs · behavioral patterns</div>
+          </div>
+          <div className="ai-confidence">
+            <div className="ai-confidence-dot" />
+            <div className="ai-confidence-label">92% confident</div>
+          </div>
+        </div>
+
+        {/* ── AI COACH CARD ── */}
+        <div className="coach-card">
+          <div className="coach-header">
+            <div className="coach-header-icon">🧠</div>
+            <div className="coach-header-text">
+              <div className="coach-header-title">AI Plan Interpretation</div>
+              <div className="coach-header-sub">What leadership is really trying to get you to do</div>
+            </div>
+            <div className="coach-header-badge">New ✨</div>
+          </div>
+
+          {/* BIG PICTURE */}
+          <div className="big-picture">
+            <div className="big-picture-label">The Big Picture</div>
+            <div className="big-picture-text">
+              "This is a hunter's plan. Leadership is betting big on new logos this year — new business pays nearly 2x more than expansion, and the Fast Start bonus rewards whoever gets off the blocks quickest. The accelerator is aggressive above quota, which means the top reps will separate themselves fast. If you're spending your time on renewals, you're playing the wrong game in 2025."
+            </div>
+          </div>
+
+          {/* WHAT TO DO */}
+          <div className="insights-section">
+            <div className="insights-col-title do-title">✅ What This Plan Rewards</div>
+            <div className="insights-grid">
+              {CS_DO_INSIGHTS.map((ins, i) => (
+                <div className="insight-pill do" key={i}>
+                  <div className="insight-icon">{ins.icon}</div>
+                  <div className="insight-text">
+                    <div className="insight-headline">{ins.headline}</div>
+                    {ins.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="insights-col-title watch-title">⚠️ What To Watch Out For</div>
+            <div className="insights-grid">
+              {CS_WATCH_INSIGHTS.map((ins, i) => (
+                <div className="insight-pill watch" key={i}>
+                  <div className="insight-icon">{ins.icon}</div>
+                  <div className="insight-text">
+                    <div className="insight-headline">{ins.headline}</div>
+                    {ins.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* MOTIVATION METERS */}
+          <div style={{ padding: "4px 24px 20px" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 14 }}>
+              What Leadership Is Prioritizing
+            </div>
+            {CS_MOTIVATIONS.map((m, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.7)", width: 110, flexShrink: 0 }}>{m.label}</div>
+                <div style={{ flex: 1, display: "flex", gap: 3 }}>
+                  {[...Array(10)].map((_, j) => (
+                    <div key={j} style={{
+                      flex: 1, height: 8, borderRadius: 4,
+                      background: j < m.level ? (m.level >= 8 ? "var(--carrot)" : m.level >= 6 ? "#E9C46A" : "rgba(255,255,255,0.3)") : "rgba(255,255,255,0.1)",
+                      transition: `all 0.3s ease ${j * 0.05}s`,
+                    }} />
+                  ))}
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", width: 140, flexShrink: 0, textAlign: "right" }}>{m.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* MISSING FIELD WARNING */}
+        <div className="concern-box">
+          <div style={{ fontSize: 20 }}>⚠️</div>
+          <div>
+            <div className="concern-title">One thing we couldn't find</div>
+            <div className="concern-desc">We couldn't locate your <strong>draw amount</strong>. If you have a recoverable or non-recoverable draw, add it below — it affects your take-home calculations.</div>
+          </div>
+        </div>
+
+        {/* COMP STRUCTURE CARD */}
+        <div className="section-card">
+          <div className="card-header">
+            <div className="card-header-icon">💰</div>
+            <div className="card-header-title">Base Salary &amp; Structure</div>
+            <div className="badge badge-green">✓ Found</div>
+          </div>
+
+          {[
+            { key: "base", icon: "🏦", label: "Base Salary", display: fmt(comp.base) + "/year", sub: null, page: "page 2" },
+            { key: "ote", icon: "🎯", label: "On-Target Earnings (OTE)", display: fmt(comp.ote) + "/year at quota", sub: `That's ${fmt(comp.ote - comp.base)} in variable pay at 100%`, page: "page 1" },
+            { key: "quota", icon: "📊", label: "Annual Quota", display: fmt(comp.quota), sub: null, page: "page 3" },
+          ].map((f) => (
+            <div className="field-row" key={f.key}>
+              <div className="field-icon">{f.icon}</div>
+              <div className="field-body">
+                <div className="field-label">{f.label}</div>
+                {editing === f.key
+                  ? <div className="inline-edit">
+                      <input className="inline-input" value={editVal} onChange={(e) => setEditVal(e.target.value)} autoFocus onKeyDown={(e) => e.key === "Enter" && saveEdit()} />
+                      <button className="save-btn" onClick={saveEdit}>Save</button>
+                      <button className="cancel-btn" onClick={() => setEditing(null)}>Cancel</button>
+                    </div>
+                  : <>
+                      <div className="field-value">{f.display}</div>
+                      {f.sub && <div className="field-sub">{f.sub}</div>}
+                      <div className="field-source">📄 Found on {f.page}</div>
+                    </>
+                }
+              </div>
+              {editing !== f.key && <button className="edit-btn" onClick={() => startEdit(f.key, comp[f.key])}>✏️ Edit</button>}
+            </div>
+          ))}
+
+          <div className="field-row">
+            <div className="field-icon">📅</div>
+            <div className="field-body">
+              <div className="field-label">Pay Frequency</div>
+              <div className="field-value" style={{ fontSize: 17 }}>{comp.payFreq}</div>
+              <div className="field-sub">~{fmt(comp.base / 24)} base per paycheck</div>
+            </div>
+            <button className="edit-btn">✏️ Edit</button>
+          </div>
+
+          <div className="field-row missing">
+            <div className="field-icon">💳</div>
+            <div className="field-body">
+              <div className="field-label">Draw Amount</div>
+              <div className="field-value missing-val">Not found — do you have a draw?</div>
+            </div>
+            <button className="add-btn">+ Add</button>
+          </div>
+        </div>
+
+        {/* COMMISSION TIERS */}
+        <div className="section-card">
+          <div className="card-header">
+            <div className="card-header-icon">📈</div>
+            <div className="card-header-title">Commission Structure</div>
+            <div className="badge badge-green">✓ 3 tiers found</div>
+          </div>
+          {tiers.map((t, i) => (
+            <div className="field-row" key={i}>
+              <div className="field-icon">{i === 0 ? "🟡" : i === 1 ? "🟠" : "🟢"}</div>
+              <div className="field-body">
+                <div className="field-label">{t.range}</div>
+                <div className="field-value">{t.rate}% commission rate</div>
+                {i === 2 && <div className="field-sub">🚀 Accelerator — every dollar above quota earns more</div>}
+              </div>
+              <button className="edit-btn">✏️ Edit</button>
+            </div>
+          ))}
+          <div className="commission-visual">
+            <div className="commission-visual-title">How Your Rate Climbs</div>
+            {tiers.map((t, i) => (
+              <div className="tier-row" key={i}>
+                <div className="tier-label">{t.range}</div>
+                <div className="tier-bar-track"><div className="tier-bar-fill" style={{ width: `${t.width}%`, background: t.color }} /></div>
+                <div className="tier-rate">{t.rate}%</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* SPIFFS */}
+        <div className="section-card">
+          <div className="card-header">
+            <div className="card-header-icon">⚡</div>
+            <div className="card-header-title">Active SPIFFs &amp; Incentives</div>
+            <div className="badge badge-orange">3 active</div>
+          </div>
+          {spiffs.map((s, i) => (
+            <div className="spiff-item" key={i}>
+              <div className="spiff-emoji">{s.emoji}</div>
+              <div className="spiff-body">
+                <div className="spiff-name">{s.name}</div>
+                <div className="spiff-desc">{s.desc}</div>
+                <div className="field-source" style={{ marginTop: 6 }}>
+                  {s.confirmed ? "📄 Confirmed in document" : "⚠️ Verify with your manager"}
+                </div>
+              </div>
+              <div className="spiff-value">{s.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── PAYOUT CURVE ── */}
+        <div style={{ background: "#0F0A05", borderRadius: 24, overflow: "hidden", marginBottom: 20, boxShadow: "0 8px 40px rgba(244,113,26,0.12)" }}>
+          <div style={{ padding: "22px 28px 16px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Your Payout Curve</div>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 900, color: "white", marginBottom: 4 }}>How Your Earnings Climb</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>See exactly how commission accelerates — or decelerates — at every point in your plan.</div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+                {[
+                  { color: "#F4711A", label: "Total Earnings" },
+                  { color: "#E9C46A", label: "Commission Only" },
+                  { color: "rgba(255,255,255,0.2)", label: "Base Salary" },
+                ].map((l, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 24, height: 3, background: l.color, borderRadius: 2 }} />
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{l.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ padding: "24px 8px 8px" }}>
+            <PayoutCurve />
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 1, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            {[
+              { pct: "75%", label: "On Track", earn: "$107,500", rate: "5%", color: "#E9C46A" },
+              { pct: "100%", label: "Quota", earn: "$133,000", rate: "8%", color: "#F4711A" },
+              { pct: "125%", label: "Accelerator", earn: "$175,000", rate: "14%", color: "#E76F51" },
+              { pct: "150%", label: "Pres. Club", earn: "$217,000", rate: "14%", color: "#2D6A4F" },
+            ].map((m, i) => (
+              <div key={i} style={{ padding: "14px 16px", borderRight: i < 3 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+                <div style={{ fontSize: 18, fontWeight: 900, color: m.color, fontFamily: "'Playfair Display', serif" }}>{m.pct}</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>{m.label}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "white" }}>{m.earn}</div>
+                <div style={{ fontSize: 11, color: m.color, marginTop: 2 }}>{m.rate} rate</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* CONFIRM BAR */}
+        {!confirmed
+          ? <div className="confirm-bar">
+              <div>
+                <div className="confirm-bar-title">Does this look right?</div>
+                <div className="confirm-bar-sub">Fix anything above, then confirm to calculate your real take-home numbers</div>
+              </div>
+              <div className="confirm-actions">
+                <button className="btn-fix">Something's wrong</button>
+                <button className="btn-confirm" onClick={() => setConfirmed(true)}>✓ Looks right — continue</button>
+              </div>
+            </div>
+          : <div style={{ background: "var(--green-light)", border: "1.5px solid var(--green)", borderRadius: 20, padding: "20px 24px", display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ fontSize: 32 }}>🥕</div>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "var(--green)" }}>Comp plan confirmed!</div>
+                <div style={{ fontSize: 13, color: "var(--green)", opacity: 0.85 }}>Now let's calculate what you actually take home at each milestone</div>
+              </div>
+              <button onClick={onContinue} style={{ marginLeft: "auto", background: "var(--green)", color: "white", border: "none", borderRadius: 100, padding: "12px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+                See My Numbers →
+              </button>
+            </div>
+        }
+
+      </div>
+    </div>
   );
 }
