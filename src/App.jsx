@@ -205,8 +205,8 @@ function getFedBracket(income) {
 }
 const fmt = (n) => "$" + Math.round(n || 0).toLocaleString();
 
-const FLOW = ["confirm", "pitch", "summary", "real_pay_motivation", "create_account", "build_strategy"];
-const FLOW_LABELS = ["Confirm", "Pitch", "Summary", "Real Pay", "Account", "Strategy"];
+const FLOW = ["confirm", "summary", "real_pay_motivation", "create_account", "build_strategy"];
+const FLOW_LABELS = ["Confirm", "Summary", "Real Pay", "Account", "Strategy"];
 const DASH_TABS = [
   { key: "home", ico: "🏠", lbl: "Home" },
   { key: "update", ico: "✏️", lbl: "Update" },
@@ -1516,37 +1516,6 @@ export default function App() {
     return <CompSummaryScreen onContinue={() => goFlow("real_pay_motivation")} />;
   }
 
-  // ══ PITCH ════════════════════════════════════════════════════════════
-  if (screen === "pitch") {
-    return (
-      <div className="pitch-wrap">
-        <style>{S}</style>
-        <style>{OB_STYLES}</style>
-        <div className="pitch-inner">
-          {carrotAnswer.trim() && <div className="pitch-carrot-callout">🥕 Your carrot: {carrotAnswer}</div>}
-          <h1 className="pitch-headline">Your Manager Will Give You a Call List. Coach Gives You a Plan.</h1>
-          <div className="pitch-contrast">
-            <p className="pitch-mgr">Your manager says: make 50 calls, book 10 meetings, hit your number.</p>
-            <p className="pitch-coach">Coach says: here's exactly what you need to do to get to {carrotAnswer || "your carrot"}.</p>
-          </div>
-          <div className="pitch-checks">
-            {[
-              "Build a personalized territory strategy",
-              "Determine the activities that drive results",
-              "Understand how many opportunities you need",
-              "Track progress toward your goals",
-              "Stay motivated all year",
-            ].map((c, i) => (
-              <div key={i} className="pitch-check"><span className="pitch-check-ico">✓</span><span>{c}</span></div>
-            ))}
-          </div>
-          <button className="pitch-cta" onClick={() => goFlow("summary")}>Build My Success Plan →</button>
-          <p className="pitch-note">Upgrade to Pro · $9.99/month or $99/year</p>
-        </div>
-      </div>
-    );
-  }
-
   // ══ CONFIRM (deduction questions) ════════════════════════════════════
   if (screen === "confirm") {
     const intendedK = grossAt100 * k401Pct / 100;
@@ -1620,7 +1589,7 @@ export default function App() {
 
           <div className="cf-info">🧮 Based on your state and deductions Coach will calculate your real take-home at every milestone. You can update these any time.</div>
 
-          <button className="cf-cta" onClick={() => goFlow("pitch")}>Looks right, show me the analysis →</button>
+          <button className="cf-cta" onClick={() => goFlow("summary")}>Looks right, show me the analysis →</button>
         </div>
       </div>
     );
