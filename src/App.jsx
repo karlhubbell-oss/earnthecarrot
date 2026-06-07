@@ -205,8 +205,8 @@ function getFedBracket(income) {
 }
 const fmt = (n) => "$" + Math.round(n || 0).toLocaleString();
 
-const FLOW = ["signup", "upload", "summary", "paycheck", "carrots", "playbook"];
-const FLOW_LABELS = ["Account", "Upload", "Summary", "Paycheck", "Carrots", "Playbook"];
+const FLOW = ["confirm", "pitch", "summary", "real_pay_motivation", "create_account", "build_strategy"];
+const FLOW_LABELS = ["Confirm", "Pitch", "Summary", "Real Pay", "Account", "Strategy"];
 const DASH_TABS = [
   { key: "home", ico: "🏠", lbl: "Home" },
   { key: "update", ico: "✏️", lbl: "Update" },
@@ -343,6 +343,138 @@ select.ob-inp{appearance:none;cursor:pointer;background-image:url("data:image/sv
 .ob-401k{background:var(--green-light);border:1.5px solid var(--green);border-radius:16px;padding:18px 20px;margin-bottom:20px;}
 .ob-401k-msg{font-size:17px;font-weight:700;color:var(--green);margin-bottom:6px;}
 .ob-401k-sub{font-size:15px;color:#2D6A4F;opacity:0.9;line-height:1.5;}
+/* confirm screen */
+.cf-wrap{min-height:100vh;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;}
+.cf-top{position:sticky;top:0;z-index:50;background:rgba(255,250,244,0.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:14px 20px;}
+.cf-step{font-size:13px;font-weight:700;color:var(--muted);}
+.cf-screen{max-width:600px;margin:0 auto;padding:30px 20px 90px;animation:fadeUp 0.35s ease;}
+.cf-h1{font-family:'Playfair Display',serif;font-size:30px;font-weight:900;color:var(--ink);margin-bottom:24px;line-height:1.15;}
+.cf-card{background:white;border:1.5px solid var(--border);border-radius:20px;overflow:hidden;margin-bottom:20px;}
+.cf-card-hdr{padding:18px 20px;border-bottom:1px solid var(--border);background:var(--cream);}
+.cf-card-title{font-size:16px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap;}
+.cf-card-sub{font-size:13px;color:var(--muted);margin-top:4px;}
+.cf-badge{font-size:11px;font-weight:700;padding:4px 12px;border-radius:100px;}
+.cf-badge.green{background:var(--green-light);color:var(--green);}
+.cf-row{display:flex;align-items:flex-start;gap:14px;padding:14px 20px;border-bottom:1px solid var(--border);}
+.cf-row:last-child{border-bottom:none;}
+.cf-row-body{flex:1;min-width:0;}
+.cf-row-label{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
+.cf-row-val{font-size:18px;font-weight:700;color:var(--ink);}
+.cf-row-val.missing{font-size:14px;font-weight:500;font-style:italic;color:var(--carrot);}
+.cf-tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:100px;margin-top:5px;}
+.cf-tag.found{background:var(--green-light);color:var(--green);}
+.cf-tag.verify{background:#FFF9E6;color:#7A5C00;}
+.cf-ebtn{flex-shrink:0;background:none;border:1.5px solid var(--border);border-radius:10px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);font-family:'DM Sans',sans-serif;}
+.cf-ebtn:hover{border-color:var(--carrot);color:var(--carrot);}
+.cf-edit{display:flex;gap:8px;align-items:center;margin-top:8px;}
+.cf-einp{flex:1;min-width:0;padding:9px 12px;border:1.5px solid var(--carrot);border-radius:10px;font-size:16px;font-family:'DM Sans',sans-serif;color:var(--ink);}
+.cf-einp:focus{outline:none;}
+.cf-save{background:var(--carrot);color:white;border:none;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.cf-cancel{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.cf-q{padding:18px 20px;border-bottom:1px solid var(--border);}
+.cf-q:last-child{border-bottom:none;}
+.cf-q-label{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:4px;}
+.cf-q-hint{font-size:13px;color:var(--muted);margin-bottom:10px;}
+.cf-q-calc{font-size:13px;font-weight:700;color:var(--green);margin-top:8px;}
+.cf-info{background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:16px;padding:16px 20px;font-size:14px;color:#1E3A8A;line-height:1.6;margin-bottom:20px;}
+.cf-cta{width:100%;padding:18px;border-radius:100px;border:none;background:var(--carrot);color:white;font-size:17px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+.cf-cta:hover{background:var(--carrot-dark);transform:translateY(-2px);box-shadow:0 12px 36px rgba(244,113,26,0.4);}
+.cf-cta:disabled{opacity:0.4;cursor:not-allowed;transform:none;box-shadow:none;}
+/* real pay motivation screen */
+.rpm-wrap{min-height:100vh;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;}
+.rpm-screen{max-width:600px;margin:0 auto;padding:30px 20px 90px;animation:fadeUp 0.35s ease;}
+.rpm-h1{font-family:'Playfair Display',serif;font-size:30px;font-weight:900;color:var(--ink);margin-bottom:24px;line-height:1.15;}
+.rpm-dark{background:#0F0A05;border-radius:24px;padding:28px;margin-bottom:24px;}
+.rpm-eyebrow{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--carrot);margin-bottom:10px;}
+.rpm-dark-h{font-family:'Playfair Display',serif;font-size:28px;font-weight:900;color:white;line-height:1.2;margin-bottom:8px;}
+.rpm-dark-sub{font-size:14px;color:rgba(255,255,255,0.6);margin-bottom:22px;line-height:1.5;}
+.rpm-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.rpm-mcard{background:rgba(255,255,255,0.05);border:1.5px solid rgba(255,255,255,0.1);border-radius:16px;padding:20px;}
+.rpm-mcard.quota{border-color:var(--carrot);}
+.rpm-mcard.stretch{border-color:#86EFAC;}
+.rpm-mpct{font-family:'Playfair Display',serif;font-size:22px;font-weight:900;color:white;line-height:1;}
+.rpm-mlabel{font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:14px;font-weight:600;}
+.rpm-mline{margin-bottom:8px;}
+.rpm-mk{font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;}
+.rpm-mk.gross{color:rgba(255,255,255,0.55);}
+.rpm-mk.net{color:#86EFAC;}
+.rpm-mv{font-size:16px;font-weight:700;color:white;}
+.rpm-mv.net{font-size:20px;font-weight:800;color:#86EFAC;}
+.rpm-mbar{height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;margin-top:12px;}
+.rpm-mbar-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--carrot));border-radius:3px;}
+.rpm-stretchbox{background:rgba(244,113,26,0.12);border:1.5px solid rgba(244,113,26,0.35);border-radius:16px;padding:18px 20px;margin-top:18px;}
+.rpm-stretchbox-big{font-family:'Playfair Display',serif;font-size:22px;font-weight:900;color:#FDBA74;margin-bottom:4px;}
+.rpm-stretchbox-sub{font-size:14px;color:rgba(255,255,255,0.7);line-height:1.5;}
+.rpm-carrot-sub{font-size:15px;color:var(--muted);line-height:1.6;padding:0 20px 14px;}
+.rpm-amt{color:var(--carrot);font-weight:800;}
+.rpm-pad{padding:0 20px 20px;}
+.rpm-input{width:100%;padding:16px 18px;border:1.5px solid var(--border);border-radius:14px;font-size:18px;font-family:'DM Sans',sans-serif;color:var(--ink);background:white;}
+.rpm-input:focus{outline:none;border-color:var(--carrot);}
+.rpm-pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;}
+.rpm-pill{padding:9px 16px;border-radius:100px;border:1.5px solid var(--border);background:white;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--muted);}
+.rpm-pill:hover{border-color:var(--carrot);color:var(--carrot);}
+.rpm-pill.on{background:var(--carrot);border-color:var(--carrot);color:white;}
+.rpm-img-label{font-size:13px;font-weight:700;color:var(--ink);margin:18px 0 10px;}
+.rpm-goldbox{background:var(--gold-light);border:1.5px solid var(--gold);border-radius:16px;padding:16px 20px;font-size:14px;color:#7A5C00;line-height:1.6;margin-bottom:20px;}
+/* carrot image box */
+.cib-box{border:2px dashed var(--border);border-radius:16px;min-height:120px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;background:var(--cream);overflow:hidden;}
+.cib-box.has{border-style:solid;border-color:var(--carrot-light);}
+.cib-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.cib-btn{display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 8px;border-radius:12px;border:1.5px solid var(--border);background:white;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);font-family:'DM Sans',sans-serif;}
+.cib-btn:hover{border-color:var(--carrot);color:var(--carrot);}
+.cib-row{display:flex;gap:8px;margin-top:10px;align-items:center;}
+.cib-inp{flex:1;min-width:0;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-family:'DM Sans',sans-serif;}
+.cib-inp:focus{outline:none;border-color:var(--carrot);}
+.cib-add{background:var(--carrot);color:white;border:none;border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;}
+.cib-cancel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;}
+@keyframes azspin{to{transform:rotate(360deg);}}
+/* create account screen */
+.ca-wrap{min-height:100vh;background:var(--dark);color:white;font-family:'DM Sans',sans-serif;}
+.ca-screen{max-width:760px;margin:0 auto;padding:30px 20px 90px;animation:fadeUp 0.35s ease;}
+.ca-callout{background:rgba(244,113,26,0.12);border:1px solid rgba(244,113,26,0.35);border-radius:14px;padding:16px 20px;}
+.ca-callout-c{font-size:16px;font-weight:700;color:#FDBA74;}
+.ca-callout-sub{font-size:14px;color:rgba(255,255,255,0.65);margin-top:4px;line-height:1.5;}
+.ca-h1{font-family:'Playfair Display',serif;font-size:30px;font-weight:900;color:white;margin:18px 0 22px;line-height:1.15;}
+.ca-plans{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+.ca-plan{cursor:pointer;}
+.ca-plan.sel{box-shadow:0 0 0 3px rgba(244,113,26,0.5);}
+.ca-form{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:18px;padding:22px;margin-bottom:20px;}
+.ca-flabel{font-size:13px;font-weight:700;color:white;margin-bottom:6px;display:block;}
+.ca-finp{width:100%;padding:13px 16px;border:1.5px solid rgba(255,255,255,0.2);border-radius:12px;font-size:16px;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.06);color:white;margin-bottom:16px;}
+.ca-finp:focus{outline:none;border-color:var(--carrot);}
+.ca-finp::placeholder{color:rgba(255,255,255,0.35);}
+.ca-hint{font-size:13px;color:rgba(255,255,255,0.55);}
+/* build strategy screen */
+.bs-wrap{min-height:100vh;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;}
+.bs-screen{max-width:760px;margin:0 auto;padding:24px 20px 90px;animation:fadeUp 0.35s ease;}
+.bs-pill{display:inline-flex;align-items:center;gap:6px;background:var(--carrot-light);color:var(--carrot-dark);border-radius:100px;padding:8px 16px;font-size:14px;font-weight:700;margin-bottom:16px;}
+.bs-h1{font-family:'Playfair Display',serif;font-size:30px;font-weight:900;color:var(--ink);margin-bottom:6px;line-height:1.15;}
+.bs-prog{font-size:13px;font-weight:700;color:var(--muted);margin-bottom:20px;}
+.bs-cols{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;align-items:start;}
+.bs-q{background:white;border:1.5px solid var(--border);border-radius:18px;padding:20px;margin-bottom:14px;animation:fadeUp 0.4s ease;}
+.bs-q-num{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--carrot);margin-bottom:6px;}
+.bs-q-label{font-size:17px;font-weight:700;color:var(--ink);margin-bottom:6px;}
+.bs-q-hint{font-size:13px;color:var(--muted);margin-bottom:12px;}
+.bs-inp-money{display:flex;align-items:center;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;background:white;}
+.bs-inp-money span{padding:0 4px 0 14px;color:var(--muted);font-weight:700;}
+.bs-inp-money input{flex:1;min-width:0;border:none;padding:13px 14px 13px 4px;font-size:16px;font-family:'DM Sans',sans-serif;color:var(--ink);background:transparent;}
+.bs-inp-money input:focus{outline:none;}
+.bs-pills{display:flex;flex-wrap:wrap;gap:10px;}
+.bs-opt{padding:9px 16px;border-radius:100px;border:1.5px solid var(--border);background:white;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--muted);}
+.bs-opt:hover{border-color:var(--carrot);color:var(--carrot);}
+.bs-opt.on{background:var(--carrot);border-color:var(--carrot);color:white;}
+.bs-slider{width:100%;accent-color:var(--carrot);cursor:pointer;}
+.bs-slider-val{font-family:'Playfair Display',serif;font-size:30px;font-weight:900;color:var(--carrot);text-align:center;margin-bottom:6px;}
+.bs-strat{background:#0F0A05;border-radius:18px;padding:22px;position:sticky;top:20px;}
+.bs-strat-h{font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--carrot);margin-bottom:16px;}
+.bs-strat-row{padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.1);}
+.bs-strat-row:last-child{border-bottom:none;}
+.bs-strat-k{font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:4px;}
+.bs-strat-v{font-family:'Playfair Display',serif;font-size:22px;font-weight:900;color:white;}
+.bs-strat-v.pending{font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:rgba(255,255,255,0.45);font-style:italic;}
+.bs-done{background:var(--green-light);border:1.5px solid var(--green);border-radius:16px;padding:18px 20px;margin-top:20px;}
+.bs-done-t{font-size:16px;font-weight:700;color:var(--green);margin-bottom:12px;}
+@media(max-width:680px){.bs-cols{grid-template-columns:1fr;}.ca-plans{grid-template-columns:1fr;}.bs-strat{position:static;}}
 /* carrot bridge */
 .cb-wrap{min-height:100vh;background:var(--dark);color:white;display:flex;align-items:center;justify-content:center;padding:40px 24px;}
 .cb-inner{max-width:560px;width:100%;animation:fadeUp 0.4s ease;}
@@ -396,6 +528,9 @@ export default function App() {
   const [spiffs] = useState([]);
   const [k401Pct, setK401Pct]   = useState(6);
   const [healthMo, setHealthMo] = useState(200);
+  const [otherMonthly, setOtherMonthly] = useState(0);
+  const [repName, setRepName] = useState("");
+  const [payFreq, setPayFreq] = useState("Semi-monthly (24x/year)");
   const [carrotTab, setCarrotTab] = useState("big");
   const [bigCarrots, setBigCarrots] = useState([{ id: 1, name: "Family trip to Hawaii", cost: 12000 }]);
   const [medCarrots, setMedCarrots] = useState([{ id: 1, name: "Weekend getaway", cost: 2500, period: "Quarterly" }]);
@@ -408,6 +543,14 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("home");
   const [todayLog, setTodayLog] = useState({});
   const [carrotAnswer, setCarrotAnswer] = useState("");
+  const [carrotImage, setCarrotImage] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState("pro");
+  const [dealSize, setDealSize] = useState("");
+  const [salesCycle, setSalesCycle] = useState("");
+  const [closeRate, setCloseRate] = useState(20);
+  const [closeRateSet, setCloseRateSet] = useState(false);
+  const [pipeline, setPipeline] = useState("");
+  const [territoryFocus, setTerritoryFocus] = useState([]);
 
   // ── ONBOARDING CALCULATIONS ──
   const k401Limit = K401_LIMITS[suAge] ?? 23500;
@@ -423,11 +566,12 @@ export default function App() {
   function calcNet(gross) {
     const k = Math.min(gross * k401Pct / 100, k401Limit);
     const health = healthMo * 12;
+    const other = otherMonthly * 12;
     const taxable = Math.max(0, gross - k - health);
     const fed = taxable * (taxOverrides.fed ?? getFedBracket(gross).rate) / 100;
     const st = taxable * (taxOverrides.state ?? stateTaxPct) / 100;
     const fica = gross * 0.0765;
-    return gross - fed - st - fica - k - health;
+    return gross - fed - st - fica - k - health - other;
   }
   const grossAt100 = useMemo(() => calcGross(100), [comp, suAge, k401Pct, healthMo, suState]);
   const commAt100 = comp.quota * rate;
@@ -479,7 +623,7 @@ export default function App() {
             <a className="nav-link" href="#coach">Meet Coach</a>
             <a className="nav-link" href="#pricing">Pricing</a>
           </div>
-          <button className="nav-cta" onClick={() => goFlow("signup")}>
+          <button className="nav-cta" onClick={() => goFlow("upload")}>
             Build My Playbook
           </button>
         </nav>
@@ -498,7 +642,7 @@ export default function App() {
           <p className="hero-sub">
             Coach helps salespeople understand how they get paid, build a personalized success plan, and stay focused on the actions that drive results.
           </p>
-          <button className="hero-cta" onClick={() => goFlow("signup")}>
+          <button className="hero-cta" onClick={() => goFlow("upload")}>
             Build My Personal Playbook →
           </button>
           <div className="hero-hint">
@@ -1221,7 +1365,7 @@ export default function App() {
               <div className="closing-line">Build a plan to exceed quota.</div>
               <div className="closing-line">Earn your carrot.</div>
             </div>
-            <button className="closing-cta" onClick={() => goFlow("signup")}>
+            <button className="closing-cta" onClick={() => goFlow("upload")}>
               Build My Personal Playbook →
             </button>
           </div>
@@ -1339,44 +1483,7 @@ export default function App() {
 
   // ══ COMP PLAN SUMMARY (full-screen mockup) ═══════════════════════════
   if (screen === "summary") {
-    return <CompSummaryScreen onContinue={() => goFlow("carrot_bridge")} />;
-  }
-
-  // ══ ANALYZING (Coach reading the plan) ═══════════════════════════════
-  // placeholder for 30-second video, to be added later
-  if (screen === "analyzing") {
-    return <AnalyzingScreen onDone={() => goFlow("summary")} />;
-  }
-
-  // ══ CARROT BRIDGE ════════════════════════════════════════════════════
-  if (screen === "carrot_bridge") {
-    const stretchTakeHome = calcNet(calcGross(125));
-    const PICKS = ["Family vacation", "Pay off debt", "New car", "Home improvement", "Save it"];
-    return (
-      <div className="cb-wrap">
-        <style>{S}</style>
-        <style>{OB_STYLES}</style>
-        <div className="cb-inner">
-          <div className="cb-label">One Question Before We Continue</div>
-          <h1 className="cb-headline">If you hit your stretch goal and pocketed <span className="cb-amt">{fmt(stretchTakeHome)}</span> this year...</h1>
-          <p className="cb-sub">What would you do with it?</p>
-          <input
-            className="cb-input"
-            value={carrotAnswer}
-            onChange={(e) => setCarrotAnswer(e.target.value)}
-            placeholder="e.g. Pay off my car, Family trip to Hawaii, New boat"
-            autoFocus
-            onKeyDown={(e) => { if (e.key === "Enter" && carrotAnswer.trim()) goFlow("pitch"); }}
-          />
-          <div className="cb-pills">
-            {PICKS.map((p) => (
-              <button key={p} className={`cb-pill ${carrotAnswer === p ? "on" : ""}`} onClick={() => setCarrotAnswer(p)}>{p}</button>
-            ))}
-          </div>
-          <button className="cb-btn" disabled={!carrotAnswer.trim()} onClick={() => goFlow("pitch")}>Continue →</button>
-        </div>
-      </div>
-    );
+    return <CompSummaryScreen onContinue={() => goFlow("real_pay_motivation")} />;
   }
 
   // ══ PITCH ════════════════════════════════════════════════════════════
@@ -1403,56 +1510,394 @@ export default function App() {
               <div key={i} className="pitch-check"><span className="pitch-check-ico">✓</span><span>{c}</span></div>
             ))}
           </div>
-          <button className="pitch-cta" onClick={() => goFlow("paycheck")}>Build My Success Plan →</button>
+          <button className="pitch-cta" onClick={() => goFlow("summary")}>Build My Success Plan →</button>
           <p className="pitch-note">Upgrade to Pro · $9.99/month or $99/year</p>
         </div>
       </div>
     );
   }
 
-  // ══ ONBOARDING STEP SCREENS ══════════════════════════════════════════
-  if (FLOW.includes(screen)) {
-    const idx = FLOW.indexOf(screen);
-    let body = null;
+  // ══ CONFIRM (what Coach found + quick questions) ═════════════════════
+  if (screen === "confirm") {
+    const intendedK = grossAt100 * k401Pct / 100;
+    const annualK = Math.min(intendedK, k401Limit);
+    const monthly = intendedK / 12;
+    const monthsToMax = monthly > 0 ? k401Limit / monthly : Infinity;
+    const maxMonth = monthsToMax > 0 && monthsToMax < 12 ? MONTHS[Math.floor(monthsToMax)] : null;
+    const rows = [
+      { key: "repName", label: "Rep Name", display: repName || "Not found, tap to add", raw: repName, missing: !repName, found: false },
+      { key: "base", label: "Base Salary", display: fmt(comp.base), raw: comp.base, found: true },
+      { key: "quota", label: "Annual Quota", display: fmt(comp.quota), raw: comp.quota, found: true },
+      { key: "commissionRate", label: "Commission Rate", display: comp.commissionRate + "%", raw: comp.commissionRate, found: true },
+      { key: "accelerator", label: "Accelerator", display: comp.accelerator + "x", raw: comp.accelerator, found: true },
+      { key: "payFreq", label: "Pay Frequency", display: payFreq, raw: payFreq, found: false },
+    ];
+    const NUM_FIELDS = ["base", "quota", "commissionRate", "accelerator"];
+    const saveRow = () => {
+      if (NUM_FIELDS.includes(editField)) setComp((c) => ({ ...c, [editField]: parseFloat(editVal) || 0 }));
+      else if (editField === "repName") setRepName(editVal);
+      else if (editField === "payFreq") setPayFreq(editVal);
+      setEditField(null);
+    };
+    return (
+      <div className="cf-wrap">
+        <style>{S}</style>
+        <style>{OB_STYLES}</style>
+        <div className="cf-top">
+          <button className="ob-back" onClick={() => goFlow("upload")}>← Back</button>
+          <div className="cf-step">Step 2 of 6</div>
+        </div>
+        <div className="cf-screen">
+          <h1 className="cf-h1">Confirm What We Know</h1>
 
-    if (screen === "signup") {
-      body = (
-        <>
-          <div className="ob-eyebrow">Step 1 of 6 · Create account</div>
-          <h1 className="ob-h1">Create your account</h1>
-          <p className="ob-subt">A few details so Coach can personalize your earnings math.</p>
-          <div className="ob-field">
-            <label className="ob-label">Full name</label>
-            <input className="ob-inp" value={suName} onChange={(e) => setSuName(e.target.value)} placeholder="Jordan Rivera" />
+          {/* SECTION 1 — What Coach Found */}
+          <div className="cf-card">
+            <div className="cf-card-hdr">
+              <div className="cf-card-title">
+                <span>🥕 Here is what Coach found in your plan</span>
+                <span className="cf-badge green">AI Extracted</span>
+              </div>
+            </div>
+            {rows.map((r) => (
+              <div className="cf-row" key={r.key}>
+                <div className="cf-row-body">
+                  <div className="cf-row-label">{r.label}</div>
+                  {editField === r.key ? (
+                    <div className="cf-edit">
+                      <input
+                        className="cf-einp"
+                        type={NUM_FIELDS.includes(r.key) ? "number" : "text"}
+                        value={editVal}
+                        onChange={(e) => setEditVal(e.target.value)}
+                        autoFocus
+                        onKeyDown={(e) => e.key === "Enter" && saveRow()}
+                      />
+                      <button className="cf-save" onClick={saveRow}>Save</button>
+                      <button className="cf-cancel" onClick={() => setEditField(null)}>Cancel</button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className={`cf-row-val ${r.missing ? "missing" : ""}`}>{r.display}</div>
+                      <span className={`cf-tag ${r.found ? "found" : "verify"}`}>{r.found ? "📄 Found on plan" : "⚠️ Please verify"}</span>
+                    </>
+                  )}
+                </div>
+                {editField !== r.key && <button className="cf-ebtn" onClick={() => startEdit(r.key, r.raw)}>✏️ Edit</button>}
+              </div>
+            ))}
           </div>
-          <div className="ob-field">
-            <label className="ob-label">Work email</label>
-            <input className="ob-inp" type="email" value={suEmail} onChange={(e) => setSuEmail(e.target.value)} placeholder="you@company.com" />
-          </div>
-          <div className="ob-row">
-            <div className="ob-field">
-              <label className="ob-label">State</label>
+
+          {/* SECTION 2 — Help Coach Understand You */}
+          <div className="cf-card">
+            <div className="cf-card-hdr">
+              <div className="cf-card-title"><span>A few quick questions so Coach can calculate your real take-home</span></div>
+              <div className="cf-card-sub">This takes less than 60 seconds</div>
+            </div>
+
+            <div className="cf-q">
+              <div className="cf-q-label">What state do you live in?</div>
+              <div className="cf-q-hint">Used to calculate your state income tax</div>
               <select className="ob-inp" value={suState} onChange={(e) => setSuState(e.target.value)}>
                 <option value="">Select state</option>
                 {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <div className="ob-field">
-              <label className="ob-label">Age bracket</label>
-              <select className="ob-inp" value={suAge} onChange={(e) => setSuAge(e.target.value)}>
-                {AGE_BRACKETS.map((a) => <option key={a} value={a}>{a}</option>)}
-              </select>
+
+            <div className="cf-q">
+              <div className="cf-q-label">What percentage of your salary do you contribute to your 401k?</div>
+              <input className="ob-slider" type="range" min="0" max="25" step="0.5" value={k401Pct} onChange={(e) => setK401Pct(+e.target.value)} />
+              <div className="cf-q-calc">{k401Pct}% · Annual contribution: ~{fmt(annualK)}</div>
+              {maxMonth && <div className="cf-q-calc">You will max out around {maxMonth}</div>}
+            </div>
+
+            <div className="cf-q">
+              <div className="cf-q-label">What is your monthly health insurance premium?</div>
+              <div className="cf-q-hint">Your portion after employer contribution</div>
+              <input className="ob-inp" type="number" value={healthMo} onChange={(e) => setHealthMo(+e.target.value)} placeholder="0" />
+            </div>
+
+            <div className="cf-q">
+              <div className="cf-q-label">Any other monthly deductions?</div>
+              <div className="cf-q-hint">Dental, vision, FSA, parking, etc.</div>
+              <input className="ob-inp" type="number" value={otherMonthly} onChange={(e) => setOtherMonthly(+e.target.value)} placeholder="0" />
             </div>
           </div>
-          <p className="ob-sec-sub" style={{ marginTop: -8 }}>Age bracket sets your 401k contribution limit ({fmt(K401_LIMITS[suAge])} per year).</p>
-          <div className="ob-field">
-            <label className="ob-label">Password</label>
-            <input className="ob-inp" type="password" value={suPass} onChange={(e) => setSuPass(e.target.value)} placeholder="Create a password" />
+
+          <div className="cf-info">🧮 Based on your state and deductions Coach will calculate your real take-home at every milestone. You can update these any time.</div>
+
+          <button className="cf-cta" onClick={() => goFlow("pitch")}>Looks right, show me the analysis →</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ══ REAL PAY + MOTIVATION ════════════════════════════════════════════
+  if (screen === "real_pay_motivation") {
+    const MILES = [
+      { pct: 75, label: "On Track", cls: "" },
+      { pct: 100, label: "Quota", cls: "quota" },
+      { pct: 125, label: "Stretch", cls: "stretch" },
+      { pct: 150, label: "Presidents Club", cls: "" },
+    ];
+    const net100 = calcNet(calcGross(100));
+    const stretchNet = calcNet(calcGross(125));
+    const diff = stretchNet - net100;
+    const PICKS = ["Family vacation", "Pay off debt", "New car", "Home improvement", "Save it"];
+    return (
+      <div className="rpm-wrap">
+        <style>{S}</style>
+        <style>{OB_STYLES}</style>
+        <div className="cf-top">
+          <button className="ob-back" onClick={() => goFlow("summary")}>← Back</button>
+          <div className="cf-step">Step 5 of 6</div>
+        </div>
+        <div className="rpm-screen">
+          <h1 className="rpm-h1">See Your Real Pay. Set Your Motivation.</h1>
+
+          {/* SECTION 1 — Your Real Take-Home */}
+          <div className="rpm-dark">
+            <div className="rpm-eyebrow">Your Real Numbers</div>
+            <div className="rpm-dark-h">Here is what you actually take home at every milestone</div>
+            <div className="rpm-dark-sub">After federal tax, state tax, FICA, 401k, and your deductions</div>
+            <div className="rpm-grid">
+              {MILES.map((m) => {
+                const gross = calcGross(m.pct);
+                const net = calcNet(gross);
+                return (
+                  <div key={m.pct} className={`rpm-mcard ${m.cls}`}>
+                    <div className="rpm-mpct">{m.pct}%</div>
+                    <div className="rpm-mlabel">{m.label}</div>
+                    <div className="rpm-mline"><div className="rpm-mk gross">Gross</div><div className="rpm-mv">{fmt(gross)}</div></div>
+                    <div className="rpm-mline"><div className="rpm-mk net">Est. Take-Home</div><div className="rpm-mv net">{fmt(net)}</div></div>
+                    <div className="rpm-mbar"><div className="rpm-mbar-fill" style={{ width: `${Math.min(100, m.pct / 150 * 100)}%` }} /></div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="rpm-stretchbox">
+              <div className="rpm-stretchbox-big">Your stretch goal take-home: {fmt(stretchNet)}</div>
+              <div className="rpm-stretchbox-sub">That is {fmt(diff)} more than hitting quota.</div>
+            </div>
           </div>
-          <button className="ob-btn" disabled={!suName || !suEmail || !suState || !suPass} onClick={() => goFlow("upload")}>Create My Account</button>
-        </>
-      );
-    } else if (screen === "upload") {
+
+          {/* SECTION 2 — Set Your Carrot */}
+          <div className="cf-card">
+            <div className="cf-card-hdr">
+              <div className="cf-card-title"><span>🥕 What are you working toward?</span></div>
+            </div>
+            <p className="rpm-carrot-sub">If you hit your stretch goal and pocketed <span className="rpm-amt">{fmt(stretchNet)}</span> this year, what would you do with it?</p>
+            <div className="rpm-pad">
+              <input className="rpm-input" value={carrotAnswer} onChange={(e) => setCarrotAnswer(e.target.value)} placeholder="e.g. Family vacation in Hawaii, Pay off my car, New boat..." />
+              <div className="rpm-pills">
+                {PICKS.map((p) => (
+                  <button key={p} className={`rpm-pill ${carrotAnswer === p ? "on" : ""}`} onClick={() => setCarrotAnswer(p)}>{p}</button>
+                ))}
+              </div>
+              <div className="rpm-img-label">Add a photo of your carrot (optional)</div>
+              <CarrotImageBox image={carrotImage} onImageChange={setCarrotImage} />
+            </div>
+          </div>
+
+          {/* SECTION 3 — Save + Continue */}
+          <div className="rpm-goldbox">Your carrot and real numbers will be saved when you create your account in the next step.</div>
+          <button className="cf-cta" disabled={!carrotAnswer.trim()} onClick={() => goFlow("create_account")}>Save My Carrot and Create My Account →</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ══ CREATE ACCOUNT ═══════════════════════════════════════════════════
+  if (screen === "create_account") {
+    const FREE_FEATURES = [
+      "See your real take-home numbers",
+      "Understand your compensation plan",
+      "Set your first carrot",
+    ];
+    const PRO_FEATURES = [
+      "Everything in Free",
+      "Build your territory strategy with Coach",
+      "Personalized success plan",
+      "Ongoing coaching and motivation",
+      "Track progress toward your carrot all year",
+    ];
+    return (
+      <div className="ca-wrap">
+        <style>{S}</style>
+        <style>{OB_STYLES}</style>
+        <div className="cf-top" style={{ background: "rgba(15,10,5,0.9)", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+          <button className="ob-back" onClick={() => goFlow("real_pay_motivation")}>← Back</button>
+          <div className="cf-step" style={{ color: "rgba(255,255,255,0.6)" }}>Step 6 of 6</div>
+        </div>
+        <div className="ca-screen">
+          <div className="ca-callout">
+            <div className="ca-callout-c">🥕 Your carrot: {carrotAnswer || "Your goal"}</div>
+            <div className="ca-callout-sub">Create your account to save your plan and start building your strategy with Coach.</div>
+          </div>
+          <h1 className="ca-h1">Save Your Plan and Start Building</h1>
+
+          <div className="ca-plans">
+            <div className={`pcard ca-plan ${selectedPlan === "free" ? "sel" : ""}`} onClick={() => setSelectedPlan("free")}>
+              <div className="ptier standard">Free</div>
+              <div className="pname">Carrot Snapshot</div>
+              <div className="pprice">$0</div>
+              <div className="pdivider" />
+              <div className="pfeatures">
+                {FREE_FEATURES.map((f, i) => (
+                  <div key={i} className="pfeature"><span className="pcheck orange">✓</span><span>{f}</span></div>
+                ))}
+              </div>
+              <button className="pbtn outlined-orange" onClick={(e) => { e.stopPropagation(); setSelectedPlan("free"); }}>Start Free</button>
+            </div>
+            <div className={`pcard featured ca-plan ${selectedPlan === "pro" ? "sel" : ""}`} onClick={() => setSelectedPlan("pro")}>
+              <div className="most-popular-badge">Recommended</div>
+              <div className="ptier orange">Pro</div>
+              <div className="pname">Meet Coach</div>
+              <div className="pprice">$99<span style={{ fontSize: 20, fontFamily: "'DM Sans',sans-serif", fontWeight: 500 }}>/year</span></div>
+              <div className="psub">or $9.99 per month</div>
+              <div className="pdivider" />
+              <div className="pfeatures">
+                {PRO_FEATURES.map((f, i) => (
+                  <div key={i} className="pfeature"><span className="pcheck orange">✓</span><span>{f}</span></div>
+                ))}
+              </div>
+              <button className="pbtn filled" onClick={(e) => { e.stopPropagation(); setSelectedPlan("pro"); }}>Start Pro · $9.99/month</button>
+            </div>
+          </div>
+
+          <div className="ca-form">
+            <label className="ca-flabel">Email Address</label>
+            <input className="ca-finp" type="email" value={suEmail} onChange={(e) => setSuEmail(e.target.value)} placeholder="you@company.com" />
+            <label className="ca-flabel">Create Password</label>
+            <input className="ca-finp" type="password" value={suPass} onChange={(e) => setSuPass(e.target.value)} placeholder="Create a password" />
+            <div className="ca-hint">You can upgrade or change your plan any time</div>
+          </div>
+
+          <button className="cf-cta" onClick={() => goFlow(selectedPlan === "pro" ? "build_strategy" : "dashboard")}>Create My Account →</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ══ BUILD STRATEGY ═══════════════════════════════════════════════════
+  if (screen === "build_strategy") {
+    const a1 = dealSize !== "" && +dealSize > 0;
+    const a2 = !!salesCycle;
+    const a3 = closeRateSet;
+    const a4 = pipeline !== "";
+    const a5 = territoryFocus.length > 0;
+    const answeredCount = [a1, a2, a3, a4, a5].filter(Boolean).length;
+    const currentQ = Math.min(5, answeredCount + 1);
+    const D = +dealSize || 0;
+    const CR = closeRate / 100;
+    const Q = comp.quota;
+    const oppsQuota = D > 0 && CR > 0 ? Math.ceil((Q / D) / CR) : null;
+    const oppsStretch = D > 0 && CR > 0 ? Math.ceil((Q * 1.25 / D) / CR) : null;
+    const neededPipeline = oppsQuota != null ? oppsQuota * D : null;
+    const pipelineGap = neededPipeline != null && a4 ? Math.max(0, neededPipeline - (+pipeline || 0)) : null;
+    const cycleWeeks = { "Under 30 days": 44, "1 to 3 months": 40, "3 to 6 months": 34, "6+ months": 28 }[salesCycle];
+    const weeklyOpps = oppsQuota != null && cycleWeeks ? Math.max(1, Math.ceil(oppsQuota / cycleWeeks)) : null;
+    const TERRITORIES = ["Enterprise", "Mid-Market", "SMB", "Named Accounts", "Geographic Territory", "Vertical Focus"];
+    const toggleTerr = (t) => setTerritoryFocus((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]);
+    return (
+      <div className="bs-wrap">
+        <style>{S}</style>
+        <style>{OB_STYLES}</style>
+        <div className="cf-top">
+          <button className="ob-back" onClick={() => goFlow("create_account")}>← Back</button>
+          <div className="cf-step">Question {currentQ} of 5</div>
+        </div>
+        <div className="bs-screen">
+          <div className="bs-pill">🥕 Working toward: {carrotAnswer || "Your goal"}</div>
+          <h1 className="bs-h1">Build Your Strategy With Coach</h1>
+          <div className="bs-prog">Question {currentQ} of 5</div>
+          <div className="bs-cols">
+            <div>
+              <div className="bs-q">
+                <div className="bs-q-num">Question 1</div>
+                <div className="bs-q-label">What is your average deal size?</div>
+                <div className="bs-q-hint">Your typical contract value when you close a deal</div>
+                <div className="bs-inp-money"><span>$</span><input type="number" value={dealSize} onChange={(e) => setDealSize(e.target.value)} placeholder="0" /></div>
+              </div>
+              {a1 && (
+                <div className="bs-q">
+                  <div className="bs-q-num">Question 2</div>
+                  <div className="bs-q-label">How long is your typical sales cycle?</div>
+                  <div className="bs-pills">
+                    {["Under 30 days", "1 to 3 months", "3 to 6 months", "6+ months"].map((o) => (
+                      <button key={o} className={`bs-opt ${salesCycle === o ? "on" : ""}`} onClick={() => setSalesCycle(o)}>{o}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {a2 && (
+                <div className="bs-q">
+                  <div className="bs-q-num">Question 3</div>
+                  <div className="bs-q-label">What is your typical close rate?</div>
+                  <div className="bs-q-hint">Out of every 10 opportunities how many do you typically close?</div>
+                  <div className="bs-slider-val">{closeRate}%</div>
+                  <input className="bs-slider" type="range" min="1" max="100" value={closeRate} onChange={(e) => { setCloseRate(+e.target.value); setCloseRateSet(true); }} />
+                </div>
+              )}
+              {a3 && (
+                <div className="bs-q">
+                  <div className="bs-q-num">Question 4</div>
+                  <div className="bs-q-label">How much open pipeline do you currently have?</div>
+                  <div className="bs-q-hint">Total value of all your active opportunities right now</div>
+                  <div className="bs-inp-money"><span>$</span><input type="number" value={pipeline} onChange={(e) => setPipeline(e.target.value)} placeholder="0" /></div>
+                </div>
+              )}
+              {a4 && (
+                <div className="bs-q">
+                  <div className="bs-q-num">Question 5</div>
+                  <div className="bs-q-label">What is your territory focus?</div>
+                  <div className="bs-q-hint">Select all that apply</div>
+                  <div className="bs-pills">
+                    {TERRITORIES.map((t) => (
+                      <button key={t} className={`bs-opt ${territoryFocus.includes(t) ? "on" : ""}`} onClick={() => toggleTerr(t)}>{t}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="bs-strat">
+              <div className="bs-strat-h">Your Strategy Taking Shape</div>
+              <div className="bs-strat-row">
+                <div className="bs-strat-k">Opportunities to hit quota</div>
+                {oppsQuota != null ? <div className="bs-strat-v">{oppsQuota}</div> : <div className="bs-strat-v pending">Answer Q1 and Q3</div>}
+              </div>
+              <div className="bs-strat-row">
+                <div className="bs-strat-k">Opportunities to hit stretch (125%)</div>
+                {oppsStretch != null ? <div className="bs-strat-v">{oppsStretch}</div> : <div className="bs-strat-v pending">Answer Q1 and Q3</div>}
+              </div>
+              <div className="bs-strat-row">
+                <div className="bs-strat-k">Pipeline gap</div>
+                {pipelineGap != null ? <div className="bs-strat-v">{pipelineGap > 0 ? fmt(pipelineGap) : "You are covered"}</div> : <div className="bs-strat-v pending">Answer Q4</div>}
+              </div>
+              <div className="bs-strat-row">
+                <div className="bs-strat-k">Recommended weekly activities</div>
+                {weeklyOpps != null ? <div className="bs-strat-v">~{weeklyOpps} new opps / week</div> : <div className="bs-strat-v pending">Answer Q2</div>}
+              </div>
+            </div>
+          </div>
+
+          {a5 && (
+            <div className="bs-done">
+              <div className="bs-done-t">✓ Coach has everything needed to build your success plan.</div>
+              <button className="cf-cta" onClick={() => goFlow("dashboard")}>Go to My Dashboard →</button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ══ ONBOARDING STEP SCREENS ══════════════════════════════════════════
+  if (screen === "upload" || FLOW.includes(screen)) {
+    const idx = FLOW.indexOf(screen);
+    let body = null;
+
+    if (screen === "upload") {
       body = (
         <>
           <div className="ob-eyebrow">Step 2 of 6 · Compensation plan</div>
@@ -1465,170 +1910,7 @@ export default function App() {
             <div style={{ fontSize: 15, color: "var(--muted)", marginTop: 4 }}>{planFile ? "Tap to choose a different file" : "PDF up to 20 MB"}</div>
           </label>
           <div className="ob-note"><span>🔒</span><span>Your plan is private. We use it only to build your personal earnings model and never share it.</span></div>
-          <button className="ob-btn" disabled={!planFile} onClick={() => goFlow("analyzing")}>Review My Plan</button>
-        </>
-      );
-    } else if (screen === "paycheck") {
-      const gross = grossAt100;
-      const k = Math.min(gross * k401Pct / 100, k401Limit);
-      const health = healthMo * 12;
-      const taxable = Math.max(0, gross - k - health);
-      const fed = taxable * getFedBracket(gross).rate / 100;
-      const st = taxable * stateTaxPct / 100;
-      const fica = gross * 0.0765;
-      const net = calcNet(gross);
-      const netBaseAlone = calcNet(comp.base);
-      const commTakeHome = net - netBaseAlone;
-      body = (
-        <>
-          <div className="ob-eyebrow">Step 4 of 6 · Take-home</div>
-          <h1 className="ob-h1">Your real paycheck</h1>
-          <p className="ob-subt">At 100% of quota, here is what actually lands in your bank account.</p>
-          <div className="ob-card">
-            <label className="ob-label">401k contribution: {k401Pct}%</label>
-            <input className="ob-slider" type="range" min="0" max="50" value={k401Pct} onChange={(e) => setK401Pct(+e.target.value)} />
-            <p className="ob-sec-sub" style={{ marginBottom: 6 }}>Limit for {suAge}: {fmt(k401Limit)} per year · contributing {fmt(k)}</p>
-            <label className="ob-label" style={{ marginTop: 10 }}>Health insurance: {fmt(healthMo)} per month</label>
-            <input className="ob-slider" type="range" min="0" max="1500" step="25" value={healthMo} onChange={(e) => setHealthMo(+e.target.value)} />
-          </div>
-          <div className="ob-card">
-            <div className="ob-stat"><div className="ob-stat-lbl">Base take home</div><div className="ob-stat-val">{fmt(netBaseAlone)}</div></div>
-            <div className="ob-stat"><div className="ob-stat-lbl">Commission take home</div><div className="ob-stat-val green">{fmt(commTakeHome)}</div></div>
-            <div className="ob-stat"><div><div className="ob-stat-lbl">401k (pre-tax)</div><div className="ob-stat-sub">reduces taxable income</div></div><div className="ob-stat-val">−{fmt(k)}</div></div>
-            <div className="ob-stat"><div><div className="ob-stat-lbl">Health (pre-tax)</div><div className="ob-stat-sub">reduces taxable income</div></div><div className="ob-stat-val">−{fmt(health)}</div></div>
-            <div className="ob-stat"><div><div className="ob-stat-lbl">Federal tax ({getFedBracket(gross).rate}%)</div><div className="ob-stat-sub">on income after pre-tax</div></div><div className="ob-stat-val red">−{fmt(fed)}</div></div>
-            <div className="ob-stat"><div><div className="ob-stat-lbl">State tax ({stateTaxPct}%)</div><div className="ob-stat-sub">{suState || "—"}</div></div><div className="ob-stat-val red">−{fmt(st)}</div></div>
-            <div className="ob-stat"><div><div className="ob-stat-lbl">FICA (7.65%)</div><div className="ob-stat-sub">on full gross</div></div><div className="ob-stat-val red">−{fmt(fica)}</div></div>
-            <div className="ob-stat"><div className="ob-stat-lbl" style={{ fontWeight: 800, color: "var(--ink)" }}>Total take home</div><div className="ob-stat-val green">{fmt(net)}</div></div>
-          </div>
-          <button className="ob-btn" onClick={() => goFlow("carrots")}>Set My Carrots</button>
-        </>
-      );
-    } else if (screen === "carrots") {
-      body = (
-        <>
-          <div className="ob-eyebrow">Step 5 of 6 · Your carrots</div>
-          <h1 className="ob-h1">Define your carrots</h1>
-          <p className="ob-subt">The rewards you are working toward. This is your why.</p>
-          <div className="ob-tabs">
-            {[["big", "Big"], ["medium", "Medium"], ["mini", "Mini"]].map(([k, l]) => (
-              <button key={k} className={`ob-tab ${carrotTab === k ? "on" : ""}`} onClick={() => setCarrotTab(k)}>{l}</button>
-            ))}
-          </div>
-          {carrotTab === "big" && (
-            <>
-              {bigCarrots.map((c) => {
-                const p = pctToFund(+c.cost);
-                return (
-                  <div key={c.id} className="ob-card">
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                      <strong>Big Carrot</strong>
-                      <button className="ob-del" onClick={() => setBigCarrots(bigCarrots.filter((x) => x.id !== c.id))}>×</button>
-                    </div>
-                    <input className="ob-inp" style={{ marginBottom: 10 }} placeholder="What is it?" value={c.name} onChange={(e) => setBigCarrots(bigCarrots.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x))} />
-                    <input className="ob-inp" type="number" placeholder="Cost" value={c.cost} onChange={(e) => setBigCarrots(bigCarrots.map((x) => x.id === c.id ? { ...x, cost: +e.target.value } : x))} />
-                    {+c.cost > 0 && <p className="ob-sec-sub" style={{ marginTop: 8 }}>{p ? `Fully funded at ${p}% of plan` : "Beyond 300% of plan"}</p>}
-                  </div>
-                );
-              })}
-              <button className="ob-add" disabled={bigCarrots.length >= 2} onClick={() => setBigCarrots([...bigCarrots, { id: bigCarrots.reduce((m, c) => Math.max(m, c.id), 0) + 1, name: "", cost: 0 }])}>
-                + Add Big Carrot{bigCarrots.length >= 2 ? " (max 2)" : ""}
-              </button>
-            </>
-          )}
-          {carrotTab === "medium" && (
-            <>
-              {medCarrots.map((c) => (
-                <div key={c.id} className="ob-card">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <strong>Medium Carrot</strong>
-                    <button className="ob-del" onClick={() => setMedCarrots(medCarrots.filter((x) => x.id !== c.id))}>×</button>
-                  </div>
-                  <input className="ob-inp" style={{ marginBottom: 10 }} placeholder="What is it?" value={c.name} onChange={(e) => setMedCarrots(medCarrots.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x))} />
-                  <div className="ob-row">
-                    <input className="ob-inp" type="number" placeholder="Cost" value={c.cost} onChange={(e) => setMedCarrots(medCarrots.map((x) => x.id === c.id ? { ...x, cost: +e.target.value } : x))} />
-                    <select className="ob-inp" value={c.period} onChange={(e) => setMedCarrots(medCarrots.map((x) => x.id === c.id ? { ...x, period: e.target.value } : x))}>
-                      {["Monthly", "Quarterly", "Twice a year"].map((p) => <option key={p}>{p}</option>)}
-                    </select>
-                  </div>
-                </div>
-              ))}
-              <button className="ob-add" onClick={() => setMedCarrots([...medCarrots, { id: medCarrots.reduce((m, c) => Math.max(m, c.id), 0) + 1, name: "", cost: 0, period: "Quarterly" }])}>+ Add Medium Carrot</button>
-            </>
-          )}
-          {carrotTab === "mini" && (
-            <>
-              <p className="ob-sec-sub">One small treat tied to each activity. You earn it when you hit that activity's stretch goal.</p>
-              {metrics.map((m) => (
-                <div key={m.id} className="ob-card">
-                  <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{m.emoji} {m.label}</div>
-                  <input className="ob-inp" placeholder="Mini treat (e.g. fancy coffee)" value={m.treat} onChange={(e) => updateMetric(m.id, { treat: e.target.value })} />
-                </div>
-              ))}
-            </>
-          )}
-          <button className="ob-btn" onClick={() => goFlow("playbook")}>Build My Playbook</button>
-        </>
-      );
-    } else if (screen === "playbook") {
-      const gross = calcGross(targetPct);
-      const net = calcNet(gross);
-      const netBaseAlone = calcNet(comp.base);
-      const commTakeHome = net - netBaseAlone;
-      body = (
-        <>
-          <div className="ob-eyebrow">Step 6 of 6 · Your playbook</div>
-          <h1 className="ob-h1">Your personal playbook</h1>
-          <p className="ob-subt">Set your target, then tune the activities that get you there.</p>
-          <div className="ob-card">
-            <div className="ob-target">{targetPct}%</div>
-            <div className="ob-target-sub">of plan target</div>
-            <input className="ob-slider" type="range" min="50" max="300" value={targetPct} onChange={(e) => setTargetPct(+e.target.value)} />
-            <div className="ob-stat"><div className="ob-stat-lbl">Base take home</div><div className="ob-stat-val">{fmt(netBaseAlone)}</div></div>
-            <div className="ob-stat"><div className="ob-stat-lbl">Commission take home</div><div className="ob-stat-val green">{fmt(commTakeHome)}</div></div>
-          </div>
-          {targetPct > 100 && (
-            <div className="ob-money-line"><span style={{ fontWeight: 700 }}>🥕 Carrot money (above 100%)</span><span className="v">{fmt(carrotMoney)}</span></div>
-          )}
-          <div className="ob-sec-h">Your activities</div>
-          <p className="ob-sec-sub">Floor keeps you on track. Stretch unlocks your mini carrot.</p>
-          {metrics.map((m) => (
-            <div key={m.id} className="ob-card">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 10, flexWrap: "wrap" }}>
-                <strong>{m.emoji} {m.label}</strong>
-                <div className="ob-pill-row">
-                  {["Daily", "Weekly", "Monthly"].map((f) => (
-                    <button key={f} className={`ob-pill ${m.freq === f ? "on" : ""}`} onClick={() => updateMetric(m.id, { freq: f })}>{f}</button>
-                  ))}
-                </div>
-              </div>
-              <div className="ob-row">
-                <div><label className="ob-label">Floor</label><input className="ob-inp" type="number" value={m.floor} onChange={(e) => updateMetric(m.id, { floor: +e.target.value })} /></div>
-                <div><label className="ob-label">Stretch</label><input className="ob-inp" type="number" value={m.stretch} onChange={(e) => updateMetric(m.id, { stretch: +e.target.value })} /></div>
-              </div>
-              <div style={{ marginTop: 12 }}>
-                <button className="ob-toggle" onClick={() => updateMetric(m.id, { reminder: !m.reminder })}>
-                  <span className={`ob-track ${m.reminder ? "on" : ""}`}><span className="ob-knob" /></span> Reminder
-                </button>
-              </div>
-              <div className="ob-field" style={{ marginTop: 12, marginBottom: 0 }}>
-                <label className="ob-label">Mini carrot treat</label>
-                <input className="ob-inp" placeholder="e.g. fancy coffee" value={m.treat} onChange={(e) => updateMetric(m.id, { treat: e.target.value })} />
-              </div>
-            </div>
-          ))}
-          <div className="ob-sec-h">How will you track?</div>
-          {[
-            ["manual", "✍️ Manual entry", "Log your numbers each day or week"],
-            ["crm", "🔗 Connect CRM", "Pull activities automatically from your CRM"],
-            ["csv", "📊 CSV upload", "Upload a weekly export"],
-          ].map(([k, t, d]) => (
-            <div key={k} className={`ob-opt ${trackingMethod === k ? "on" : ""}`} onClick={() => setTrackingMethod(k)}>
-              <div style={{ fontWeight: 700, fontSize: 17 }}>{t}</div>
-              <div style={{ fontSize: 15, color: "var(--muted)", marginTop: 2 }}>{d}</div>
-            </div>
-          ))}
-          <button className="ob-btn" onClick={() => goFlow("dashboard")}>Go to My Dashboard</button>
+          <button className="ob-btn" disabled={!planFile} onClick={() => goFlow("confirm")}>Review My Plan</button>
         </>
       );
     }
@@ -1638,13 +1920,13 @@ export default function App() {
         <style>{S}</style>
         <style>{OB_STYLES}</style>
         <div className="ob-top">
-          <button className="ob-back" onClick={() => goFlow(idx === 0 ? "landing" : FLOW[idx - 1])}>← Back</button>
+          <button className="ob-back" onClick={() => goFlow(idx <= 0 ? "landing" : FLOW[idx - 1])}>← Back</button>
           <div className="ob-progress">
             {FLOW.map((s, i) => (
               <div key={s} className={`ob-dot ${i === idx ? "active" : i < idx ? "done" : ""}`} title={FLOW_LABELS[i]} />
             ))}
           </div>
-          <div className="ob-steplbl">{idx + 1} / {FLOW.length}</div>
+          <div className="ob-steplbl">{idx >= 0 ? `${idx + 1} / ${FLOW.length}` : ""}</div>
         </div>
         <div className="ob-screen">{body}</div>
       </div>
@@ -2002,6 +2284,57 @@ function AnalyzingScreen({ onDone }) {
         </div>
         <div className="az-bar"><div className="az-bar-fill" style={{ width: `${progress}%` }} /></div>
       </div>
+    </div>
+  );
+}
+
+function CarrotImageBox({ image, onImageChange }) {
+  const [mode, setMode] = useState(null);
+  const [urlVal, setUrlVal] = useState("");
+  const [aiVal, setAiVal] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  async function handleAI() {
+    if (!aiVal.trim()) return;
+    setAiLoading(true);
+    await new Promise((r) => setTimeout(r, 1500));
+    onImageChange(`https://placehold.co/600x300/F4711A/white?text=${encodeURIComponent(aiVal)}`);
+    setAiLoading(false); setMode(null); setAiVal("");
+  }
+  function handleFile(e) {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = (ev) => { onImageChange(ev.target.result); setMode(null); };
+    r.readAsDataURL(f);
+  }
+  return (
+    <div>
+      <div className={`cib-box ${image ? "has" : ""}`}>
+        {image
+          ? <img src={image} alt="" style={{ width: "100%", maxHeight: 180, objectFit: "cover", display: "block" }} onError={(e) => { e.target.style.display = "none"; }} />
+          : <div style={{ textAlign: "center", padding: 20, color: "var(--muted)" }}><div style={{ fontSize: 30, marginBottom: 6 }}>🥕</div><div style={{ fontSize: 13 }}>Add a photo of what you are working toward</div></div>}
+      </div>
+      {!mode && !aiLoading && (
+        <div className="cib-grid">
+          <button className="cib-btn" onClick={() => setMode("url")}><span style={{ fontSize: 18 }}>🔗</span>Paste a URL</button>
+          <label className="cib-btn"><span style={{ fontSize: 18 }}>📸</span>Upload Photo<input type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} /></label>
+          <button className="cib-btn" onClick={() => setMode("ai")}><span style={{ fontSize: 18 }}>✨</span>Describe It</button>
+        </div>
+      )}
+      {mode === "url" && (
+        <div className="cib-row">
+          <input className="cib-inp" placeholder="Paste image URL..." value={urlVal} onChange={(e) => setUrlVal(e.target.value)} autoFocus />
+          <button className="cib-add" onClick={() => { if (urlVal.trim()) { onImageChange(urlVal.trim()); setMode(null); setUrlVal(""); } }}>Add</button>
+          <button className="cib-cancel" onClick={() => setMode(null)}>Cancel</button>
+        </div>
+      )}
+      {mode === "ai" && !aiLoading && (
+        <div className="cib-row">
+          <input className="cib-inp" placeholder='e.g. "Family vacation in Hawaii"' value={aiVal} onChange={(e) => setAiVal(e.target.value)} autoFocus />
+          <button className="cib-add" onClick={handleAI}>Generate ✨</button>
+          <button className="cib-cancel" onClick={() => setMode(null)}>Cancel</button>
+        </div>
+      )}
+      {aiLoading && <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "var(--carrot-light)", borderRadius: 12, fontSize: 13, color: "var(--carrot-dark)", marginTop: 10 }}><span style={{ display: "inline-block", animation: "azspin 1s linear infinite" }}>🥕</span> Generating your carrot image...</div>}
     </div>
   );
 }
