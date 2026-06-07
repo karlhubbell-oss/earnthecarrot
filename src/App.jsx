@@ -1,3 +1,5 @@
+// STYLE RULE: No hyphens or em dashes used as pauses in visible text.
+// Use periods or commas instead. Numeric ranges like 10-15 are fine.
 import { useState, useEffect, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Area, AreaChart, Label } from "recharts";
 
@@ -27,19 +29,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--dark);color:var(--ink);}
 }
 .lnav.scrolled{background:rgba(15,10,5,0.94);backdrop-filter:blur(14px);}
 .nav-logo{
-  font-family:'Playfair Display',serif;font-size:20px;font-weight:900;
+  font-family:'Playfair Display',serif;font-size:22px;font-weight:900;
   color:var(--carrot);cursor:pointer;background:none;border:none;
 }
 .nav-links{display:flex;align-items:center;gap:32px;}
 .nav-link{
-  color:rgba(255,255,255,0.65);font-size:15px;font-weight:500;
+  color:rgba(255,255,255,0.65);font-size:17px;font-weight:500;
   cursor:pointer;transition:color 0.2s;background:none;border:none;
   font-family:'DM Sans',sans-serif;text-decoration:none;
 }
 .nav-link:hover{color:white;}
 .nav-cta{
   background:var(--carrot);color:white;border:none;border-radius:100px;
-  padding:10px 22px;font-size:14px;font-weight:700;cursor:pointer;
+  padding:10px 22px;font-size:16px;font-weight:700;cursor:pointer;
   font-family:'DM Sans',sans-serif;transition:all 0.2s;
 }
 .nav-cta:hover{background:var(--carrot-dark);transform:translateY(-1px);box-shadow:0 6px 20px rgba(244,113,26,0.35);}
@@ -49,41 +51,41 @@ body{font-family:'DM Sans',sans-serif;background:var(--dark);color:var(--ink);}
 .hero-badge{
   display:inline-flex;align-items:center;
   background:rgba(244,113,26,0.15);border:1px solid rgba(244,113,26,0.3);
-  border-radius:100px;padding:6px 18px;font-size:15px;font-weight:700;
+  border-radius:100px;padding:6px 18px;font-size:17px;font-weight:700;
   color:#FDBA74;letter-spacing:0.5px;margin-bottom:28px;
 }
 .hero-carrot{
-  font-size:80px;line-height:1;display:inline-block;
+  font-size:82px;line-height:1;display:inline-block;
   margin-bottom:28px;animation:bounce 2.2s ease-in-out infinite;
 }
 .hero-title{
-  font-family:'Playfair Display',serif;font-size:64px;font-weight:900;
+  font-family:'Playfair Display',serif;font-size:66px;font-weight:900;
   color:white;line-height:1.06;
   max-width:820px;margin:0 auto 24px;
 }
 .hero-title .hl{color:var(--carrot);}
 .hero-sub{
-  font-size:24px;color:rgba(255,255,255,0.6);line-height:1.5;
+  font-size:26px;color:rgba(255,255,255,0.6);line-height:1.5;
   max-width:560px;margin:0 auto 36px;
 }
 .hero-cta{
   display:inline-block;background:var(--carrot);color:white;border:none;
-  border-radius:100px;padding:18px 42px;font-size:17px;font-weight:700;
+  border-radius:100px;padding:18px 42px;font-size:19px;font-weight:700;
   cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;
   margin-bottom:24px;
 }
 .hero-cta:hover{background:var(--carrot-dark);transform:translateY(-2px);box-shadow:0 12px 36px rgba(244,113,26,0.4);}
-.hero-hint{font-size:17px;color:rgba(255,255,255,0.65);line-height:1.8;}
+.hero-hint{font-size:19px;color:rgba(255,255,255,0.65);line-height:1.8;}
 
 /* ── CARROTS SECTION ── */
 .carrots-section{background:var(--cream);padding:96px 24px;}
 .sec-inner{max-width:900px;margin:0 auto;}
 .sec-label{
-  font-family:'Playfair Display',serif;font-size:28px;font-weight:700;
+  font-family:'Playfair Display',serif;font-size:30px;font-weight:700;
   color:var(--carrot);margin-bottom:8px;
 }
 .sec-title{
-  font-family:'Playfair Display',serif;font-size:40px;font-weight:900;
+  font-family:'Playfair Display',serif;font-size:42px;font-weight:900;
   color:var(--ink);margin-bottom:40px;line-height:1.15;
 }
 .carrot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:40px;}
@@ -92,73 +94,73 @@ body{font-family:'DM Sans',sans-serif;background:var(--dark);color:var(--ink);}
   padding:20px;display:flex;align-items:center;gap:14px;transition:all 0.2s;
 }
 .carrot-card:hover{border-color:var(--carrot);transform:translateY(-2px);box-shadow:0 6px 20px rgba(244,113,26,0.1);}
-.carrot-card-emoji{font-size:24px;flex-shrink:0;}
-.carrot-card-text{font-size:15px;font-weight:600;color:var(--ink);}
-.carrots-p1{font-size:17px;color:var(--muted);line-height:1.65;margin-bottom:18px;}
-.carrots-p2{font-size:19px;font-weight:700;color:var(--ink);line-height:1.55;margin-bottom:40px;}
+.carrot-card-emoji{font-size:26px;flex-shrink:0;}
+.carrot-card-text{font-size:17px;font-weight:600;color:var(--ink);}
+.carrots-p1{font-size:19px;color:var(--muted);line-height:1.65;margin-bottom:18px;}
+.carrots-p2{font-size:21px;font-weight:700;color:var(--ink);line-height:1.55;margin-bottom:40px;}
 .activities-chain{display:flex;align-items:center;flex-wrap:wrap;gap:2px;}
-.ac-step{font-size:15px;font-weight:600;color:var(--ink);}
+.ac-step{font-size:17px;font-weight:600;color:var(--ink);}
 .ac-step.last{color:var(--carrot);font-weight:800;}
-.ac-arrow{color:var(--carrot);font-size:15px;font-weight:700;padding:0 6px;}
+.ac-arrow{color:var(--carrot);font-size:17px;font-weight:700;padding:0 6px;}
 
 /* ── PROBLEM SECTION ── */
 .problem-section{background:var(--dark2);padding:96px 24px;}
 .problem-inner{max-width:960px;margin:0 auto;}
 .prob-label{
-  font-family:'Playfair Display',serif;font-size:28px;font-weight:700;
+  font-family:'Playfair Display',serif;font-size:30px;font-weight:700;
   color:var(--carrot);margin-bottom:8px;
 }
 .prob-title{
-  font-family:'Playfair Display',serif;font-size:44px;font-weight:900;
+  font-family:'Playfair Display',serif;font-size:46px;font-weight:900;
   color:white;margin-bottom:40px;line-height:1.12;
 }
 .prob-lines{margin-bottom:36px;}
-.prob-line{font-size:19px;color:rgba(255,255,255,0.75);line-height:1.6;margin-bottom:12px;}
-.prob-line.bold{font-weight:700;color:white;font-size:20px;}
+.prob-line{font-size:21px;color:rgba(255,255,255,0.75);line-height:1.6;margin-bottom:12px;}
+.prob-line.bold{font-weight:700;color:white;font-size:22px;}
 .prob-callout{
   border-left:3px solid var(--carrot);padding:22px 26px;margin-bottom:28px;
   background:rgba(255,255,255,0.03);border-radius:0 12px 12px 0;
 }
-.prob-callout-line{font-size:16px;color:rgba(255,255,255,0.55);line-height:1.7;margin-bottom:10px;}
+.prob-callout-line{font-size:18px;color:rgba(255,255,255,0.55);line-height:1.7;margin-bottom:10px;}
 .prob-callout-line:last-child{margin-bottom:0;}
 .prob-bottom{
   background:rgba(244,113,26,0.1);border:1px solid rgba(244,113,26,0.22);
   border-radius:16px;padding:28px 32px;
 }
-.prob-bottom-bold{font-size:19px;font-weight:700;color:white;margin-bottom:10px;}
-.prob-bottom-muted{font-size:16px;color:rgba(255,255,255,0.5);line-height:1.65;}
-.prob-sub{font-size:17px;color:rgba(255,255,255,0.55);line-height:1.6;margin-bottom:36px;}
+.prob-bottom-bold{font-size:21px;font-weight:700;color:white;margin-bottom:10px;}
+.prob-bottom-muted{font-size:18px;color:rgba(255,255,255,0.5);line-height:1.65;}
+.prob-sub{font-size:19px;color:rgba(255,255,255,0.55);line-height:1.6;margin-bottom:36px;}
 .prob-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:28px;}
 .prob-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:16px;padding:24px;}
 .prob-card.highlight{border-left:3px solid var(--carrot);}
-.prob-card-label{font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:16px;}
+.prob-card-label{font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:16px;}
 .prob-card-label.orange{color:var(--carrot);}
 .prob-card-label.red{color:#FCA5A5;}
-.prob-card-line{font-size:15px;color:rgba(255,255,255,0.8);line-height:1.5;margin-bottom:10px;display:flex;gap:8px;align-items:flex-start;}
-.prob-card-note{font-size:13px;color:rgba(255,255,255,0.45);line-height:1.6;margin-top:14px;}
+.prob-card-line{font-size:17px;color:rgba(255,255,255,0.8);line-height:1.5;margin-bottom:10px;display:flex;gap:8px;align-items:flex-start;}
+.prob-card-note{font-size:15px;color:rgba(255,255,255,0.45);line-height:1.6;margin-top:14px;}
 .prob-final{background:rgba(15,10,5,0.6);border:1.5px solid rgba(244,113,26,0.4);border-radius:20px;padding:32px;text-align:center;}
-.prob-final-title{font-family:'Playfair Display',serif;font-size:28px;font-weight:900;color:white;margin-bottom:12px;}
-.prob-final-sub{font-size:17px;color:rgba(255,255,255,0.7);line-height:1.6;margin-bottom:20px;}
-.prob-final-line{font-size:14px;color:rgba(255,255,255,0.45);line-height:1.8;}
+.prob-final-title{font-family:'Playfair Display',serif;font-size:30px;font-weight:900;color:white;margin-bottom:12px;}
+.prob-final-sub{font-size:19px;color:rgba(255,255,255,0.7);line-height:1.6;margin-bottom:20px;}
+.prob-final-line{font-size:16px;color:rgba(255,255,255,0.45);line-height:1.8;}
 
 /* ── RESPONSIVE ── */
 @media(max-width:768px){
   .lnav{padding:14px 20px;}
   .nav-links{display:none;}
-  .hero-title{font-size:38px;}
-  .hero-sub{font-size:19px;}
-  .sec-title{font-size:30px;}
-  .prob-title{font-size:32px;}
+  .hero-title{font-size:40px;}
+  .hero-sub{font-size:21px;}
+  .sec-title{font-size:32px;}
+  .prob-title{font-size:34px;}
   .carrot-grid{grid-template-columns:repeat(2,1fr);}
   .prob-grid{grid-template-columns:1fr;}
 }
 @media(max-width:480px){
   .hero{padding:60px 20px 72px;}
-  .hero-title{font-size:38px;}
-  .hero-sub{font-size:17px;}
+  .hero-title{font-size:40px;}
+  .hero-sub{font-size:19px;}
   .carrots-section,.problem-section{padding:64px 20px;}
   .carrot-grid{grid-template-columns:1fr;}
-  .prob-title{font-size:28px;}
+  .prob-title{font-size:30px;}
 }
 `;
 
@@ -216,64 +218,64 @@ const DASH_TABS = [
 const OB_STYLES = `
 .ob{min-height:100vh;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;}
 .ob-top{position:sticky;top:0;z-index:50;background:rgba(255,250,244,0.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:14px 20px;}
-.ob-back{background:white;border:1.5px solid var(--border);border-radius:100px;padding:7px 16px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;}
+.ob-back{background:white;border:1.5px solid var(--border);border-radius:100px;padding:7px 16px;font-size:16px;font-weight:600;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;}
 .ob-back:hover{border-color:var(--carrot);color:var(--carrot);}
 .ob-progress{flex:1;display:flex;gap:6px;align-items:center;justify-content:center;}
 .ob-dot{width:8px;height:8px;border-radius:50%;background:var(--border);transition:all 0.3s;}
 .ob-dot.active{background:var(--carrot);width:26px;border-radius:4px;}
 .ob-dot.done{background:var(--green);}
-.ob-steplbl{font-size:13px;font-weight:700;color:var(--muted);min-width:48px;text-align:right;}
+.ob-steplbl{font-size:15px;font-weight:700;color:var(--muted);min-width:48px;text-align:right;}
 .ob-screen{max-width:560px;margin:0 auto;padding:34px 20px 70px;animation:fadeUp 0.35s ease;}
-.ob-eyebrow{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--carrot);margin-bottom:8px;}
-.ob-h1{font-family:'Playfair Display',serif;font-size:30px;font-weight:900;color:var(--ink);margin-bottom:8px;line-height:1.15;}
-.ob-subt{font-size:15px;color:var(--muted);line-height:1.55;margin-bottom:26px;}
+.ob-eyebrow{font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--carrot);margin-bottom:8px;}
+.ob-h1{font-family:'Playfair Display',serif;font-size:32px;font-weight:900;color:var(--ink);margin-bottom:8px;line-height:1.15;}
+.ob-subt{font-size:17px;color:var(--muted);line-height:1.55;margin-bottom:26px;}
 .ob-field{margin-bottom:18px;}
-.ob-label{display:block;font-size:13px;font-weight:700;color:var(--ink);margin-bottom:6px;}
-.ob-inp{width:100%;padding:13px 16px;border:1.5px solid var(--border);border-radius:12px;font-size:16px;font-family:'DM Sans',sans-serif;background:white;color:var(--ink);}
+.ob-label{display:block;font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px;}
+.ob-inp{width:100%;padding:13px 16px;border:1.5px solid var(--border);border-radius:12px;font-size:18px;font-family:'DM Sans',sans-serif;background:white;color:var(--ink);}
 .ob-inp:focus{outline:none;border-color:var(--carrot);}
 select.ob-inp{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237A6A55' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;}
 .ob-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-.ob-btn{width:100%;padding:16px;border-radius:100px;border:none;background:var(--carrot);color:white;font-size:17px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;margin-top:10px;}
+.ob-btn{width:100%;padding:16px;border-radius:100px;border:none;background:var(--carrot);color:white;font-size:19px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;margin-top:10px;}
 .ob-btn:hover{background:var(--carrot-dark);}
 .ob-btn:disabled{opacity:0.4;cursor:not-allowed;}
 .ob-card{background:white;border:1.5px solid var(--border);border-radius:18px;padding:20px;margin-bottom:16px;}
-.ob-note{background:var(--green-light);border:1px solid var(--green);border-radius:12px;padding:12px 16px;font-size:13px;color:var(--green);line-height:1.5;margin-bottom:20px;display:flex;gap:10px;}
+.ob-note{background:var(--green-light);border:1px solid var(--green);border-radius:12px;padding:12px 16px;font-size:15px;color:var(--green);line-height:1.5;margin-bottom:20px;display:flex;gap:10px;}
 .ob-drop{border:2px dashed var(--border);border-radius:18px;padding:44px 24px;text-align:center;cursor:pointer;background:white;transition:all 0.2s;margin-bottom:16px;}
 .ob-drop:hover{border-color:var(--carrot);background:var(--carrot-light);}
 .ob-drop.has{border-style:solid;border-color:var(--green);background:var(--green-light);}
 .ob-coach{background:linear-gradient(145deg,#0F0A05,#2D1A0A);border-radius:20px;padding:22px;color:white;margin-bottom:18px;}
-.ob-coach-badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:rgba(244,113,26,0.25);color:#FDBA74;margin-bottom:12px;}
-.ob-coach-line{font-size:14px;line-height:1.65;color:rgba(255,255,255,0.85);margin-bottom:8px;}
+.ob-coach-badge{display:inline-block;font-size:13px;font-weight:700;padding:3px 10px;border-radius:100px;background:rgba(244,113,26,0.25);color:#FDBA74;margin-bottom:12px;}
+.ob-coach-line{font-size:16px;line-height:1.65;color:rgba(255,255,255,0.85);margin-bottom:8px;}
 .ob-coach-line:last-child{margin-bottom:0;}
 .ob-ote{background:linear-gradient(135deg,var(--carrot),var(--carrot-dark));border-radius:20px;padding:26px;color:white;margin-bottom:18px;text-align:center;}
-.ob-ote-lbl{font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;opacity:0.85;margin-bottom:6px;}
-.ob-ote-val{font-family:'Playfair Display',serif;font-size:46px;font-weight:900;line-height:1;}
+.ob-ote-lbl{font-size:14px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;opacity:0.85;margin-bottom:6px;}
+.ob-ote-val{font-family:'Playfair Display',serif;font-size:48px;font-weight:900;line-height:1;}
 .ob-split{display:flex;gap:12px;margin-top:18px;}
 .ob-split-item{flex:1;background:rgba(255,255,255,0.16);border-radius:12px;padding:12px;}
-.ob-split-k{font-size:11px;opacity:0.85;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
-.ob-split-v{font-size:18px;font-weight:800;}
+.ob-split-k{font-size:13px;opacity:0.85;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.ob-split-v{font-size:20px;font-weight:800;}
 .ob-stat{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--border);}
 .ob-stat:last-child{border-bottom:none;}
-.ob-stat-lbl{font-size:14px;color:var(--muted);}
-.ob-stat-sub{font-size:11px;color:var(--muted);opacity:0.8;}
-.ob-stat-val{font-size:17px;font-weight:700;color:var(--ink);text-align:right;}
+.ob-stat-lbl{font-size:16px;color:var(--muted);}
+.ob-stat-sub{font-size:13px;color:var(--muted);opacity:0.8;}
+.ob-stat-val{font-size:19px;font-weight:700;color:var(--ink);text-align:right;}
 .ob-stat-val.green{color:var(--green);}
 .ob-stat-val.red{color:#DC2626;}
 .ob-tabs{display:flex;gap:6px;background:var(--cream);border:1.5px solid var(--border);border-radius:14px;padding:5px;margin-bottom:22px;}
-.ob-tab{flex:1;padding:11px 6px;border:none;background:none;border-radius:10px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;color:var(--muted);}
+.ob-tab{flex:1;padding:11px 6px;border:none;background:none;border-radius:10px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:700;font-size:15px;color:var(--muted);}
 .ob-tab.on{background:white;color:var(--carrot);box-shadow:0 2px 8px rgba(0,0,0,0.06);}
 .ob-slider{width:100%;accent-color:var(--carrot);cursor:pointer;margin:8px 0 4px;}
-.ob-target{font-family:'Playfair Display',serif;font-size:54px;font-weight:900;color:var(--carrot);text-align:center;line-height:1;}
-.ob-target-sub{text-align:center;font-size:13px;color:var(--muted);margin-bottom:10px;}
-.ob-add{width:100%;padding:13px;border:2px dashed var(--border);border-radius:14px;background:white;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;color:var(--muted);font-size:14px;}
+.ob-target{font-family:'Playfair Display',serif;font-size:56px;font-weight:900;color:var(--carrot);text-align:center;line-height:1;}
+.ob-target-sub{text-align:center;font-size:15px;color:var(--muted);margin-bottom:10px;}
+.ob-add{width:100%;padding:13px;border:2px dashed var(--border);border-radius:14px;background:white;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;color:var(--muted);font-size:16px;}
 .ob-add:hover{border-color:var(--carrot);color:var(--carrot);}
 .ob-add:disabled{opacity:0.45;cursor:not-allowed;}
-.ob-del{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;}
+.ob-del{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1;}
 .ob-del:hover{color:#DC2626;}
 .ob-pill-row{display:flex;gap:8px;flex-wrap:wrap;}
-.ob-pill{padding:8px 14px;border-radius:100px;border:1.5px solid var(--border);background:white;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--muted);}
+.ob-pill{padding:8px 14px;border-radius:100px;border:1.5px solid var(--border);background:white;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--muted);}
 .ob-pill.on{border-color:var(--carrot);background:var(--carrot);color:white;}
-.ob-toggle{display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--ink);font-weight:600;}
+.ob-toggle{display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:16px;color:var(--ink);font-weight:600;}
 .ob-track{width:44px;height:25px;border-radius:100px;background:var(--border);position:relative;transition:all 0.2s;flex-shrink:0;}
 .ob-track.on{background:var(--green);}
 .ob-knob{position:absolute;top:2.5px;left:2.5px;width:20px;height:20px;border-radius:50%;background:white;transition:all 0.2s;}
@@ -282,98 +284,98 @@ select.ob-inp{appearance:none;cursor:pointer;background-image:url("data:image/sv
 .ob-opt:hover{border-color:var(--carrot);}
 .ob-opt.on{border-color:var(--carrot);background:var(--carrot-light);}
 .ob-money-line{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-radius:12px;background:rgba(244,113,26,0.1);border:1px solid rgba(244,113,26,0.3);margin-bottom:14px;}
-.ob-money-line .v{font-family:'Playfair Display',serif;font-size:22px;font-weight:900;color:var(--carrot-dark);}
-.ob-sec-h{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;margin:26px 0 4px;}
-.ob-sec-sub{font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5;}
+.ob-money-line .v{font-family:'Playfair Display',serif;font-size:24px;font-weight:900;color:var(--carrot-dark);}
+.ob-sec-h{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;margin:26px 0 4px;}
+.ob-sec-sub{font-size:15px;color:var(--muted);margin-bottom:14px;line-height:1.5;}
 /* dashboard */
 .ob-dash{max-width:560px;margin:0 auto;padding:20px 16px 170px;animation:fadeUp 0.35s ease;}
 .ob-dash-hero{background:linear-gradient(135deg,var(--carrot),var(--carrot-dark));border-radius:22px;padding:26px;color:white;margin-bottom:20px;position:relative;overflow:hidden;}
-.ob-dash-hero::after{content:'🥕';position:absolute;right:18px;top:50%;transform:translateY(-50%);font-size:72px;opacity:0.13;}
-.ob-dash-name{font-size:14px;opacity:0.9;margin-bottom:6px;}
-.ob-dash-pct{font-family:'Playfair Display',serif;font-size:46px;font-weight:900;line-height:1;}
+.ob-dash-hero::after{content:'🥕';position:absolute;right:18px;top:50%;transform:translateY(-50%);font-size:74px;opacity:0.13;}
+.ob-dash-name{font-size:16px;opacity:0.9;margin-bottom:6px;}
+.ob-dash-pct{font-family:'Playfair Display',serif;font-size:48px;font-weight:900;line-height:1;}
 .ob-prog-bar{height:12px;background:var(--border);border-radius:6px;overflow:hidden;margin:8px 0 6px;}
 .ob-prog-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--carrot));border-radius:6px;transition:width 0.6s ease;}
 .ob-metric{background:white;border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;}
 .ob-metric-hdr{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
-.ob-status{font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;}
+.ob-status{font-size:13px;font-weight:700;padding:3px 10px;border-radius:100px;}
 .st-stretch{background:var(--green-light);color:var(--green);}
 .st-floor{background:#EFF6FF;color:#1D4ED8;}
 .st-below{background:#FEE2E2;color:#DC2626;}
 .ob-carrotbar{position:fixed;bottom:62px;left:0;right:0;z-index:60;background:linear-gradient(135deg,#1A1208,#2D1A0A);color:white;padding:10px 16px;border-top:1px solid rgba(244,113,26,0.25);}
 .ob-carrotbar-inner{max-width:560px;margin:0 auto;}
-.ob-cb-top{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:rgba(255,255,255,0.7);}
-.ob-cb-amt{font-family:'Playfair Display',serif;font-size:16px;font-weight:900;color:var(--carrot);}
+.ob-cb-top{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:rgba(255,255,255,0.7);}
+.ob-cb-amt{font-family:'Playfair Display',serif;font-size:18px;font-weight:900;color:var(--carrot);}
 .ob-cb-track{height:8px;background:rgba(255,255,255,0.15);border-radius:5px;overflow:hidden;margin-top:6px;}
 .ob-cb-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--carrot),var(--green));border-radius:5px;transition:width 0.6s ease;}
 .ob-tabbar{position:fixed;bottom:0;left:0;right:0;z-index:70;display:flex;background:rgba(255,250,244,0.98);backdrop-filter:blur(10px);border-top:1px solid var(--border);}
 .ob-tabbar-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px 11px;border:none;background:none;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--muted);}
 .ob-tabbar-tab.on{color:var(--carrot);}
-.ob-tabbar-ico{font-size:19px;line-height:1;}
-.ob-tabbar-lbl{font-size:10px;font-weight:700;}
+.ob-tabbar-ico{font-size:21px;line-height:1;}
+.ob-tabbar-lbl{font-size:13px;font-weight:700;}
 /* summary — comp fields */
 .ob-card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
-.ob-card-title{font-size:15px;font-weight:700;color:var(--ink);}
-.ob-badge-green{background:var(--green-light);color:var(--green);font-size:11px;font-weight:700;padding:4px 12px;border-radius:100px;}
+.ob-card-title{font-size:17px;font-weight:700;color:var(--ink);}
+.ob-badge-green{background:var(--green-light);color:var(--green);font-size:13px;font-weight:700;padding:4px 12px;border-radius:100px;}
 .ob-frow{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);}
 .ob-frow:last-child{border-bottom:none;}
-.ob-fname{flex:1;font-size:14px;color:var(--ink);font-weight:600;}
-.ob-fval{font-size:16px;font-weight:700;color:var(--ink);}
-.ob-ebtn{background:none;border:1.5px solid var(--border);border-radius:8px;padding:5px 12px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);font-family:'DM Sans',sans-serif;}
+.ob-fname{flex:1;font-size:16px;color:var(--ink);font-weight:600;}
+.ob-fval{font-size:18px;font-weight:700;color:var(--ink);}
+.ob-ebtn{background:none;border:1.5px solid var(--border);border-radius:8px;padding:5px 12px;font-size:15px;font-weight:600;cursor:pointer;color:var(--muted);font-family:'DM Sans',sans-serif;}
 .ob-ebtn:hover{border-color:var(--carrot);color:var(--carrot);}
 .ob-erow{display:flex;gap:8px;align-items:center;}
-.ob-einp{width:120px;padding:8px 12px;border:1.5px solid var(--carrot);border-radius:8px;font-size:15px;font-family:'DM Sans',sans-serif;color:var(--ink);}
+.ob-einp{width:120px;padding:8px 12px;border:1.5px solid var(--carrot);border-radius:8px;font-size:17px;font-family:'DM Sans',sans-serif;color:var(--ink);}
 .ob-einp:focus{outline:none;}
-.ob-save{background:var(--carrot);color:white;border:none;border-radius:8px;padding:8px 14px;font-weight:700;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;}
-.ob-cancel{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.ob-save{background:var(--carrot);color:white;border:none;border-radius:8px;padding:8px 14px;font-weight:700;font-size:15px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.ob-cancel{background:none;border:none;color:var(--muted);font-size:15px;cursor:pointer;font-family:'DM Sans',sans-serif;}
 /* summary — tax box */
 .ob-tax{background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:20px;padding:24px;margin-bottom:20px;}
-.ob-tax-title{font-size:16px;font-weight:800;color:#1D4ED8;margin-bottom:8px;}
-.ob-tax-note{font-size:13px;color:#3B5BA5;line-height:1.5;margin-bottom:16px;}
+.ob-tax-title{font-size:18px;font-weight:800;color:#1D4ED8;margin-bottom:8px;}
+.ob-tax-note{font-size:15px;color:#3B5BA5;line-height:1.5;margin-bottom:16px;}
 .ob-tax-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid #BFDBFE;gap:10px;}
 .ob-tax-row:last-child{border-bottom:none;}
-.ob-tax-lbl{font-size:14px;color:#1E3A8A;font-weight:600;}
-.ob-tax-sub{font-size:11px;color:#3B5BA5;margin-top:2px;}
-.ob-tax-val{font-size:15px;font-weight:700;color:#1E3A8A;text-align:right;}
-.ob-tax-override{background:none;border:none;color:#1D4ED8;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline;font-family:'DM Sans',sans-serif;padding:0;margin-top:2px;}
+.ob-tax-lbl{font-size:16px;color:#1E3A8A;font-weight:600;}
+.ob-tax-sub{font-size:13px;color:#3B5BA5;margin-top:2px;}
+.ob-tax-val{font-size:17px;font-weight:700;color:#1E3A8A;text-align:right;}
+.ob-tax-override{background:none;border:none;color:#1D4ED8;font-size:14px;font-weight:700;cursor:pointer;text-decoration:underline;font-family:'DM Sans',sans-serif;padding:0;margin-top:2px;}
 .ob-tax-total{display:flex;align-items:center;justify-content:space-between;background:white;border-radius:12px;padding:14px 16px;margin-top:14px;}
-.ob-tax-total-v{font-size:16px;font-weight:800;color:#1E3A8A;text-align:right;}
+.ob-tax-total-v{font-size:18px;font-weight:800;color:#1E3A8A;text-align:right;}
 /* summary — 401k box */
 .ob-401k{background:var(--green-light);border:1.5px solid var(--green);border-radius:16px;padding:18px 20px;margin-bottom:20px;}
-.ob-401k-msg{font-size:15px;font-weight:700;color:var(--green);margin-bottom:6px;}
-.ob-401k-sub{font-size:13px;color:#2D6A4F;opacity:0.9;line-height:1.5;}
+.ob-401k-msg{font-size:17px;font-weight:700;color:var(--green);margin-bottom:6px;}
+.ob-401k-sub{font-size:15px;color:#2D6A4F;opacity:0.9;line-height:1.5;}
 /* carrot bridge */
 .cb-wrap{min-height:100vh;background:var(--dark);color:white;display:flex;align-items:center;justify-content:center;padding:40px 24px;}
 .cb-inner{max-width:560px;width:100%;animation:fadeUp 0.4s ease;}
-.cb-label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--carrot);margin-bottom:16px;}
-.cb-headline{font-family:'Playfair Display',serif;font-size:34px;font-weight:900;color:white;line-height:1.2;margin-bottom:14px;}
+.cb-label{font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--carrot);margin-bottom:16px;}
+.cb-headline{font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:white;line-height:1.2;margin-bottom:14px;}
 .cb-amt{color:var(--carrot);}
-.cb-sub{font-size:17px;color:rgba(255,255,255,0.6);margin-bottom:28px;}
-.cb-input{width:100%;padding:16px 18px;border:1.5px solid rgba(255,255,255,0.2);border-radius:14px;font-size:18px;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.06);color:white;margin-bottom:16px;}
+.cb-sub{font-size:19px;color:rgba(255,255,255,0.6);margin-bottom:28px;}
+.cb-input{width:100%;padding:16px 18px;border:1.5px solid rgba(255,255,255,0.2);border-radius:14px;font-size:20px;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.06);color:white;margin-bottom:16px;}
 .cb-input:focus{outline:none;border-color:var(--carrot);}
 .cb-input::placeholder{color:rgba(255,255,255,0.35);}
 .cb-pills{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:30px;}
-.cb-pill{padding:9px 16px;border-radius:100px;border:1.5px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.8);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+.cb-pill{padding:9px 16px;border-radius:100px;border:1.5px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.8);font-size:16px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
 .cb-pill:hover{border-color:var(--carrot);color:white;}
 .cb-pill.on{background:var(--carrot);border-color:var(--carrot);color:white;}
-.cb-btn{width:100%;padding:16px;border-radius:100px;border:none;background:var(--carrot);color:white;font-size:17px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+.cb-btn{width:100%;padding:16px;border-radius:100px;border:none;background:var(--carrot);color:white;font-size:19px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
 .cb-btn:hover{background:var(--carrot-dark);}
 .cb-btn:disabled{opacity:0.4;cursor:not-allowed;}
 /* pitch */
 .pitch-wrap{min-height:100vh;background:var(--dark);color:white;padding:48px 24px;}
 .pitch-inner{max-width:560px;margin:0 auto;animation:fadeUp 0.4s ease;}
-.pitch-carrot-callout{background:rgba(244,113,26,0.12);border:1px solid rgba(244,113,26,0.35);border-radius:14px;padding:14px 18px;font-size:15px;color:#FDBA74;font-weight:700;margin-bottom:24px;}
-.pitch-headline{font-family:'Playfair Display',serif;font-size:32px;font-weight:900;color:white;line-height:1.2;margin-bottom:22px;}
+.pitch-carrot-callout{background:rgba(244,113,26,0.12);border:1px solid rgba(244,113,26,0.35);border-radius:14px;padding:14px 18px;font-size:17px;color:#FDBA74;font-weight:700;margin-bottom:24px;}
+.pitch-headline{font-family:'Playfair Display',serif;font-size:34px;font-weight:900;color:white;line-height:1.2;margin-bottom:22px;}
 .pitch-contrast{margin-bottom:24px;}
-.pitch-mgr{font-size:16px;color:rgba(255,255,255,0.55);line-height:1.6;margin-bottom:10px;}
-.pitch-coach{font-size:17px;font-weight:700;color:white;line-height:1.6;}
+.pitch-mgr{font-size:18px;color:rgba(255,255,255,0.55);line-height:1.6;margin-bottom:10px;}
+.pitch-coach{font-size:19px;font-weight:700;color:white;line-height:1.6;}
 .pitch-checks{margin-bottom:28px;}
-.pitch-check{display:flex;align-items:flex-start;gap:12px;padding:11px 0;font-size:15px;color:rgba(255,255,255,0.85);border-bottom:1px solid rgba(255,255,255,0.06);}
+.pitch-check{display:flex;align-items:flex-start;gap:12px;padding:11px 0;font-size:17px;color:rgba(255,255,255,0.85);border-bottom:1px solid rgba(255,255,255,0.06);}
 .pitch-check:last-child{border-bottom:none;}
 .pitch-check-ico{color:#86EFAC;font-weight:800;flex-shrink:0;}
-.pitch-cta{width:100%;padding:18px;border-radius:100px;border:none;background:var(--carrot);color:white;font-size:17px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+.pitch-cta{width:100%;padding:18px;border-radius:100px;border:none;background:var(--carrot);color:white;font-size:19px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
 .pitch-cta:hover{background:var(--carrot-dark);transform:translateY(-2px);box-shadow:0 12px 36px rgba(244,113,26,0.4);}
-.pitch-note{text-align:center;font-size:13px;color:rgba(255,255,255,0.45);margin-top:14px;}
-@media(max-width:480px){.ob-row{grid-template-columns:1fr;}.cb-headline{font-size:27px;}.pitch-headline{font-size:26px;}}
+.pitch-note{text-align:center;font-size:15px;color:rgba(255,255,255,0.45);margin-top:14px;}
+@media(max-width:480px){.ob-row{grid-template-columns:1fr;}.cb-headline{font-size:29px;}.pitch-headline{font-size:28px;}}
 `;
 
 export default function App() {
@@ -668,22 +670,22 @@ export default function App() {
           /* ── MEET COACH ── */
           .coach-section{background:var(--dark);padding:96px 24px;}
           .coach-inner{max-width:900px;margin:0 auto;}
-          .coach-quote{font-size:19px;font-style:italic;color:rgba(255,255,255,0.7);margin-bottom:12px;line-height:1.6;}
-          .coach-coachsub{font-size:16px;color:rgba(255,255,255,0.5);margin-bottom:48px;}
+          .coach-quote{font-size:21px;font-style:italic;color:rgba(255,255,255,0.7);margin-bottom:12px;line-height:1.6;}
+          .coach-coachsub{font-size:18px;color:rgba(255,255,255,0.5);margin-bottom:48px;}
           .coach-role-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:40px;}
           .coach-role-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:16px;padding:24px;display:flex;gap:18px;align-items:flex-start;}
           .coach-role-icon{width:56px;height:56px;border-radius:50%;border:1.5px solid rgba(244,113,26,0.5);background:rgba(244,113,26,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
           .coach-role-body{flex:1;min-width:0;}
           .coach-role-head{display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap;}
-          .coach-role-title{font-size:16px;font-weight:700;color:white;display:inline-block;border-bottom:2px solid var(--carrot);padding-bottom:3px;}
-          .coach-role-tag{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--carrot);background:rgba(244,113,26,0.15);border-radius:100px;padding:3px 10px;}
-          .coach-role-desc{font-size:14px;color:rgba(255,255,255,0.55);line-height:1.6;margin-top:10px;}
-          .coach-ask-label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:16px;}
+          .coach-role-title{font-size:18px;font-weight:700;color:white;display:inline-block;border-bottom:2px solid var(--carrot);padding-bottom:3px;}
+          .coach-role-tag{font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--carrot);background:rgba(244,113,26,0.15);border-radius:100px;padding:3px 10px;}
+          .coach-role-desc{font-size:16px;color:rgba(255,255,255,0.55);line-height:1.6;margin-top:10px;}
+          .coach-ask-label{font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:16px;}
           .coach-q-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:44px;}
-          .coach-q-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:18px 20px;font-size:15px;font-style:italic;color:rgba(255,255,255,0.75);line-height:1.5;}
+          .coach-q-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:18px 20px;font-size:17px;font-style:italic;color:rgba(255,255,255,0.75);line-height:1.5;}
           .coach-bottom-row{display:flex;flex-wrap:wrap;gap:32px;align-items:baseline;}
-          .coach-br-muted{font-size:17px;color:rgba(255,255,255,0.45);}
-          .coach-br-bold{font-size:17px;font-weight:700;color:white;}
+          .coach-br-muted{font-size:19px;color:rgba(255,255,255,0.45);}
+          .coach-br-bold{font-size:19px;font-weight:700;color:white;}
 
           /* ── MOST COMPANIES ── */
           .diff-section{background:var(--cream);padding:96px 24px;}
@@ -692,25 +694,25 @@ export default function App() {
           .diff-col{border-radius:20px;padding:28px;}
           .diff-col.red{background:rgba(220,38,38,0.06);border:1.5px solid rgba(220,38,38,0.18);}
           .diff-col.green{background:rgba(45,106,79,0.07);border:1.5px solid rgba(45,106,79,0.22);}
-          .diff-col-title{font-size:14px;font-weight:700;letter-spacing:0.5px;margin-bottom:16px;}
+          .diff-col-title{font-size:16px;font-weight:700;letter-spacing:0.5px;margin-bottom:16px;}
           .diff-col.red .diff-col-title{color:#B91C1C;}
           .diff-col.green .diff-col-title{color:var(--green);}
-          .diff-mandate{font-size:17px;font-weight:600;color:var(--ink);margin-bottom:12px;line-height:1.5;}
-          .diff-note{font-size:15px;font-style:italic;color:var(--muted);line-height:1.6;}
+          .diff-mandate{font-size:19px;font-weight:600;color:var(--ink);margin-bottom:12px;line-height:1.5;}
+          .diff-note{font-size:17px;font-style:italic;color:var(--muted);line-height:1.6;}
           .diff-chain{display:flex;align-items:center;flex-wrap:wrap;gap:2px;margin-bottom:16px;}
-          .diff-chain-step{font-size:14px;font-weight:600;color:var(--ink);}
+          .diff-chain-step{font-size:16px;font-weight:600;color:var(--ink);}
           .diff-chain-step.last{color:var(--carrot);font-weight:800;}
-          .diff-chain-arrow{color:var(--carrot);padding:0 5px;font-size:14px;}
-          .diff-insight{font-size:15px;color:var(--muted);line-height:1.65;}
+          .diff-chain-arrow{color:var(--carrot);padding:0 5px;font-size:16px;}
+          .diff-insight{font-size:17px;color:var(--muted);line-height:1.65;}
 
           /* ── CHATGPT VS COACH ── */
           .compare-section{background:var(--dark2);padding:96px 24px;}
           .compare-inner{max-width:860px;margin:0 auto;}
-          .compare-p{font-size:16px;color:rgba(255,255,255,0.5);line-height:1.7;margin-bottom:14px;}
+          .compare-p{font-size:18px;color:rgba(255,255,255,0.5);line-height:1.7;margin-bottom:14px;}
           .compare-wrap{border-radius:16px;overflow:hidden;margin:36px 0 28px;}
           .compare-table{width:100%;border-collapse:collapse;}
-          .compare-table th{padding:14px 18px;font-size:13px;font-weight:700;letter-spacing:0.5px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.08);}
-          .compare-table td{padding:13px 18px;font-size:14px;border-bottom:1px solid rgba(255,255,255,0.06);}
+          .compare-table th{padding:14px 18px;font-size:15px;font-weight:700;letter-spacing:0.5px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.08);}
+          .compare-table td{padding:13px 18px;font-size:16px;border-bottom:1px solid rgba(255,255,255,0.06);}
           .compare-table tr:last-child td{border-bottom:none;}
           .th-feature{color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.03);}
           .th-generic{color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.03);text-align:center!important;}
@@ -718,57 +720,57 @@ export default function App() {
           .td-feature{color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.02);}
           .td-generic{color:rgba(255,255,255,0.3);background:rgba(255,255,255,0.02);text-align:center!important;}
           .td-coach{color:#86EFAC;background:rgba(244,113,26,0.05);text-align:center!important;font-weight:600;}
-          .compare-callout{background:rgba(244,113,26,0.08);border:1.5px solid rgba(244,113,26,0.25);border-radius:14px;padding:22px 28px;font-size:17px;font-style:italic;color:rgba(255,255,255,0.8);text-align:center;}
+          .compare-callout{background:rgba(244,113,26,0.08);border:1.5px solid rgba(244,113,26,0.25);border-radius:14px;padding:22px 28px;font-size:19px;font-style:italic;color:rgba(255,255,255,0.8);text-align:center;}
 
           /* ── CARROT LADDER ── */
           .ladder-section{background:var(--cream);padding:96px 24px;}
           .ladder-inner{max-width:960px;margin:0 auto;}
-          .ladder-sub{font-size:18px;color:var(--muted);margin-bottom:40px;line-height:1.5;}
+          .ladder-sub{font-size:20px;color:var(--muted);margin-bottom:40px;line-height:1.5;}
           .ladder-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:44px;}
           .ladder-card{border-radius:20px;padding:28px;}
           .ladder-card.mini{background:var(--gold-light);border:1.5px solid var(--gold);}
           .ladder-card.medium{background:var(--green-light);border:1.5px solid rgba(45,106,79,0.3);}
           .ladder-card.big{background:var(--carrot-light);border:1.5px solid rgba(244,113,26,0.3);}
-          .ladder-card-icon{font-size:20px;margin-bottom:10px;}
-          .ladder-card-title{font-size:16px;font-weight:800;color:var(--ink);margin-bottom:4px;}
-          .ladder-card-tag{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
-          .ladder-item{font-size:14px;color:var(--ink);line-height:1.9;}
+          .ladder-card-icon{font-size:22px;margin-bottom:10px;}
+          .ladder-card-title{font-size:18px;font-weight:800;color:var(--ink);margin-bottom:4px;}
+          .ladder-card-tag{font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
+          .ladder-item{font-size:16px;color:var(--ink);line-height:1.9;}
           .ladder-chain{display:flex;align-items:center;flex-wrap:wrap;gap:2px;}
-          .lc-step{font-size:15px;font-weight:600;color:var(--ink);}
+          .lc-step{font-size:17px;font-weight:600;color:var(--ink);}
           .lc-step.last{color:var(--carrot);font-weight:800;}
-          .lc-arrow{color:var(--carrot);padding:0 6px;font-size:15px;font-weight:700;}
+          .lc-arrow{color:var(--carrot);padding:0 6px;font-size:17px;font-weight:700;}
 
           /* ── HOW COACH WORKS ── */
           .hcw-section{background:var(--cream);padding:96px 24px;}
           .hcw-inner{max-width:900px;margin:0 auto;}
-          .hcw-sub{font-size:18px;color:var(--muted);line-height:1.5;margin-bottom:40px;}
+          .hcw-sub{font-size:20px;color:var(--muted);line-height:1.5;margin-bottom:40px;}
           .hcw-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
           .hcw-card{background:white;border:1.5px solid var(--border);border-radius:20px;padding:28px;}
-          .hcw-num{font-family:'Playfair Display',serif;font-size:44px;font-weight:900;color:var(--carrot);line-height:1;margin-bottom:12px;}
-          .hcw-title{font-size:18px;font-weight:700;color:var(--ink);margin-bottom:10px;}
-          .hcw-desc{font-size:15px;color:var(--muted);line-height:1.65;}
+          .hcw-num{font-family:'Playfair Display',serif;font-size:46px;font-weight:900;color:var(--carrot);line-height:1;margin-bottom:12px;}
+          .hcw-title{font-size:20px;font-weight:700;color:var(--ink);margin-bottom:10px;}
+          .hcw-desc{font-size:17px;color:var(--muted);line-height:1.65;}
 
           /* ── STOP SPREADSHEETS ── */
           .ss-section{background:var(--cream);padding:96px 24px;}
           .ss-inner{max-width:900px;margin:0 auto;}
           .ss-body{margin:0 0 40px;}
-          .ss-line{font-size:17px;color:var(--muted);line-height:1.7;margin-bottom:12px;}
+          .ss-line{font-size:19px;color:var(--muted);line-height:1.7;margin-bottom:12px;}
           .ss-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:36px;}
           .ss-col{border-radius:20px;padding:24px;}
           .ss-col.today{border:1.5px solid rgba(26,18,8,0.25);background:rgba(26,18,8,0.03);}
           .ss-col.coach{border:1.5px solid rgba(244,113,26,0.4);background:rgba(244,113,26,0.05);}
-          .ss-col-label{font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:16px;}
+          .ss-col-label{font-size:15px;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:16px;}
           .ss-col.today .ss-col-label{color:var(--muted);}
           .ss-col.coach .ss-col-label{color:var(--carrot);}
-          .ss-step{border-radius:12px;padding:12px 16px;font-size:14px;font-weight:600;text-align:center;line-height:1.4;}
+          .ss-step{border-radius:12px;padding:12px 16px;font-size:16px;font-weight:600;text-align:center;line-height:1.4;}
           .ss-col.today .ss-step{background:rgba(220,38,38,0.07);border:1px solid rgba(220,38,38,0.18);color:#7A2020;}
           .ss-col.coach .ss-step{background:white;border:1px solid rgba(244,113,26,0.3);color:var(--ink);}
-          .ss-arrow{text-align:center;font-size:16px;line-height:1;margin:6px 0;}
+          .ss-arrow{text-align:center;font-size:18px;line-height:1;margin:6px 0;}
           .ss-col.today .ss-arrow{color:rgba(220,38,38,0.4);}
           .ss-col.coach .ss-arrow{color:var(--carrot);}
           .ss-closing{text-align:center;}
-          .ss-closing-muted{font-size:18px;color:var(--muted);margin-bottom:8px;}
-          .ss-closing-bold{font-size:20px;font-weight:700;color:var(--ink);}
+          .ss-closing-muted{font-size:20px;color:var(--muted);margin-bottom:8px;}
+          .ss-closing-bold{font-size:22px;font-weight:700;color:var(--ink);}
 
           /* ── RESPONSIVE PART 2 ── */
           @media(max-width:768px){
@@ -908,25 +910,25 @@ export default function App() {
           .steps-inner{max-width:900px;margin:0 auto;}
           .steps-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:36px;}
           .step-card{background:var(--cream);border:1.5px solid var(--border);border-radius:20px;padding:28px;}
-          .step-num{font-size:11px;font-weight:800;letter-spacing:2px;color:var(--carrot);text-transform:uppercase;margin-bottom:10px;}
-          .step-title{font-size:18px;font-weight:700;color:var(--ink);margin-bottom:10px;line-height:1.3;}
-          .step-desc{font-size:15px;color:var(--muted);line-height:1.65;}
+          .step-num{font-size:13px;font-weight:800;letter-spacing:2px;color:var(--carrot);text-transform:uppercase;margin-bottom:10px;}
+          .step-title{font-size:20px;font-weight:700;color:var(--ink);margin-bottom:10px;line-height:1.3;}
+          .step-desc{font-size:17px;color:var(--muted);line-height:1.65;}
           .step-checklist{margin-top:16px;display:flex;flex-direction:column;gap:8px;}
-          .step-check-item{display:flex;align-items:flex-start;gap:8px;font-size:14px;color:var(--ink);line-height:1.4;}
+          .step-check-item{display:flex;align-items:flex-start;gap:8px;font-size:16px;color:var(--ink);line-height:1.4;}
           .step-check-icon{color:var(--carrot);flex-shrink:0;font-weight:700;}
-          .steps-note{font-size:16px;color:var(--muted);margin-bottom:24px;text-align:center;}
-          .steps-cta-btn{background:var(--carrot);color:white;border:none;border-radius:100px;padding:18px 42px;font-size:17px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+          .steps-note{font-size:18px;color:var(--muted);margin-bottom:24px;text-align:center;}
+          .steps-cta-btn{background:var(--carrot);color:white;border:none;border-radius:100px;padding:18px 42px;font-size:19px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
           .steps-cta-btn:hover{background:var(--carrot-dark);transform:translateY(-2px);box-shadow:0 12px 36px rgba(244,113,26,0.4);}
 
           /* ── 4:45 PM FRIDAY ── */
           .friday-section{background:linear-gradient(160deg,#071410,#0c2018,#091a12);padding:108px 24px;text-align:center;}
           .friday-inner{max-width:700px;margin:0 auto;}
-          .friday-time{font-family:'Playfair Display',serif;font-size:72px;font-weight:900;color:var(--carrot);line-height:1;margin-bottom:52px;}
-          .friday-line{font-size:20px;color:rgba(255,255,255,0.75);line-height:1.7;margin-bottom:4px;}
+          .friday-time{font-family:'Playfair Display',serif;font-size:74px;font-weight:900;color:var(--carrot);line-height:1;margin-bottom:52px;}
+          .friday-line{font-size:22px;color:rgba(255,255,255,0.75);line-height:1.7;margin-bottom:4px;}
           .friday-line.bold{font-weight:700;color:white;}
           .friday-spacer{height:24px;}
-          .friday-closing{font-size:24px;font-style:italic;color:rgba(255,255,255,0.9);margin-top:44px;margin-bottom:12px;line-height:1.4;}
-          .friday-orange{font-size:24px;font-weight:800;color:var(--carrot);}
+          .friday-closing{font-size:26px;font-style:italic;color:rgba(255,255,255,0.9);margin-top:44px;margin-bottom:12px;line-height:1.4;}
+          .friday-orange{font-size:26px;font-weight:800;color:var(--carrot);}
 
           /* ── PRICING ── */
           .pricing-section{background:white;padding:96px 24px;}
@@ -935,47 +937,47 @@ export default function App() {
           .pcard{border-radius:24px;padding:32px;border:1.5px solid var(--border);display:flex;flex-direction:column;position:relative;}
           .pcard.featured{border-color:var(--carrot);border-top-width:4px;}
           .pcard.team{border-color:var(--green);}
-          .most-popular-badge{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:var(--carrot);color:white;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:5px 16px;border-radius:100px;white-space:nowrap;}
-          .ptier{font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;}
+          .most-popular-badge{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:var(--carrot);color:white;font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:5px 16px;border-radius:100px;white-space:nowrap;}
+          .ptier{font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;}
           .ptier.orange{color:var(--carrot);}
           .ptier.standard{color:var(--muted);}
           .ptier.tgreen{color:var(--green);}
-          .pname{font-family:'Playfair Display',serif;font-size:24px;font-weight:900;color:var(--ink);margin-bottom:8px;}
-          .pprice{font-family:'Playfair Display',serif;font-size:52px;font-weight:900;color:var(--ink);line-height:1;margin-bottom:4px;}
-          .pprice-vol{font-size:18px;font-weight:700;color:var(--green);margin-bottom:4px;}
-          .psub{font-size:14px;color:var(--muted);margin-bottom:20px;}
+          .pname{font-family:'Playfair Display',serif;font-size:26px;font-weight:900;color:var(--ink);margin-bottom:8px;}
+          .pprice{font-family:'Playfair Display',serif;font-size:54px;font-weight:900;color:var(--ink);line-height:1;margin-bottom:4px;}
+          .pprice-vol{font-size:20px;font-weight:700;color:var(--green);margin-bottom:4px;}
+          .psub{font-size:16px;color:var(--muted);margin-bottom:20px;}
           .pdivider{height:1px;background:var(--border);margin-bottom:20px;}
           .pfeatures{display:flex;flex-direction:column;gap:10px;margin-bottom:24px;flex:1;}
-          .pfeature{display:flex;align-items:flex-start;gap:10px;font-size:14px;color:var(--ink);line-height:1.5;}
-          .pcheck{font-size:13px;flex-shrink:0;margin-top:2px;font-weight:700;}
+          .pfeature{display:flex;align-items:flex-start;gap:10px;font-size:16px;color:var(--ink);line-height:1.5;}
+          .pcheck{font-size:15px;flex-shrink:0;margin-top:2px;font-weight:700;}
           .pcheck.orange{color:var(--carrot);}
           .pcheck.tgreen{color:var(--green);}
-          .pbtn{display:block;width:100%;padding:14px 24px;border-radius:100px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;text-align:center;margin-bottom:12px;}
+          .pbtn{display:block;width:100%;padding:14px 24px;border-radius:100px;font-size:17px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;text-align:center;margin-bottom:12px;}
           .pbtn.filled{background:var(--carrot);color:white;border:2px solid var(--carrot);}
           .pbtn.filled:hover{background:var(--carrot-dark);border-color:var(--carrot-dark);}
           .pbtn.outlined-orange{background:white;color:var(--carrot);border:2px solid var(--carrot);}
           .pbtn.outlined-orange:hover{background:var(--carrot-light);}
           .pbtn.outlined-green{background:white;color:var(--green);border:2px solid var(--green);}
           .pbtn.outlined-green:hover{background:var(--green-light);}
-          .pnote{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:6px;text-align:center;}
-          .papproval-summary{display:block;margin-top:10px;padding:10px 16px;border-radius:100px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;text-align:center;transition:all 0.2s;}
+          .pnote{font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:6px;text-align:center;}
+          .papproval-summary{display:block;margin-top:10px;padding:10px 16px;border-radius:100px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;text-align:center;transition:all 0.2s;}
           .papproval-summary.orange{border:1.5px solid var(--carrot);color:var(--carrot);background:white;}
           .papproval-summary.orange:hover{background:var(--carrot-light);}
           .papproval-summary.tgreen{border:1.5px solid var(--green);color:var(--green);background:white;}
           .papproval-summary.tgreen:hover{background:var(--green-light);}
           .email-box{margin-top:14px;background:var(--cream);border:1.5px solid var(--border);border-radius:16px;padding:18px;}
-          .email-subject{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:12px;}
-          .email-body{font-size:13px;color:var(--muted);line-height:1.7;white-space:pre-wrap;margin-bottom:14px;}
-          .copy-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:100px;border:1.5px solid var(--border);background:white;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--ink);transition:all 0.2s;}
+          .email-subject{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:12px;}
+          .email-body{font-size:15px;color:var(--muted);line-height:1.7;white-space:pre-wrap;margin-bottom:14px;}
+          .copy-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:100px;border:1.5px solid var(--border);background:white;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--ink);transition:all 0.2s;}
           .copy-btn:hover{border-color:var(--carrot);color:var(--carrot);}
 
           /* ── RESPONSIVE PART 3 ── */
           @media(max-width:900px){.pricing-grid{grid-template-columns:1fr;}}
           @media(max-width:600px){
             .steps-grid{grid-template-columns:1fr;}
-            .friday-time{font-size:52px;}
-            .friday-line{font-size:17px;}
-            .friday-closing,.friday-orange{font-size:20px;}
+            .friday-time{font-size:54px;}
+            .friday-line{font-size:19px;}
+            .friday-closing,.friday-orange{font-size:22px;}
             .steps-section,.friday-section,.pricing-section{padding:64px 20px;}
           }
         `}</style>
@@ -1073,7 +1075,7 @@ export default function App() {
                 <div className="ptier orange">Pro</div>
                 <div className="pname">Meet Coach</div>
                 <div className="pprice">
-                  $99<span style={{ fontSize: 20, fontFamily: "'DM Sans',sans-serif", fontWeight: 500 }}>/year</span>
+                  $99<span style={{ fontSize: 22, fontFamily: "'DM Sans',sans-serif", fontWeight: 500 }}>/year</span>
                 </div>
                 <div className="psub">or $9.99 per month</div>
                 <div className="pdivider" />
@@ -1102,10 +1104,10 @@ export default function App() {
                     <div className="papproval-summary orange">Get Manager Approval Email</div>
                   </summary>
                   <div className="email-box">
-                    <div className="email-subject">Subject: Approval Request — Earn The Carrot</div>
+                    <div className="email-subject">Subject: Approval Request, Earn The Carrot</div>
                     <div className="email-body">{MANAGER_EMAIL_BODY}</div>
                     <CopyButton
-                      text={"Subject: Approval Request — Earn The Carrot\n\n" + MANAGER_EMAIL_BODY}
+                      text={"Subject: Approval Request, Earn The Carrot\n\n" + MANAGER_EMAIL_BODY}
                       className="copy-btn"
                     />
                   </div>
@@ -1140,10 +1142,10 @@ export default function App() {
                     <div className="papproval-summary tgreen">Get Manager Approval Email</div>
                   </summary>
                   <div className="email-box">
-                    <div className="email-subject">Subject: Approval Request — Earn The Carrot</div>
+                    <div className="email-subject">Subject: Approval Request, Earn The Carrot</div>
                     <div className="email-body">{MANAGER_EMAIL_BODY}</div>
                     <CopyButton
-                      text={"Subject: Approval Request — Earn The Carrot\n\n" + MANAGER_EMAIL_BODY}
+                      text={"Subject: Approval Request, Earn The Carrot\n\n" + MANAGER_EMAIL_BODY}
                       className="copy-btn"
                     />
                   </div>
@@ -1159,47 +1161,47 @@ export default function App() {
           /* ── ROI ── */
           .roi-section{background:var(--cream);padding:96px 24px;}
           .roi-inner{max-width:960px;margin:0 auto;}
-          .roi-opening{font-size:17px;color:var(--muted);line-height:1.65;margin-bottom:40px;max-width:720px;}
+          .roi-opening{font-size:19px;color:var(--muted);line-height:1.65;margin-bottom:40px;max-width:720px;}
           .roi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-bottom:32px;}
           .roi-card{background:white;border:1.5px solid var(--border);border-radius:20px;padding:28px;}
-          .roi-card-emoji{font-size:28px;margin-bottom:14px;}
-          .roi-card-title{font-size:17px;font-weight:700;color:var(--ink);margin-bottom:10px;}
-          .roi-card-desc{font-size:15px;color:var(--muted);line-height:1.65;}
-          .roi-box{background:rgba(244,113,26,0.07);border:1.5px solid rgba(244,113,26,0.25);border-radius:20px;padding:28px 32px;font-size:16px;color:var(--ink);line-height:1.75;}
-          .roi-callout{background:white;border:1.5px solid var(--border);border-left:4px solid var(--carrot);border-radius:16px;padding:24px 28px;font-size:16px;color:var(--ink);line-height:1.7;margin-bottom:20px;}
+          .roi-card-emoji{font-size:30px;margin-bottom:14px;}
+          .roi-card-title{font-size:19px;font-weight:700;color:var(--ink);margin-bottom:10px;}
+          .roi-card-desc{font-size:17px;color:var(--muted);line-height:1.65;}
+          .roi-box{background:rgba(244,113,26,0.07);border:1.5px solid rgba(244,113,26,0.25);border-radius:20px;padding:28px 32px;font-size:18px;color:var(--ink);line-height:1.75;}
+          .roi-callout{background:white;border:1.5px solid var(--border);border-left:4px solid var(--carrot);border-radius:16px;padding:24px 28px;font-size:18px;color:var(--ink);line-height:1.7;margin-bottom:20px;}
 
           /* ── CLOSING ── */
           .closing-section{background:var(--dark);padding:100px 24px;text-align:center;}
           .closing-inner{max-width:700px;margin:0 auto;}
-          .closing-carrot{font-size:64px;display:inline-block;animation:bounce 2.2s ease-in-out infinite;margin-bottom:28px;}
-          .closing-title{font-family:'Playfair Display',serif;font-size:52px;font-weight:900;color:white;line-height:1.1;margin-bottom:24px;}
-          .closing-sub{font-size:17px;color:rgba(255,255,255,0.5);line-height:1.65;margin-bottom:16px;}
-          .closing-note{font-size:16px;color:rgba(255,255,255,0.4);line-height:1.6;margin-bottom:36px;}
+          .closing-carrot{font-size:66px;display:inline-block;animation:bounce 2.2s ease-in-out infinite;margin-bottom:28px;}
+          .closing-title{font-family:'Playfair Display',serif;font-size:54px;font-weight:900;color:white;line-height:1.1;margin-bottom:24px;}
+          .closing-sub{font-size:19px;color:rgba(255,255,255,0.5);line-height:1.65;margin-bottom:16px;}
+          .closing-note{font-size:18px;color:rgba(255,255,255,0.4);line-height:1.6;margin-bottom:36px;}
           .closing-lines{margin-bottom:36px;display:flex;flex-direction:column;gap:8px;}
-          .closing-line{font-size:16px;font-weight:700;color:var(--carrot);}
-          .closing-cta{background:var(--carrot);color:white;border:none;border-radius:100px;padding:18px 42px;font-size:17px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+          .closing-line{font-size:18px;font-weight:700;color:var(--carrot);}
+          .closing-cta{background:var(--carrot);color:white;border:none;border-radius:100px;padding:18px 42px;font-size:19px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
           .closing-cta:hover{background:var(--carrot-dark);transform:translateY(-2px);box-shadow:0 12px 36px rgba(244,113,26,0.4);}
 
           /* ── FOOTER ── */
           .site-footer{background:var(--dark2);border-top:1px solid rgba(255,255,255,0.07);padding:28px 48px;}
           .footer-inner{max-width:1060px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;}
-          .footer-logo{font-family:'Playfair Display',serif;font-size:18px;font-weight:900;color:var(--carrot);}
+          .footer-logo{font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--carrot);}
           .footer-links{display:flex;gap:6px;align-items:center;}
-          .footer-link{font-size:13px;color:rgba(255,255,255,0.4);cursor:pointer;transition:color 0.2s;background:none;border:none;font-family:'DM Sans',sans-serif;}
+          .footer-link{font-size:15px;color:rgba(255,255,255,0.4);cursor:pointer;transition:color 0.2s;background:none;border:none;font-family:'DM Sans',sans-serif;}
           .footer-link:hover{color:rgba(255,255,255,0.7);}
-          .footer-dot{color:rgba(255,255,255,0.18);font-size:13px;padding:0 2px;}
-          .footer-tagline{font-size:13px;font-style:italic;color:rgba(255,255,255,0.22);}
+          .footer-dot{color:rgba(255,255,255,0.18);font-size:15px;padding:0 2px;}
+          .footer-tagline{font-size:15px;font-style:italic;color:rgba(255,255,255,0.22);}
 
           /* ── RESPONSIVE PART 4 ── */
           @media(max-width:768px){
             .roi-grid{grid-template-columns:1fr;}
-            .closing-title{font-size:38px;}
+            .closing-title{font-size:40px;}
             .site-footer{padding:24px 20px;}
             .footer-inner{flex-direction:column;text-align:center;gap:16px;}
           }
           @media(max-width:480px){
             .roi-section,.closing-section{padding:64px 20px;}
-            .closing-title{font-size:32px;}
+            .closing-title{font-size:34px;}
           }
         `}</style>
 
@@ -1262,11 +1264,11 @@ export default function App() {
               <div className="ob-dash-hero">
                 <div className="ob-dash-name">Welcome back{suName ? `, ${suName.split(" ")[0]}` : ""}</div>
                 <div className="ob-dash-pct">{targetPct}% of plan</div>
-                <div style={{ fontSize: 13, opacity: 0.9, marginTop: 6 }}>
+                <div style={{ fontSize: 15, opacity: 0.9, marginTop: 6 }}>
                   On pace for {fmt(calcNet(calcGross(targetPct)))} take home
                 </div>
                 {carrotAnswer && (
-                  <div style={{ fontSize: 13, opacity: 0.95, marginTop: 8, fontWeight: 700 }}>🥕 Your carrot: {carrotAnswer}</div>
+                  <div style={{ fontSize: 15, opacity: 0.95, marginTop: 8, fontWeight: 700 }}>🥕 Your carrot: {carrotAnswer}</div>
                 )}
               </div>
               <div className="ob-sec-h" style={{ marginTop: 0 }}>Today's activities</div>
@@ -1276,15 +1278,15 @@ export default function App() {
                 return (
                   <div key={m.id} className="ob-metric">
                     <div className="ob-metric-hdr">
-                      <span style={{ fontSize: 18 }}>{m.emoji}</span>
+                      <span style={{ fontSize: 20 }}>{m.emoji}</span>
                       <strong style={{ flex: 1 }}>{m.label}</strong>
                       <span className={`ob-status ${s.cls}`}>{s.label}</span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <button className="ob-del" style={{ fontSize: 22 }} onClick={() => setTodayLog({ ...todayLog, [m.id]: Math.max(0, v - 1) })}>−</button>
-                      <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 24, fontWeight: 900, minWidth: 36, textAlign: "center" }}>{v}</span>
-                      <button className="ob-del" style={{ fontSize: 22 }} onClick={() => setTodayLog({ ...todayLog, [m.id]: v + 1 })}>+</button>
-                      <span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 8 }}>Floor {m.floor} · Stretch {m.stretch}</span>
+                      <button className="ob-del" style={{ fontSize: 24 }} onClick={() => setTodayLog({ ...todayLog, [m.id]: Math.max(0, v - 1) })}>−</button>
+                      <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, fontWeight: 900, minWidth: 36, textAlign: "center" }}>{v}</span>
+                      <button className="ob-del" style={{ fontSize: 24 }} onClick={() => setTodayLog({ ...todayLog, [m.id]: v + 1 })}>+</button>
+                      <span style={{ fontSize: 15, color: "var(--muted)", marginLeft: 8 }}>Floor {m.floor} · Stretch {m.stretch}</span>
                     </div>
                   </div>
                 );
@@ -1296,10 +1298,10 @@ export default function App() {
                   <div key={c.id} className="ob-card">
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                       <strong>{c.name || "Big Carrot"}</strong>
-                      <span style={{ fontSize: 13, color: "var(--muted)" }}>{fmt(c.applied)} / {fmt(c.cost)}</span>
+                      <span style={{ fontSize: 15, color: "var(--muted)" }}>{fmt(c.applied)} / {fmt(c.cost)}</span>
                     </div>
                     <div className="ob-prog-bar"><div className="ob-prog-fill" style={{ width: `${pctFill}%` }} /></div>
-                    <div style={{ fontSize: 12, color: "var(--muted)" }}>{Math.round(pctFill)}% funded</div>
+                    <div style={{ fontSize: 14, color: "var(--muted)" }}>{Math.round(pctFill)}% funded</div>
                   </div>
                 );
               })}
@@ -1307,8 +1309,8 @@ export default function App() {
           )}
           {activeTab !== "home" && (
             <div style={{ textAlign: "center", padding: "80px 20px", color: "var(--muted)" }}>
-              <div style={{ fontSize: 42, marginBottom: 12 }}>{activeMeta?.ico}</div>
-              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: "var(--ink)", marginBottom: 6 }}>{activeMeta?.lbl}</div>
+              <div style={{ fontSize: 44, marginBottom: 12 }}>{activeMeta?.ico}</div>
+              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 24, fontWeight: 700, color: "var(--ink)", marginBottom: 6 }}>{activeMeta?.lbl}</div>
               <p>Coming soon.</p>
             </div>
           )}
@@ -1338,6 +1340,12 @@ export default function App() {
   // ══ COMP PLAN SUMMARY (full-screen mockup) ═══════════════════════════
   if (screen === "summary") {
     return <CompSummaryScreen onContinue={() => goFlow("carrot_bridge")} />;
+  }
+
+  // ══ ANALYZING (Coach reading the plan) ═══════════════════════════════
+  // placeholder for 30-second video, to be added later
+  if (screen === "analyzing") {
+    return <AnalyzingScreen onDone={() => goFlow("summary")} />;
   }
 
   // ══ CARROT BRIDGE ════════════════════════════════════════════════════
@@ -1452,12 +1460,12 @@ export default function App() {
           <p className="ob-subt">Drop in your compensation plan PDF. Coach reads every line.</p>
           <label className={`ob-drop ${planFile ? "has" : ""}`}>
             <input type="file" accept="application/pdf" style={{ display: "none" }} onChange={(e) => setPlanFile(e.target.files[0] || null)} />
-            <div style={{ fontSize: 38, marginBottom: 10 }}>{planFile ? "✅" : "📄"}</div>
-            <div style={{ fontSize: 15, fontWeight: 700 }}>{planFile ? planFile.name : "Click to upload your PDF"}</div>
-            <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4 }}>{planFile ? "Tap to choose a different file" : "PDF up to 20 MB"}</div>
+            <div style={{ fontSize: 40, marginBottom: 10 }}>{planFile ? "✅" : "📄"}</div>
+            <div style={{ fontSize: 17, fontWeight: 700 }}>{planFile ? planFile.name : "Click to upload your PDF"}</div>
+            <div style={{ fontSize: 15, color: "var(--muted)", marginTop: 4 }}>{planFile ? "Tap to choose a different file" : "PDF up to 20 MB"}</div>
           </label>
           <div className="ob-note"><span>🔒</span><span>Your plan is private. We use it only to build your personal earnings model and never share it.</span></div>
-          <button className="ob-btn" disabled={!planFile} onClick={() => goFlow("summary")}>Analyze My Plan</button>
+          <button className="ob-btn" disabled={!planFile} onClick={() => goFlow("analyzing")}>Review My Plan</button>
         </>
       );
     } else if (screen === "paycheck") {
@@ -1553,7 +1561,7 @@ export default function App() {
               <p className="ob-sec-sub">One small treat tied to each activity. You earn it when you hit that activity's stretch goal.</p>
               {metrics.map((m) => (
                 <div key={m.id} className="ob-card">
-                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>{m.emoji} {m.label}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{m.emoji} {m.label}</div>
                   <input className="ob-inp" placeholder="Mini treat (e.g. fancy coffee)" value={m.treat} onChange={(e) => updateMetric(m.id, { treat: e.target.value })} />
                 </div>
               ))}
@@ -1616,8 +1624,8 @@ export default function App() {
             ["csv", "📊 CSV upload", "Upload a weekly export"],
           ].map(([k, t, d]) => (
             <div key={k} className={`ob-opt ${trackingMethod === k ? "on" : ""}`} onClick={() => setTrackingMethod(k)}>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>{t}</div>
-              <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 2 }}>{d}</div>
+              <div style={{ fontWeight: 700, fontSize: 17 }}>{t}</div>
+              <div style={{ fontSize: 15, color: "var(--muted)", marginTop: 2 }}>{d}</div>
             </div>
           ))}
           <button className="ob-btn" onClick={() => goFlow("dashboard")}>Go to My Dashboard</button>
@@ -1741,51 +1749,51 @@ const CS_STYLES = `
   @keyframes csPulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
 
   .cs-root .page-header { margin-bottom: 28px; animation: csFadeUp 0.4s ease; }
-  .cs-root .page-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
-  .cs-root .page-title { font-family: 'Playfair Display', serif; font-size: 36px; font-weight: 900; color: var(--ink); line-height: 1.15; margin-bottom: 10px; }
+  .cs-root .page-eyebrow { font-size:13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .cs-root .page-title { font-family: 'Playfair Display', serif; font-size:38px; font-weight: 900; color: var(--ink); line-height: 1.15; margin-bottom: 10px; }
   .cs-root .page-title span { color: var(--carrot); }
-  .cs-root .page-sub { font-size: 15px; color: var(--muted); line-height: 1.6; max-width: 540px; }
+  .cs-root .page-sub { font-size:17px; color: var(--muted); line-height: 1.6; max-width: 540px; }
 
   .cs-root .ai-banner { display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg, #1A1208 0%, #3D2B1A 100%); border-radius: 16px; padding: 18px 22px; margin-bottom: 20px; animation: csFadeUp 0.4s ease 0.1s both; }
-  .cs-root .ai-banner-icon { font-size: 28px; flex-shrink: 0; }
+  .cs-root .ai-banner-icon { font-size:30px; flex-shrink: 0; }
   .cs-root .ai-banner-text { flex: 1; }
-  .cs-root .ai-banner-title { font-size: 14px; font-weight: 700; color: white; margin-bottom: 2px; }
-  .cs-root .ai-banner-sub { font-size: 12px; color: rgba(255,255,255,0.6); }
+  .cs-root .ai-banner-title { font-size:16px; font-weight: 700; color: white; margin-bottom: 2px; }
+  .cs-root .ai-banner-sub { font-size:14px; color: rgba(255,255,255,0.6); }
   .cs-root .ai-confidence { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
   .cs-root .ai-confidence-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ADE80; animation: csPulse 2s ease infinite; }
-  .cs-root .ai-confidence-label { font-size: 12px; font-weight: 700; color: #4ADE80; }
+  .cs-root .ai-confidence-label { font-size:14px; font-weight: 700; color: #4ADE80; }
 
   .cs-root .coach-card { background: linear-gradient(145deg, #0F0A05 0%, #2D1A0A 50%, #1A2D1A 100%); border-radius: 24px; overflow: hidden; margin-bottom: 20px; animation: csFadeUp 0.4s ease 0.15s both; box-shadow: 0 8px 40px rgba(244,113,26,0.15); }
   .cs-root .coach-header { padding: 20px 24px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 12px; }
-  .cs-root .coach-header-icon { font-size: 24px; }
+  .cs-root .coach-header-icon { font-size:26px; }
   .cs-root .coach-header-text { flex: 1; }
-  .cs-root .coach-header-title { font-size: 15px; font-weight: 700; color: white; margin-bottom: 2px; }
-  .cs-root .coach-header-sub { font-size: 12px; color: rgba(255,255,255,0.5); }
-  .cs-root .coach-header-badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 100px; background: rgba(244,113,26,0.25); color: #FDBA74; }
+  .cs-root .coach-header-title { font-size:17px; font-weight: 700; color: white; margin-bottom: 2px; }
+  .cs-root .coach-header-sub { font-size:14px; color: rgba(255,255,255,0.5); }
+  .cs-root .coach-header-badge { font-size:13px; font-weight: 700; padding: 4px 10px; border-radius: 100px; background: rgba(244,113,26,0.25); color: #FDBA74; }
 
   .cs-root .big-picture { padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); }
-  .cs-root .big-picture-label { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #FDBA74; margin-bottom: 12px; }
-  .cs-root .big-picture-text { font-size: 16px; line-height: 1.7; color: rgba(255,255,255,0.92); font-style: italic; border-left: 3px solid var(--carrot); padding-left: 16px; }
+  .cs-root .big-picture-label { font-size:13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #FDBA74; margin-bottom: 12px; }
+  .cs-root .big-picture-text { font-size:18px; line-height: 1.7; color: rgba(255,255,255,0.92); font-style: italic; border-left: 3px solid var(--carrot); padding-left: 16px; }
 
   .cs-root .insights-section { padding: 20px 24px; }
-  .cs-root .insights-col-title { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; }
+  .cs-root .insights-col-title { font-size:13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; }
   .cs-root .insights-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
   .cs-root .insight-pill { border-radius: 14px; padding: 14px 16px; display: flex; align-items: flex-start; gap: 10px; }
   .cs-root .insight-pill.do { background: rgba(45,106,79,0.25); border: 1px solid rgba(45,106,79,0.4); }
   .cs-root .insight-pill.watch { background: rgba(220,38,38,0.2); border: 1px solid rgba(220,38,38,0.35); }
-  .cs-root .insight-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
-  .cs-root .insight-text { font-size: 13px; line-height: 1.5; }
+  .cs-root .insight-icon { font-size:20px; flex-shrink: 0; margin-top: 1px; }
+  .cs-root .insight-text { font-size:15px; line-height: 1.5; }
   .cs-root .insight-pill.do .insight-text { color: #86EFAC; }
   .cs-root .insight-pill.watch .insight-text { color: #FCA5A5; }
-  .cs-root .insight-headline { font-weight: 700; margin-bottom: 3px; font-size: 13px; }
+  .cs-root .insight-headline { font-weight: 700; margin-bottom: 3px; font-size:15px; }
   .cs-root .watch-title { color: #FCA5A5; }
   .cs-root .do-title { color: #86EFAC; }
 
   .cs-root .section-card { background: white; border: 1.5px solid var(--border); border-radius: 22px; overflow: hidden; margin-bottom: 20px; animation: csFadeUp 0.4s ease both; }
   .cs-root .card-header { display: flex; align-items: center; gap: 12px; padding: 16px 22px; border-bottom: 1px solid var(--border); background: var(--cream); }
-  .cs-root .card-header-icon { font-size: 20px; }
-  .cs-root .card-header-title { font-size: 15px; font-weight: 700; flex: 1; }
-  .cs-root .badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 100px; }
+  .cs-root .card-header-icon { font-size:22px; }
+  .cs-root .card-header-title { font-size:17px; font-weight: 700; flex: 1; }
+  .cs-root .badge { font-size:13px; font-weight: 700; padding: 4px 12px; border-radius: 100px; }
   .cs-root .badge-green { background: var(--green-light); color: var(--green); }
   .cs-root .badge-orange { background: var(--carrot-light); color: var(--carrot-dark); }
 
@@ -1793,49 +1801,49 @@ const CS_STYLES = `
   .cs-root .field-row:last-child { border-bottom: none; }
   .cs-root .field-row:hover { background: #FEFCF8; }
   .cs-root .field-row.missing { background: #FFFBEB; }
-  .cs-root .field-icon { font-size: 18px; width: 32px; text-align: center; flex-shrink: 0; }
+  .cs-root .field-icon { font-size:20px; width: 32px; text-align: center; flex-shrink: 0; }
   .cs-root .field-body { flex: 1; min-width: 0; }
-  .cs-root .field-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
-  .cs-root .field-value { font-size: 20px; font-weight: 700; color: var(--ink); }
-  .cs-root .field-value.missing-val { font-size: 14px; font-weight: 500; color: var(--carrot); font-style: italic; }
-  .cs-root .field-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  .cs-root .field-source { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--green); background: var(--green-light); padding: 2px 8px; border-radius: 100px; margin-top: 4px; font-weight: 600; }
-  .cs-root .edit-btn { flex-shrink: 0; background: none; border: 1.5px solid var(--border); border-radius: 10px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--muted); transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+  .cs-root .field-label { font-size:13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+  .cs-root .field-value { font-size:22px; font-weight: 700; color: var(--ink); }
+  .cs-root .field-value.missing-val { font-size:16px; font-weight: 500; color: var(--carrot); font-style: italic; }
+  .cs-root .field-sub { font-size:14px; color: var(--muted); margin-top: 2px; }
+  .cs-root .field-source { display: inline-flex; align-items: center; gap: 4px; font-size:13px; color: var(--green); background: var(--green-light); padding: 2px 8px; border-radius: 100px; margin-top: 4px; font-weight: 600; }
+  .cs-root .edit-btn { flex-shrink: 0; background: none; border: 1.5px solid var(--border); border-radius: 10px; padding: 7px 14px; font-size:14px; font-weight: 600; cursor: pointer; color: var(--muted); transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
   .cs-root .edit-btn:hover { border-color: var(--carrot); color: var(--carrot); background: var(--carrot-light); }
-  .cs-root .add-btn { flex-shrink: 0; background: var(--carrot); border: none; border-radius: 10px; padding: 7px 14px; font-size: 12px; font-weight: 700; cursor: pointer; color: white; transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+  .cs-root .add-btn { flex-shrink: 0; background: var(--carrot); border: none; border-radius: 10px; padding: 7px 14px; font-size:14px; font-weight: 700; cursor: pointer; color: white; transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
   .cs-root .inline-edit { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
-  .cs-root .inline-input { padding: 8px 12px; border: 1.5px solid var(--carrot); border-radius: 10px; font-size: 15px; font-family: 'DM Sans', sans-serif; width: 180px; color: var(--ink); background: white; }
+  .cs-root .inline-input { padding: 8px 12px; border: 1.5px solid var(--carrot); border-radius: 10px; font-size:17px; font-family: 'DM Sans', sans-serif; width: 180px; color: var(--ink); background: white; }
   .cs-root .inline-input:focus { outline: none; }
-  .cs-root .save-btn { background: var(--carrot); color: white; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; }
-  .cs-root .cancel-btn { background: none; color: var(--muted); border: none; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; padding: 8px; }
+  .cs-root .save-btn { background: var(--carrot); color: white; border: none; border-radius: 8px; padding: 8px 16px; font-size:15px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  .cs-root .cancel-btn { background: none; color: var(--muted); border: none; font-size:15px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; padding: 8px; }
 
   .cs-root .commission-visual { padding: 20px 22px; background: var(--cream); border-top: 1px solid var(--border); }
-  .cs-root .commission-visual-title { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
+  .cs-root .commission-visual-title { font-size:14px; font-weight: 700; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
   .cs-root .tier-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-  .cs-root .tier-label { font-size: 12px; font-weight: 600; color: var(--ink); width: 160px; flex-shrink: 0; }
+  .cs-root .tier-label { font-size:14px; font-weight: 600; color: var(--ink); width: 160px; flex-shrink: 0; }
   .cs-root .tier-bar-track { flex: 1; height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; }
   .cs-root .tier-bar-fill { height: 100%; border-radius: 5px; }
-  .cs-root .tier-rate { font-size: 13px; font-weight: 700; color: var(--ink); width: 48px; text-align: right; }
+  .cs-root .tier-rate { font-size:15px; font-weight: 700; color: var(--ink); width: 48px; text-align: right; }
 
   .cs-root .spiff-item { display: flex; align-items: flex-start; gap: 14px; padding: 16px 22px; border-bottom: 1px solid var(--border); }
   .cs-root .spiff-item:last-child { border-bottom: none; }
-  .cs-root .spiff-emoji { font-size: 24px; flex-shrink: 0; margin-top: 2px; }
+  .cs-root .spiff-emoji { font-size:26px; flex-shrink: 0; margin-top: 2px; }
   .cs-root .spiff-body { flex: 1; }
-  .cs-root .spiff-name { font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
-  .cs-root .spiff-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
-  .cs-root .spiff-value { font-size: 18px; font-weight: 700; color: var(--green); flex-shrink: 0; }
+  .cs-root .spiff-name { font-size:17px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+  .cs-root .spiff-desc { font-size:15px; color: var(--muted); line-height: 1.5; }
+  .cs-root .spiff-value { font-size:20px; font-weight: 700; color: var(--green); flex-shrink: 0; }
 
   .cs-root .concern-box { display: flex; gap: 14px; background: var(--red-light); border: 1px solid #FECACA; border-radius: 14px; padding: 16px 18px; margin-bottom: 20px; animation: csFadeUp 0.4s ease 0.3s both; }
-  .cs-root .concern-title { font-size: 14px; font-weight: 700; color: var(--red); margin-bottom: 3px; }
-  .cs-root .concern-desc { font-size: 13px; color: #7F1D1D; line-height: 1.5; }
+  .cs-root .concern-title { font-size:16px; font-weight: 700; color: var(--red); margin-bottom: 3px; }
+  .cs-root .concern-desc { font-size:15px; color: #7F1D1D; line-height: 1.5; }
 
   .cs-root .confirm-bar { display: flex; align-items: center; justify-content: space-between; background: white; border: 1.5px solid var(--border); border-radius: 20px; padding: 20px 24px; margin-top: 8px; gap: 16px; animation: csFadeUp 0.4s ease 0.5s both; }
-  .cs-root .confirm-bar-title { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
-  .cs-root .confirm-bar-sub { font-size: 13px; color: var(--muted); }
+  .cs-root .confirm-bar-title { font-size:18px; font-weight: 700; margin-bottom: 2px; }
+  .cs-root .confirm-bar-sub { font-size:15px; color: var(--muted); }
   .cs-root .confirm-actions { display: flex; gap: 10px; flex-shrink: 0; }
-  .cs-root .btn-confirm { background: var(--carrot); color: white; border: none; border-radius: 100px; padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+  .cs-root .btn-confirm { background: var(--carrot); color: white; border: none; border-radius: 100px; padding: 12px 24px; font-size:16px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
   .cs-root .btn-confirm:hover { background: var(--carrot-dark); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(244,113,26,0.3); }
-  .cs-root .btn-fix { background: white; color: var(--ink); border: 1.5px solid var(--border); border-radius: 100px; padding: 12px 20px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+  .cs-root .btn-fix { background: white; color: var(--ink); border: 1.5px solid var(--border); border-radius: 100px; padding: 12px 20px; font-size:16px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
   .cs-root .btn-fix:hover { border-color: var(--carrot); color: var(--carrot); }
 `;
 
@@ -1847,14 +1855,14 @@ const CS_MOTIVATIONS = [
 ];
 
 const CS_DO_INSIGHTS = [
-  { icon: "🏆", headline: "Hit quota fast", text: "Your accelerator jumps to 14% above 100% — the plan is designed to reward blowing past quota, not just hitting it." },
+  { icon: "🏆", headline: "Hit quota fast", text: "Your accelerator jumps to 14% above 100%. The plan is designed to reward blowing past quota, not just hitting it." },
   { icon: "🆕", headline: "Chase new logos", text: "New Logo SPIFF pays $5K per new customer. Leadership is clearly prioritizing new business over expansion this year." },
-  { icon: "⚡", headline: "Win in Month 1", text: "Fast Start bonus expires after 30 days. Front-load your pipeline now — this $2,500 is gone if you miss it." },
+  { icon: "⚡", headline: "Win in Month 1", text: "Fast Start bonus expires after 30 days. Front-load your pipeline now. This $2,500 is gone if you miss it." },
   { icon: "📅", headline: "Close before quarter end", text: "Commission pays on booking date. Deals that slip to next quarter reset your accelerator progress." },
 ];
 
 const CS_WATCH_INSIGHTS = [
-  { icon: "⚠️", headline: "The 75% cliff is real", text: "Below 75% quota you earn nothing in commission — just base. Don't let yourself sit at 60% thinking you're making progress." },
+  { icon: "⚠️", headline: "The 75% cliff is real", text: "Below 75% quota you earn nothing in commission, just base. Don't let yourself sit at 60% thinking you're making progress." },
   { icon: "🔄", headline: "Renewals won't move the needle", text: "Renewal commissions are half the rate of new business. If you spend Q3 on renewals you'll likely miss the accelerator." },
   { icon: "📉", headline: "Sandbagging backfires here", text: "Holding deals for next quarter resets your accelerator tier. The math strongly favors closing now." },
 ];
@@ -1891,7 +1899,7 @@ function PayoutCurve() {
     const gross = payload.find((p) => p.dataKey === "gross");
     const comm = payload.find((p) => p.dataKey === "commission");
     return (
-      <div style={{ background: "#1A1208", border: "1px solid rgba(244,113,26,0.3)", borderRadius: 12, padding: "12px 16px", fontSize: 13 }}>
+      <div style={{ background: "#1A1208", border: "1px solid rgba(244,113,26,0.3)", borderRadius: 12, padding: "12px 16px", fontSize: 15 }}>
         <div style={{ fontWeight: 700, color: "white", marginBottom: 8 }}>{label}% of Quota</div>
         {gross && <div style={{ color: "#F4711A", fontWeight: 700 }}>Total: ${(gross.value / 1000).toFixed(0)}k</div>}
         {comm && <div style={{ color: "#E9C46A" }}>Commission: ${(comm.value / 1000).toFixed(0)}k</div>}
@@ -1914,8 +1922,8 @@ function PayoutCurve() {
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-        <XAxis dataKey="pct" stroke="rgba(255,255,255,0.2)" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} tickFormatter={(v) => v + "%"} />
-        <YAxis stroke="rgba(255,255,255,0.2)" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} tickFormatter={(v) => "$" + (v / 1000).toFixed(0) + "k"} width={52} />
+        <XAxis dataKey="pct" stroke="rgba(255,255,255,0.2)" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 13 }} tickFormatter={(v) => v + "%"} />
+        <YAxis stroke="rgba(255,255,255,0.2)" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 13 }} tickFormatter={(v) => "$" + (v / 1000).toFixed(0) + "k"} width={52} />
         <Tooltip content={<CustomTooltip />} />
         <ReferenceLine x={75} stroke="#E9C46A" strokeDasharray="4 4" strokeWidth={1.5}>
           <Label value="75% cliff" fill="#E9C46A" fontSize={10} position="insideTopRight" offset={4} />
@@ -1931,6 +1939,70 @@ function PayoutCurve() {
         <Line type="monotone" dataKey="base" stroke="rgba(255,255,255,0.15)" strokeWidth={1} dot={false} strokeDasharray="3 3" />
       </AreaChart>
     </ResponsiveContainer>
+  );
+}
+
+// ── ANALYZING SCREEN ──────────────────────────────────────────────────
+const AZ_STYLES = `
+.az-wrap{min-height:100vh;background:#0F0A05;color:white;display:flex;align-items:center;justify-content:center;padding:40px 24px;}
+.az-inner{max-width:560px;width:100%;text-align:center;animation:fadeUp 0.4s ease;}
+.az-carrot{font-size:80px;line-height:1;display:inline-block;margin-bottom:24px;animation:bounce 2s ease-in-out infinite;}
+.az-title{font-family:'Playfair Display',serif;font-size:32px;font-weight:900;color:white;margin-bottom:36px;}
+.az-stages{display:flex;flex-direction:column;gap:14px;text-align:left;margin-bottom:34px;}
+.az-stage{display:flex;align-items:center;gap:14px;opacity:0.4;transition:opacity 0.4s ease;}
+.az-stage.active,.az-stage.done{opacity:1;}
+.az-marker{width:24px;height:24px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.az-dot{width:18px;height:18px;border-radius:50%;border:3px solid rgba(244,113,26,0.25);border-top-color:#F4711A;animation:azspin 0.8s linear infinite;}
+.az-stage.pending .az-dot{border:3px solid rgba(255,255,255,0.15);animation:none;}
+.az-check{color:#86EFAC;font-size:20px;font-weight:800;}
+.az-stage-text{font-size:17px;color:rgba(255,255,255,0.9);}
+.az-bar{height:8px;background:rgba(255,255,255,0.12);border-radius:5px;overflow:hidden;}
+.az-bar-fill{height:100%;background:linear-gradient(90deg,#E9C46A,#F4711A);border-radius:5px;transition:width 0.15s linear;}
+@keyframes azspin{to{transform:rotate(360deg);}}
+`;
+
+function AnalyzingScreen({ onDone }) {
+  const STAGES = [
+    "Reading your compensation structure...",
+    "Identifying accelerators and bonuses...",
+    "Calculating your earnings scenarios...",
+    "Building your insights...",
+  ];
+  const [stage, setStage] = useState(0);
+  const [progress, setProgress] = useState(0);
+  useEffect(() => {
+    const t1 = setTimeout(() => setStage(1), 3000);
+    const t2 = setTimeout(() => setStage(2), 6000);
+    const t3 = setTimeout(() => setStage(3), 9000);
+    const finish = setTimeout(() => onDone(), 12000);
+    let pct = 0;
+    const iv = setInterval(() => { pct = Math.min(100, pct + 100 / 120); setProgress(pct); }, 100);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(finish); clearInterval(iv); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <div className="az-wrap">
+      <style>{S}</style>
+      <style>{AZ_STYLES}</style>
+      <div className="az-inner">
+        <div className="az-carrot">🥕</div>
+        <h1 className="az-title">Coach is reading your plan...</h1>
+        <div className="az-stages">
+          {STAGES.map((label, i) => {
+            const state = i < stage ? "done" : i === stage ? "active" : "pending";
+            return (
+              <div key={i} className={`az-stage ${state}`}>
+                <span className="az-marker">
+                  {state === "done" ? <span className="az-check">✓</span> : <span className="az-dot" />}
+                </span>
+                <span className="az-stage-text">{label}</span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="az-bar"><div className="az-bar-fill" style={{ width: `${progress}%` }} /></div>
+      </div>
+    </div>
   );
 }
 
@@ -1965,20 +2037,28 @@ function CompSummaryScreen({ onContinue }) {
         <div className="page-header">
           <div className="page-eyebrow">Step 2 of 6 · Comp Plan Review</div>
           <h1 className="page-title">Here's What We <span>Found</span></h1>
-          <p className="page-sub">We read your plan and did two things — pulled out every number, and decoded what leadership is actually trying to get you to do.</p>
+          <p className="page-sub">We read your plan and did two things. We pulled out every number, and decoded what leadership is actually trying to get you to do.</p>
         </div>
 
         {/* AI BANNER */}
         <div className="ai-banner">
-          <div className="ai-banner-icon">🤖</div>
+          <div className="ai-banner-icon">🥕</div>
           <div className="ai-banner-text">
-            <div className="ai-banner-title">AI read: Q3 2025 Sales Compensation Plan.pdf</div>
-            <div className="ai-banner-sub">Found base salary · 3-tier commission structure · OTE · 3 active SPIFFs · behavioral patterns</div>
+            <div className="ai-banner-title">Coach reviewed your compensation plan</div>
+            <div className="ai-banner-sub">Here is what Coach found, your numbers, your opportunities, and what your plan is really designed to reward</div>
           </div>
           <div className="ai-confidence">
             <div className="ai-confidence-dot" />
             <div className="ai-confidence-label">92% confident</div>
           </div>
+        </div>
+
+        {/* TOP CTA BAR */}
+        <div style={{ background: "var(--carrot-light)", border: "1px solid rgba(244,113,26,0.3)", borderRadius: 16, padding: "16px 20px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "var(--carrot-dark)" }}>Ready to see your real take-home numbers?</div>
+          <button onClick={onContinue} style={{ background: "var(--carrot)", color: "white", border: "none", borderRadius: 100, padding: "12px 22px", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+            Continue to My Earnings →
+          </button>
         </div>
 
         {/* ── AI COACH CARD ── */}
@@ -1996,7 +2076,7 @@ function CompSummaryScreen({ onContinue }) {
           <div className="big-picture">
             <div className="big-picture-label">The Big Picture</div>
             <div className="big-picture-text">
-              "This is a hunter's plan. Leadership is betting big on new logos this year — new business pays nearly 2x more than expansion, and the Fast Start bonus rewards whoever gets off the blocks quickest. The accelerator is aggressive above quota, which means the top reps will separate themselves fast. If you're spending your time on renewals, you're playing the wrong game in 2025."
+              "This is a hunter's plan. Leadership is betting big on new logos this year. New business pays nearly 2x more than expansion, and the Fast Start bonus rewards whoever gets off the blocks quickest. The accelerator is aggressive above quota, which means the top reps will separate themselves fast. If you're spending your time on renewals, you're playing the wrong game in 2025."
             </div>
           </div>
 
@@ -2031,12 +2111,12 @@ function CompSummaryScreen({ onContinue }) {
 
           {/* MOTIVATION METERS */}
           <div style={{ padding: "4px 24px 20px" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 14 }}>
               What Leadership Is Prioritizing
             </div>
             {CS_MOTIVATIONS.map((m, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.7)", width: 110, flexShrink: 0 }}>{m.label}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.7)", width: 110, flexShrink: 0 }}>{m.label}</div>
                 <div style={{ flex: 1, display: "flex", gap: 3 }}>
                   {[...Array(10)].map((_, j) => (
                     <div key={j} style={{
@@ -2046,7 +2126,7 @@ function CompSummaryScreen({ onContinue }) {
                     }} />
                   ))}
                 </div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", width: 140, flexShrink: 0, textAlign: "right" }}>{m.desc}</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", width: 140, flexShrink: 0, textAlign: "right" }}>{m.desc}</div>
               </div>
             ))}
           </div>
@@ -2054,10 +2134,10 @@ function CompSummaryScreen({ onContinue }) {
 
         {/* MISSING FIELD WARNING */}
         <div className="concern-box">
-          <div style={{ fontSize: 20 }}>⚠️</div>
+          <div style={{ fontSize: 22 }}>⚠️</div>
           <div>
             <div className="concern-title">One thing we couldn't find</div>
-            <div className="concern-desc">We couldn't locate your <strong>draw amount</strong>. If you have a recoverable or non-recoverable draw, add it below — it affects your take-home calculations.</div>
+            <div className="concern-desc">We couldn't locate your <strong>draw amount</strong>. If you have a recoverable or non-recoverable draw, add it below. It affects your take-home calculations.</div>
           </div>
         </div>
 
@@ -2065,12 +2145,45 @@ function CompSummaryScreen({ onContinue }) {
         <div className="section-card">
           <div className="card-header">
             <div className="card-header-icon">💰</div>
-            <div className="card-header-title">Base Salary &amp; Structure</div>
+            <div className="card-header-title">Your Full Earnings Picture</div>
             <div className="badge badge-green">✓ Found</div>
           </div>
 
           {[
             { key: "base", icon: "🏦", label: "Base Salary", display: fmt(comp.base) + "/year", sub: null, page: "page 2" },
+          ].map((f) => (
+            <div className="field-row" key={f.key}>
+              <div className="field-icon">{f.icon}</div>
+              <div className="field-body">
+                <div className="field-label">{f.label}</div>
+                {editing === f.key
+                  ? <div className="inline-edit">
+                      <input className="inline-input" value={editVal} onChange={(e) => setEditVal(e.target.value)} autoFocus onKeyDown={(e) => e.key === "Enter" && saveEdit()} />
+                      <button className="save-btn" onClick={saveEdit}>Save</button>
+                      <button className="cancel-btn" onClick={() => setEditing(null)}>Cancel</button>
+                    </div>
+                  : <>
+                      <div className="field-value">{f.display}</div>
+                      {f.sub && <div className="field-sub">{f.sub}</div>}
+                      <div className="field-source">📄 Found on {f.page}</div>
+                    </>
+                }
+              </div>
+              {editing !== f.key && <button className="edit-btn" onClick={() => startEdit(f.key, comp[f.key])}>✏️ Edit</button>}
+            </div>
+          ))}
+
+          {/* Commission at Target (display only) */}
+          <div className="field-row">
+            <div className="field-icon">📈</div>
+            <div className="field-body">
+              <div className="field-label">Commission at Target</div>
+              <div className="field-value">{fmt(comp.ote - comp.base)}/year at 100% quota</div>
+              <div className="field-sub">Your quota times your commission rate, paid at 100% attainment</div>
+            </div>
+          </div>
+
+          {[
             { key: "ote", icon: "🎯", label: "On-Target Earnings (OTE)", display: fmt(comp.ote) + "/year at quota", sub: `That's ${fmt(comp.ote - comp.base)} in variable pay at 100%`, page: "page 1" },
             { key: "quota", icon: "📊", label: "Annual Quota", display: fmt(comp.quota), sub: null, page: "page 3" },
           ].map((f) => (
@@ -2099,7 +2212,7 @@ function CompSummaryScreen({ onContinue }) {
             <div className="field-icon">📅</div>
             <div className="field-body">
               <div className="field-label">Pay Frequency</div>
-              <div className="field-value" style={{ fontSize: 17 }}>{comp.payFreq}</div>
+              <div className="field-value" style={{ fontSize: 19 }}>{comp.payFreq}</div>
               <div className="field-sub">~{fmt(comp.base / 24)} base per paycheck</div>
             </div>
             <button className="edit-btn">✏️ Edit</button>
@@ -2109,7 +2222,7 @@ function CompSummaryScreen({ onContinue }) {
             <div className="field-icon">💳</div>
             <div className="field-body">
               <div className="field-label">Draw Amount</div>
-              <div className="field-value missing-val">Not found — do you have a draw?</div>
+              <div className="field-value missing-val">Not found. Do you have a draw?</div>
             </div>
             <button className="add-btn">+ Add</button>
           </div>
@@ -2128,7 +2241,7 @@ function CompSummaryScreen({ onContinue }) {
               <div className="field-body">
                 <div className="field-label">{t.range}</div>
                 <div className="field-value">{t.rate}% commission rate</div>
-                {i === 2 && <div className="field-sub">🚀 Accelerator — every dollar above quota earns more</div>}
+                {i === 2 && <div className="field-sub">🚀 Accelerator, every dollar above quota earns more</div>}
               </div>
               <button className="edit-btn">✏️ Edit</button>
             </div>
@@ -2172,9 +2285,9 @@ function CompSummaryScreen({ onContinue }) {
           <div style={{ padding: "22px 28px 16px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Your Payout Curve</div>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 900, color: "white", marginBottom: 4 }}>How Your Earnings Climb</div>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>See exactly how commission accelerates — or decelerates — at every point in your plan.</div>
+                <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Your Payout Curve</div>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 900, color: "white", marginBottom: 4 }}>How Your Earnings Climb</div>
+                <div style={{ fontSize: 15, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>See exactly how commission accelerates, or decelerates, at every point in your plan.</div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
                 {[
@@ -2184,7 +2297,7 @@ function CompSummaryScreen({ onContinue }) {
                 ].map((l, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ width: 24, height: 3, background: l.color, borderRadius: 2 }} />
-                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{l.label}</span>
+                    <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{l.label}</span>
                   </div>
                 ))}
               </div>
@@ -2203,10 +2316,10 @@ function CompSummaryScreen({ onContinue }) {
               { pct: "150%", label: "Pres. Club", earn: "$217,000", rate: "14%", color: "#2D6A4F" },
             ].map((m, i) => (
               <div key={i} style={{ padding: "14px 16px", borderRight: i < 3 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
-                <div style={{ fontSize: 18, fontWeight: 900, color: m.color, fontFamily: "'Playfair Display', serif" }}>{m.pct}</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>{m.label}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "white" }}>{m.earn}</div>
-                <div style={{ fontSize: 11, color: m.color, marginTop: 2 }}>{m.rate} rate</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: m.color, fontFamily: "'Playfair Display', serif" }}>{m.pct}</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>{m.label}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "white" }}>{m.earn}</div>
+                <div style={{ fontSize: 13, color: m.color, marginTop: 2 }}>{m.rate} rate</div>
               </div>
             ))}
           </div>
@@ -2214,23 +2327,20 @@ function CompSummaryScreen({ onContinue }) {
 
         {/* CONFIRM BAR */}
         {!confirmed
-          ? <div className="confirm-bar">
-              <div>
-                <div className="confirm-bar-title">Does this look right?</div>
-                <div className="confirm-bar-sub">Fix anything above, then confirm to calculate your real take-home numbers</div>
-              </div>
-              <div className="confirm-actions">
-                <button className="btn-fix">Something's wrong</button>
-                <button className="btn-confirm" onClick={() => setConfirmed(true)}>✓ Looks right — continue</button>
-              </div>
+          ? <div className="confirm-bar" style={{ flexDirection: "column", alignItems: "stretch" }}>
+              <div className="confirm-bar-title">Does this look right?</div>
+              <div className="confirm-bar-sub">Fix anything above, then continue to calculate your real take-home numbers.</div>
+              <button className="btn-confirm" style={{ width: "100%", padding: 18, fontSize: 17, marginTop: 14 }} onClick={() => setConfirmed(true)}>Continue to My Earnings →</button>
+              <div style={{ fontSize: 13, color: "var(--muted)", textAlign: "center", marginTop: 10 }}>Next: See exactly what you take home at every milestone</div>
+              <button className="btn-fix" style={{ alignSelf: "center", marginTop: 10 }}>Something's wrong</button>
             </div>
           : <div style={{ background: "var(--green-light)", border: "1.5px solid var(--green)", borderRadius: 20, padding: "20px 24px", display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ fontSize: 32 }}>🥕</div>
+              <div style={{ fontSize: 34 }}>🥕</div>
               <div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "var(--green)" }}>Comp plan confirmed!</div>
-                <div style={{ fontSize: 13, color: "var(--green)", opacity: 0.85 }}>Now let's calculate what you actually take home at each milestone</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "var(--green)" }}>Comp plan confirmed!</div>
+                <div style={{ fontSize: 15, color: "var(--green)", opacity: 0.85 }}>Now let's calculate what you actually take home at each milestone</div>
               </div>
-              <button onClick={onContinue} style={{ marginLeft: "auto", background: "var(--green)", color: "white", border: "none", borderRadius: 100, padding: "12px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+              <button onClick={onContinue} style={{ marginLeft: "auto", background: "var(--green)", color: "white", border: "none", borderRadius: 100, padding: "12px 24px", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
                 See My Numbers →
               </button>
             </div>
