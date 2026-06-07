@@ -453,6 +453,29 @@ select.ob-inp{appearance:none;cursor:pointer;background-image:url("data:image/sv
 .rpm-imgbox-fallback{position:relative;z-index:1;color:white;font-weight:800;font-size:18px;text-align:center;padding:16px;text-shadow:0 1px 4px rgba(0,0,0,0.4);}
 .rpm-imgcap{text-align:center;color:var(--carrot);font-weight:700;font-size:14px;margin-top:10px;}
 .rpm-retry{display:block;margin:6px auto 0;background:none;border:none;color:#7A6A55;font-size:13px;cursor:pointer;text-decoration:underline;font-family:'DM Sans',sans-serif;}
+.rpm-goals{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:20px 0;}
+.rpm-goal{background:white;border:1px solid #EDE0CC;border-radius:20px;padding:24px;text-align:center;}
+.rpm-goal.target{border-top:3px solid var(--carrot);}
+.rpm-goal.stretch{border-top:3px solid var(--green);}
+.rpm-goal-lbl{font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;}
+.rpm-goal.target .rpm-goal-lbl{color:var(--carrot);}
+.rpm-goal.stretch .rpm-goal-lbl{color:var(--green);}
+.rpm-goal-inrow{display:flex;align-items:baseline;justify-content:center;gap:6px;}
+.rpm-goal-input{font-family:'Playfair Display',serif;font-size:48px;font-weight:900;color:#1A1208;text-align:center;border:none;width:110px;background:transparent;padding:0;}
+.rpm-goal-input:focus{outline:none;}
+.rpm-goal-input::placeholder{color:#D8C8B0;}
+.rpm-goal-suffix{font-size:14px;color:#7A6A55;font-weight:600;}
+.rpm-lockbtn{width:100%;padding:16px;border-radius:100px;border:none;background:var(--carrot);color:white;font-size:17px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:20px;}
+.rpm-lockbtn:hover:not(:disabled){background:var(--carrot-dark);}
+.rpm-lockbtn:disabled{opacity:0.4;cursor:not-allowed;}
+.rpm-locked{background:var(--green-light);border:1.5px solid var(--green);border-radius:14px;padding:14px 18px;font-size:15px;font-weight:700;color:var(--green);text-align:center;margin-bottom:16px;}
+.rpm-result{border-radius:14px;padding:16px 18px;margin-bottom:12px;font-size:15px;line-height:1.5;}
+.rpm-result.target{background:rgba(244,113,26,0.08);border:1px solid rgba(244,113,26,0.25);color:#1A1208;}
+.rpm-result.stretch{background:var(--green-light);border:1px solid rgba(45,106,79,0.3);color:#1A1208;}
+.rpm-result-amt{font-family:'Playfair Display',serif;font-weight:900;font-size:24px;}
+.rpm-result.target .rpm-result-amt{color:var(--carrot);}
+.rpm-result.stretch .rpm-result-amt{color:var(--green);}
+@media(max-width:600px){.rpm-goals{grid-template-columns:1fr;}}
 .rpm-goldbox{background:var(--gold-light);border:1.5px solid var(--gold);border-radius:16px;padding:16px 20px;font-size:14px;color:#7A5C00;line-height:1.6;margin-bottom:20px;}
 .rpm-card{background:white;border:1px solid #EDE0CC;border-radius:20px;overflow:hidden;margin-bottom:20px;}
 .rpm-card-hdr{padding:18px 20px 0;}
@@ -625,6 +648,10 @@ export default function App() {
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [carrotCost, setCarrotCost] = useState("");
+  const [targetGoal, setTargetGoal] = useState("");
+  const [stretchGoal, setStretchGoal] = useState("");
+  const [goalsLocked, setGoalsLocked] = useState(false);
+  const [stretchCarrot, setStretchCarrot] = useState("");
   const [selectedPlan, setSelectedPlan] = useState("pro");
   const [dealSize, setDealSize] = useState("");
   const [salesCycle, setSalesCycle] = useState("");
@@ -1724,55 +1751,63 @@ export default function App() {
             <p className="rpm-explain-3">That is what Coach does. Every activity. Every day. All year.</p>
           </div>
 
-          {/* SECTION 2 — Set Your Carrot */}
-          <div className="rpm-card">
-            <div className="rpm-card-hdr">
-              <div className="rpm-card-title">🥕 What are you working toward?</div>
-            </div>
-            <p className="rpm-carrot-sub" style={{ paddingTop: 10 }}>If you hit your stretch goal and pocketed <span className="rpm-amt">{fmt(stretchNet)}</span> this year, what would you do with it?</p>
-            <div className="rpm-pad">
-              <div className="rpm-q-label">What would you do with the money?</div>
-              <input className="rpm-input" value={carrotAnswer} onChange={(e) => setCarrotAnswer(e.target.value)} placeholder="e.g. Family vacation in Hawaii, Pay off my car, New boat..." />
-              <div className="rpm-pills">
-                {PICKS.map((p) => (
-                  <button key={p} className={`rpm-pill ${carrotAnswer === p ? "on" : ""}`} onClick={() => setCarrotAnswer(p)}>{p}</button>
-                ))}
+          {/* SECTION 2 — Set Your Goals */}
+          <div className="rpm-goals">
+            <div className="rpm-goal target">
+              <div className="rpm-goal-lbl">Target Goal</div>
+              <div className="rpm-goal-inrow">
+                <input className="rpm-goal-input" type="number" value={targetGoal} onChange={(e) => setTargetGoal(e.target.value)} placeholder="—" />
+                <span className="rpm-goal-suffix">% of Plan</span>
               </div>
-
-              <div className="rpm-q-label" style={{ marginTop: 20 }}>How much would it cost?</div>
-              <div className="rpm-money"><span>$</span><input type="number" value={carrotCost} onChange={(e) => setCarrotCost(e.target.value)} placeholder="e.g. 8000" /></div>
-              <div className="rpm-q-hint">Optional, helps Coach make your nudges more specific</div>
-
-              {carrotAnswer.trim() && !carrotImage && (
-                <>
-                  <button className="rpm-findbtn" disabled={imageLoading} onClick={findImage}>
-                    {imageLoading
-                      ? <><span style={{ animation: "azspin 1s linear infinite", display: "inline-block" }}>🥕</span> Finding your image...</>
-                      : "Find My Carrot Image 🥕"}
-                  </button>
-                  <div className="rpm-findhint">Coach will find a photo that matches your goal</div>
-                </>
-              )}
-
-              {carrotImage && (
-                <>
-                  <div className="rpm-imgbox">
-                    {!imageError && <img src={carrotImage} alt={carrotAnswer} onError={() => setImageError(true)} />}
-                    {imageError && <div className="rpm-imgbox-fallback">{carrotAnswer}</div>}
-                  </div>
-                  <div className="rpm-imgcap">{carrotAnswer}</div>
-                  <button className="rpm-retry" onClick={findImage}>Not quite? Try again</button>
-                </>
-              )}
-
-              {carrotAnswer.trim() && (
-                <div className="rpm-nudge">
-                  <div className="rpm-nudge-lbl">Coach will say things like this</div>
-                  <div className="rpm-nudge-txt">"Hi, I know it is Friday at 2pm. Remember, if you make just one more call you are one step closer to {carrotAnswer}. You are almost there.{costMonth ? ` At your current pace you will get there by ${costMonth}.` : ""}"</div>
-                </div>
-              )}
+            </div>
+            <div className="rpm-goal stretch">
+              <div className="rpm-goal-lbl">Stretch Goal</div>
+              <div className="rpm-goal-inrow">
+                <input className="rpm-goal-input" type="number" value={stretchGoal} onChange={(e) => setStretchGoal(e.target.value)} placeholder="—" />
+                <span className="rpm-goal-suffix">% of Plan</span>
+              </div>
             </div>
           </div>
+
+          {!goalsLocked ? (
+            <button
+              className="rpm-lockbtn"
+              disabled={targetGoal.trim() === "" || stretchGoal.trim() === "" || isNaN(+targetGoal) || isNaN(+stretchGoal)}
+              onClick={() => { setGoalsLocked(true); setTargetPct(+targetGoal); }}
+            >
+              Lock In
+            </button>
+          ) : (
+            <>
+              <div className="rpm-locked">✓ Locked In, Target {targetGoal}% and Stretch {stretchGoal}%</div>
+              <div className="rpm-result target">At your Target of {targetGoal}% your take-home is <span className="rpm-result-amt">{fmt(calcNet(calcGross(+targetGoal)))}</span></div>
+              <div className="rpm-result stretch">At your Stretch of {stretchGoal}% your take-home is <span className="rpm-result-amt">{fmt(calcNet(calcGross(+stretchGoal)))}</span></div>
+            </>
+          )}
+
+          {/* SECTION 3 — Carrot cards (appear once goals locked) */}
+          {goalsLocked && (
+            <>
+              <div className="rpm-card" style={{ marginTop: 20 }}>
+                <div className="rpm-card-hdr">
+                  <div className="rpm-card-title" style={{ lineHeight: 1.4 }}>If you hit your Target of {targetGoal}% and took home {fmt(calcNet(calcGross(+targetGoal)))}, what would you do with it?</div>
+                </div>
+                <div className="rpm-pad" style={{ paddingTop: 14 }}>
+                  <input className="rpm-input" value={carrotAnswer} onChange={(e) => setCarrotAnswer(e.target.value)} placeholder="e.g. Family vacation in Hawaii, Pay off my car, New boat..." />
+                  <CarrotImageFinder answer={carrotAnswer} />
+                </div>
+              </div>
+              <div className="rpm-card">
+                <div className="rpm-card-hdr">
+                  <div className="rpm-card-title" style={{ lineHeight: 1.4 }}>If you hit your Stretch of {stretchGoal}% and took home {fmt(calcNet(calcGross(+stretchGoal)))}, what would you do with it?</div>
+                </div>
+                <div className="rpm-pad" style={{ paddingTop: 14 }}>
+                  <input className="rpm-input" value={stretchCarrot} onChange={(e) => setStretchCarrot(e.target.value)} placeholder="e.g. Pay off the mortgage, A boat, Dream kitchen..." />
+                  <CarrotImageFinder answer={stretchCarrot} />
+                </div>
+              </div>
+            </>
+          )}
 
           {/* SECTION 3 — Save + Continue */}
           <div className="rpm-goldbox">Your carrot and real numbers will be saved when you create your account in the next step.</div>
@@ -2454,6 +2489,45 @@ function CarrotImageBox({ image, onImageChange }) {
       )}
       {aiLoading && <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "var(--carrot-light)", borderRadius: 12, fontSize: 13, color: "var(--carrot-dark)", marginTop: 10 }}><span style={{ display: "inline-block", animation: "azspin 1s linear infinite" }}>🥕</span> Generating your carrot image...</div>}
     </div>
+  );
+}
+
+function CarrotImageFinder({ answer }) {
+  const [img, setImg] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState(false);
+  const find = () => {
+    setErr(false);
+    setImg(null);
+    setLoading(true);
+    setTimeout(() => {
+      const q = encodeURIComponent(answer.split(" ").slice(0, 3).join(","));
+      setImg(`https://source.unsplash.com/600x400/?${q}`);
+      setLoading(false);
+    }, 2000);
+  };
+  if (!answer.trim()) return null;
+  if (!img) {
+    return (
+      <>
+        <button className="rpm-findbtn" disabled={loading} onClick={find}>
+          {loading
+            ? <><span style={{ animation: "azspin 1s linear infinite", display: "inline-block" }}>🥕</span> Finding your image...</>
+            : "Find My Image 🥕"}
+        </button>
+        <div className="rpm-findhint">Coach will find a photo that matches your goal</div>
+      </>
+    );
+  }
+  return (
+    <>
+      <div className="rpm-imgbox">
+        {!err && <img src={img} alt={answer} onError={() => setErr(true)} />}
+        {err && <div className="rpm-imgbox-fallback">{answer}</div>}
+      </div>
+      <div className="rpm-imgcap">{answer}</div>
+      <button className="rpm-retry" onClick={find}>Not quite? Try again</button>
+    </>
   );
 }
 
