@@ -405,6 +405,22 @@ select.ob-inp{appearance:none;cursor:pointer;background-image:url("data:image/sv
 .rpm-stretchbox{background:rgba(244,113,26,0.12);border:1.5px solid rgba(244,113,26,0.35);border-radius:16px;padding:18px 20px;margin-top:18px;}
 .rpm-stretchbox-big{font-family:'Playfair Display',serif;font-size:22px;font-weight:900;color:#FDBA74;margin-bottom:4px;}
 .rpm-stretchbox-sub{font-size:14px;color:rgba(255,255,255,0.7);line-height:1.5;}
+.rpm-slider-pct{font-family:'Playfair Display',serif;font-size:44px;font-weight:900;color:var(--carrot);text-align:center;line-height:1;margin-bottom:22px;}
+.rpm-nums{display:flex;justify-content:space-around;gap:16px;margin-bottom:24px;text-align:center;flex-wrap:wrap;}
+.rpm-num{flex:1;min-width:130px;}
+.rpm-num-k{font-size:12px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:rgba(255,255,255,0.55);margin-bottom:6px;}
+.rpm-num-k.net{color:#86EFAC;}
+.rpm-num-v{font-family:'Playfair Display',serif;font-size:30px;font-weight:900;color:white;line-height:1;}
+.rpm-num-v.net{font-size:38px;color:#86EFAC;}
+.rpm-num-sub{font-size:12px;color:rgba(255,255,255,0.5);margin-top:8px;line-height:1.4;}
+.rpm-range{width:100%;accent-color:var(--carrot);cursor:pointer;margin:6px 0 16px;}
+.rpm-track{height:10px;background:rgba(255,255,255,0.12);border-radius:5px;overflow:hidden;}
+.rpm-track-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--carrot));border-radius:5px;transition:width 0.15s ease;}
+.rpm-markers{position:relative;height:44px;margin-top:10px;}
+.rpm-marker{position:absolute;transform:translateX(-50%);text-align:center;}
+.rpm-marker-pct{font-size:13px;font-weight:800;color:rgba(255,255,255,0.5);}
+.rpm-marker-lbl{font-size:10px;color:rgba(255,255,255,0.4);font-weight:600;margin-top:2px;white-space:nowrap;}
+.rpm-marker.on .rpm-marker-pct,.rpm-marker.on .rpm-marker-lbl{color:var(--carrot);}
 .rpm-carrot-sub{font-size:15px;color:var(--muted);line-height:1.6;padding:0 20px 14px;}
 .rpm-amt{color:var(--carrot);font-weight:800;}
 .rpm-pad{padding:0 20px 20px;}
@@ -581,6 +597,7 @@ export default function App() {
   const [closeRateSet, setCloseRateSet] = useState(false);
   const [pipeline, setPipeline] = useState("");
   const [territoryFocus, setTerritoryFocus] = useState([]);
+  const [sliderValue, setSliderValue] = useState(100);
 
   // ── ONBOARDING CALCULATIONS ──
   const k401Limit = K401_LIMITS[suAge] ?? 23500;
@@ -1597,15 +1614,18 @@ export default function App() {
 
   // ══ REAL PAY + MOTIVATION ════════════════════════════════════════════
   if (screen === "real_pay_motivation") {
-    const MILES = [
-      { pct: 75, label: "On Track", cls: "" },
-      { pct: 100, label: "Quota", cls: "quota" },
-      { pct: 125, label: "Stretch", cls: "stretch" },
-      { pct: 150, label: "Presidents Club", cls: "" },
+    const MARKERS = [
+      { pct: 75, label: "On Track" },
+      { pct: 100, label: "Quota" },
+      { pct: 125, label: "Stretch" },
+      { pct: 150, label: "Presidents Club" },
     ];
+    const sliderGross = calcGross(sliderValue);
+    const sliderNet = calcNet(sliderGross);
     const net100 = calcNet(calcGross(100));
     const stretchNet = calcNet(calcGross(125));
     const diff = stretchNet - net100;
+    const fillPct = ((sliderValue - 50) / (200 - 50)) * 100;
     const PICKS = ["Family vacation", "Pay off debt", "New car", "Home improvement", "Save it"];
     return (
       <div className="rpm-wrap">
@@ -1618,30 +1638,37 @@ export default function App() {
         <div className="rpm-screen">
           <h1 className="rpm-h1">See Your Real Pay. Set Your Motivation.</h1>
 
-          {/* SECTION 1 — Your Real Take-Home */}
+          {/* SECTION 1 — Interactive attainment slider */}
           <div className="rpm-dark">
             <div className="rpm-eyebrow">Your Real Numbers</div>
-            <div className="rpm-dark-h">Here is what you actually take home at every milestone</div>
-            <div className="rpm-dark-sub">After federal tax, state tax, FICA, 401k, and your deductions</div>
-            <div className="rpm-grid">
-              {MILES.map((m) => {
-                const gross = calcGross(m.pct);
-                const net = calcNet(gross);
-                return (
-                  <div key={m.pct} className={`rpm-mcard ${m.cls}`}>
-                    <div className="rpm-mpct">{m.pct}%</div>
-                    <div className="rpm-mlabel">{m.label}</div>
-                    <div className="rpm-mline"><div className="rpm-mk gross">Gross</div><div className="rpm-mv">{fmt(gross)}</div></div>
-                    <div className="rpm-mline"><div className="rpm-mk net">Est. Take-Home</div><div className="rpm-mv net">{fmt(net)}</div></div>
-                    <div className="rpm-mbar"><div className="rpm-mbar-fill" style={{ width: `${Math.min(100, m.pct / 150 * 100)}%` }} /></div>
-                  </div>
-                );
-              })}
+            <div className="rpm-slider-pct">{sliderValue}% of Plan</div>
+            <div className="rpm-nums">
+              <div className="rpm-num">
+                <div className="rpm-num-k">Gross Earnings</div>
+                <div className="rpm-num-v">{fmt(sliderGross)}</div>
+              </div>
+              <div className="rpm-num">
+                <div className="rpm-num-k net">Est. Take-Home</div>
+                <div className="rpm-num-v net">{fmt(sliderNet)}</div>
+                <div className="rpm-num-sub">after federal tax, state tax, FICA, 401k, and your deductions</div>
+              </div>
             </div>
-            <div className="rpm-stretchbox">
-              <div className="rpm-stretchbox-big">Your stretch goal take-home: {fmt(stretchNet)}</div>
-              <div className="rpm-stretchbox-sub">That is {fmt(diff)} more than hitting quota.</div>
+            <input className="rpm-range" type="range" min="50" max="200" step="5" value={sliderValue} onChange={(e) => setSliderValue(+e.target.value)} />
+            <div className="rpm-track"><div className="rpm-track-fill" style={{ width: `${fillPct}%` }} /></div>
+            <div className="rpm-markers">
+              {MARKERS.map((m) => (
+                <div key={m.pct} className={`rpm-marker ${sliderValue >= m.pct ? "on" : ""}`} style={{ left: `${((m.pct - 50) / 150) * 100}%` }}>
+                  <div className="rpm-marker-pct">{m.pct}%</div>
+                  <div className="rpm-marker-lbl">{m.label}</div>
+                </div>
+              ))}
             </div>
+            {sliderValue >= 125 && (
+              <div className="rpm-stretchbox">
+                <div className="rpm-stretchbox-big">Your stretch goal take-home: {fmt(stretchNet)}</div>
+                <div className="rpm-stretchbox-sub">That is {fmt(diff)} more than hitting quota.</div>
+              </div>
+            )}
           </div>
 
           {/* SECTION 2 — Set Your Carrot */}
