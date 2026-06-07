@@ -78,8 +78,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--dark);color:var(--ink);}
 .carrots-section{background:var(--cream);padding:96px 24px;}
 .sec-inner{max-width:900px;margin:0 auto;}
 .sec-label{
-  font-size:11px;font-weight:700;letter-spacing:2px;
-  text-transform:uppercase;color:var(--carrot);margin-bottom:14px;
+  font-family:'Playfair Display',serif;font-size:28px;font-weight:700;
+  color:var(--carrot);margin-bottom:8px;
 }
 .sec-title{
   font-family:'Playfair Display',serif;font-size:40px;font-weight:900;
@@ -104,8 +104,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--dark);color:var(--ink);}
 .problem-section{background:var(--dark2);padding:96px 24px;}
 .problem-inner{max-width:760px;margin:0 auto;}
 .prob-label{
-  font-size:11px;font-weight:700;letter-spacing:2px;
-  text-transform:uppercase;color:var(--carrot);margin-bottom:14px;
+  font-family:'Playfair Display',serif;font-size:28px;font-weight:700;
+  color:var(--carrot);margin-bottom:8px;
 }
 .prob-title{
   font-family:'Playfair Display',serif;font-size:44px;font-weight:900;
@@ -272,10 +272,13 @@ export default function App() {
           .coach-quote{font-size:19px;font-style:italic;color:rgba(255,255,255,0.7);margin-bottom:12px;line-height:1.6;}
           .coach-coachsub{font-size:16px;color:rgba(255,255,255,0.5);margin-bottom:48px;}
           .coach-role-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:40px;}
-          .coach-role-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:16px;padding:24px;}
-          .coach-role-emoji{font-size:24px;margin-bottom:10px;}
-          .coach-role-title{font-size:16px;font-weight:700;color:white;margin-bottom:6px;}
-          .coach-role-desc{font-size:14px;color:rgba(255,255,255,0.55);line-height:1.6;}
+          .coach-role-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:16px;padding:24px;display:flex;gap:18px;align-items:flex-start;}
+          .coach-role-icon{width:56px;height:56px;border-radius:50%;border:1.5px solid rgba(244,113,26,0.5);background:rgba(244,113,26,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+          .coach-role-body{flex:1;min-width:0;}
+          .coach-role-head{display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap;}
+          .coach-role-title{font-size:16px;font-weight:700;color:white;display:inline-block;border-bottom:2px solid var(--carrot);padding-bottom:3px;}
+          .coach-role-tag{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--carrot);background:rgba(244,113,26,0.15);border-radius:100px;padding:3px 10px;}
+          .coach-role-desc{font-size:14px;color:rgba(255,255,255,0.55);line-height:1.6;margin-top:10px;}
           .coach-ask-label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:16px;}
           .coach-q-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:44px;}
           .coach-q-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:18px 20px;font-size:15px;font-style:italic;color:rgba(255,255,255,0.75);line-height:1.5;}
@@ -355,15 +358,20 @@ export default function App() {
             <p className="coach-coachsub">Coach helps you answer that question every single day.</p>
             <div className="coach-role-grid">
               {[
-                { emoji: "📊", title: "Compensation Analyst", desc: "Understands every clause, tier, accelerator, and clawback in your plan" },
-                { emoji: "🗺️", title: "Sales Strategist", desc: "Builds realistic plans based on your territory, pipeline, and conversion rates" },
-                { emoji: "💪", title: "Personal Trainer", desc: "Keeps you accountable to daily activities and focused on what drives results" },
-                { emoji: "🏆", title: "Great Sales Leader", desc: "Encourages you when motivation fades and reminds you what you are working toward" },
+                { Icon: CompIcon, title: "Compensation Analyst", tag: "Understand", desc: "Coach breaks down your compensation plan, identifies earnings opportunities, and helps you understand exactly how you get paid." },
+                { Icon: StrategyIcon, title: "Sales Strategist", tag: "Plan", desc: "Coach helps you build a realistic plan based on your territory, deal sizes, conversion rates, and goals." },
+                { Icon: PerformanceIcon, title: "Performance Coach", tag: "Execute", desc: "Coach helps you stay focused on the activities that drive results and keeps you on track toward your targets." },
+                { Icon: MotivationIcon, title: "Motivation Coach", tag: "Achieve", desc: "Coach keeps your carrots front and center, reminding you why the work matters and helping you stay motivated throughout the year." },
               ].map((r, i) => (
                 <div key={i} className="coach-role-card">
-                  <div className="coach-role-emoji">{r.emoji}</div>
-                  <div className="coach-role-title">{r.title}</div>
-                  <div className="coach-role-desc">{r.desc}</div>
+                  <div className="coach-role-icon"><r.Icon /></div>
+                  <div className="coach-role-body">
+                    <div className="coach-role-head">
+                      <span className="coach-role-title">{r.title}</span>
+                      <span className="coach-role-tag">{r.tag}</span>
+                    </div>
+                    <div className="coach-role-desc">{r.desc}</div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -944,6 +952,56 @@ The annual cost is $99 and qualifies as a sales productivity and performance too
 
 Thank you,
 [Your Name]`;
+
+const CompIcon = () => (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="3" y1="21" x2="21" y2="21"/>
+    <rect x="4" y="13" width="3.5" height="8" rx="0.5"/>
+    <rect x="10.25" y="8" width="3.5" height="13" rx="0.5"/>
+    <rect x="16.5" y="4" width="3.5" height="17" rx="0.5"/>
+    <polyline points="4 15 8 10 12 12.5 17 5.5" strokeWidth="1.75"/>
+    <circle cx="17" cy="5.5" r="1.25" fill="#F4711A" stroke="none"/>
+  </svg>
+);
+
+const StrategyIcon = () => (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="1.5"/>
+    <line x1="7.5" y1="3" x2="7.5" y2="21" strokeWidth="1"/>
+    <line x1="12" y1="3" x2="12" y2="21" strokeWidth="1"/>
+    <line x1="16.5" y1="3" x2="16.5" y2="21" strokeWidth="1"/>
+    <line x1="3" y1="7.5" x2="21" y2="7.5" strokeWidth="1"/>
+    <line x1="3" y1="12" x2="21" y2="12" strokeWidth="1"/>
+    <line x1="3" y1="16.5" x2="21" y2="16.5" strokeWidth="1"/>
+    <rect x="3" y="3" width="4.5" height="4.5" fill="rgba(244,113,26,0.35)" stroke="none"/>
+    <rect x="12" y="3" width="4.5" height="4.5" fill="rgba(244,113,26,0.35)" stroke="none"/>
+    <rect x="7.5" y="7.5" width="4.5" height="4.5" fill="rgba(244,113,26,0.35)" stroke="none"/>
+    <rect x="16.5" y="7.5" width="4.5" height="4.5" fill="rgba(244,113,26,0.35)" stroke="none"/>
+    <rect x="3" y="12" width="4.5" height="4.5" fill="rgba(244,113,26,0.35)" stroke="none"/>
+    <rect x="12" y="12" width="4.5" height="4.5" fill="rgba(244,113,26,0.35)" stroke="none"/>
+    <rect x="7.5" y="16.5" width="4.5" height="4.5" fill="rgba(244,113,26,0.35)" stroke="none"/>
+    <rect x="16.5" y="16.5" width="4.5" height="4.5" fill="rgba(244,113,26,0.35)" stroke="none"/>
+  </svg>
+);
+
+const PerformanceIcon = () => (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <circle cx="12" cy="12" r="6.5"/>
+    <circle cx="12" cy="12" r="3.5"/>
+    <circle cx="12" cy="12" r="1.5" fill="#F4711A" stroke="none"/>
+  </svg>
+);
+
+const MotivationIcon = () => (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 20 8 12 12 16 16 8 21 4"/>
+    <line x1="21" y1="4" x2="21" y2="9"/>
+    <line x1="21" y1="4" x2="16" y2="4"/>
+    <circle cx="3" cy="20" r="1.5" fill="rgba(244,113,26,0.3)" stroke="#F4711A"/>
+    <circle cx="21" cy="4" r="1.5" fill="#F4711A" stroke="none"/>
+  </svg>
+);
 
 function CopyButton({ text, className }) {
   const [copied, setCopied] = useState(false);
