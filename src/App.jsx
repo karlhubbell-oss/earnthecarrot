@@ -102,7 +102,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--dark);color:var(--ink);}
 
 /* ── PROBLEM SECTION ── */
 .problem-section{background:var(--dark2);padding:96px 24px;}
-.problem-inner{max-width:760px;margin:0 auto;}
+.problem-inner{max-width:960px;margin:0 auto;}
 .prob-label{
   font-family:'Playfair Display',serif;font-size:28px;font-weight:700;
   color:var(--carrot);margin-bottom:8px;
@@ -126,6 +126,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--dark);color:var(--ink);}
 }
 .prob-bottom-bold{font-size:19px;font-weight:700;color:white;margin-bottom:10px;}
 .prob-bottom-muted{font-size:16px;color:rgba(255,255,255,0.5);line-height:1.65;}
+.prob-sub{font-size:17px;color:rgba(255,255,255,0.55);line-height:1.6;margin-bottom:36px;}
+.prob-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:28px;}
+.prob-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:16px;padding:24px;}
+.prob-card.highlight{border-left:3px solid var(--carrot);}
+.prob-card-label{font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:16px;}
+.prob-card-label.orange{color:var(--carrot);}
+.prob-card-label.red{color:#FCA5A5;}
+.prob-card-line{font-size:15px;color:rgba(255,255,255,0.8);line-height:1.5;margin-bottom:10px;display:flex;gap:8px;align-items:flex-start;}
+.prob-card-note{font-size:13px;color:rgba(255,255,255,0.45);line-height:1.6;margin-top:14px;}
+.prob-final{background:rgba(15,10,5,0.6);border:1.5px solid rgba(244,113,26,0.4);border-radius:20px;padding:32px;text-align:center;}
+.prob-final-title{font-family:'Playfair Display',serif;font-size:28px;font-weight:900;color:white;margin-bottom:12px;}
+.prob-final-sub{font-size:17px;color:rgba(255,255,255,0.7);line-height:1.6;margin-bottom:20px;}
+.prob-final-line{font-size:14px;color:rgba(255,255,255,0.45);line-height:1.8;}
 
 /* ── RESPONSIVE ── */
 @media(max-width:768px){
@@ -136,6 +149,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--dark);color:var(--ink);}
   .sec-title{font-size:30px;}
   .prob-title{font-size:32px;}
   .carrot-grid{grid-template-columns:repeat(2,1fr);}
+  .prob-grid{grid-template-columns:1fr;}
 }
 @media(max-width:480px){
   .hero{padding:60px 20px 72px;}
@@ -313,22 +327,56 @@ export default function App() {
         <section className="problem-section">
           <div className="problem-inner">
             <div className="prob-label">The Problem</div>
-            <h2 className="prob-title">The Sales Rep Problem</h2>
-            <div className="prob-lines">
-              <p className="prob-line">Every year your company hands you a compensation plan.</p>
-              <p className="prob-line bold">You spend twenty minutes reading it.</p>
-              <p className="prob-line">You attend the kickoff meeting.</p>
-              <p className="prob-line">You complain about it with your peers.</p>
-              <p className="prob-line bold">Then you go right back to doing what you did last year.</p>
+            <h2 className="prob-title" style={{ marginBottom: 12 }}>The Sales Rep Problem</h2>
+            <p className="prob-sub">Every year your company hands you a new compensation plan.</p>
+            <div className="prob-grid">
+              <div className="prob-card">
+                <div className="prob-card-label orange">What You Are Thinking</div>
+                {[
+                  "How much money can I really make?",
+                  "What changed from last year?",
+                  "Where is the fine print?",
+                ].map((line, i) => (
+                  <div key={i} className="prob-card-line"><span>❓</span><span>{line}</span></div>
+                ))}
+                <p className="prob-card-note">You start reading the plan, but these are the questions you actually want answered.</p>
+              </div>
+
+              <div className="prob-card">
+                <div className="prob-card-label red">What Most Reps Do</div>
+                {[
+                  { e: "📄", t: "Skim the compensation plan" },
+                  { e: "📊", t: "Open Excel" },
+                  { e: "🧮", t: "Build a commission calculator" },
+                  { e: "📞", t: "Ask a few peers how they interpret it" },
+                  { e: "🤷", t: "Make your best guess" },
+                ].map((row, i) => (
+                  <div key={i} className="prob-card-line"><span>{row.e}</span><span>{row.t}</span></div>
+                ))}
+                <p className="prob-card-note">Most reps spend more time trying to understand how they get paid than building a plan to maximize their earnings.</p>
+              </div>
+
+              <div className="prob-card highlight">
+                <div className="prob-card-label orange">What Coach Does</div>
+                {[
+                  { e: "📄", t: "Reads the compensation plan" },
+                  { e: "💰", t: "Calculates earnings scenarios" },
+                  { e: "🎯", t: "Builds a personalized success plan" },
+                  { e: "📈", t: "Shows target and stretch paths" },
+                  { e: "🥕", t: "Connects earnings goals to personal rewards" },
+                ].map((row, i) => (
+                  <div key={i} className="prob-card-line"><span>{row.e}</span><span>{row.t}</span></div>
+                ))}
+                <p className="prob-card-note">Coach helps you understand how you get paid and what you need to do to exceed quota.</p>
+              </div>
             </div>
-            <div className="prob-callout">
-              <p className="prob-callout-line">Most reps never fully understand how they get paid.</p>
-              <p className="prob-callout-line">Most reps never build a real strategy around their compensation plan.</p>
-              <p className="prob-callout-line">Most reps never connect their income goals to the things they actually want.</p>
-            </div>
-            <div className="prob-bottom">
-              <p className="prob-bottom-bold">That is why so many reps miss quota.</p>
-              <p className="prob-bottom-muted">Not because they are lazy. Because they are operating without a clear personal plan.</p>
+
+            <div className="prob-final">
+              <p className="prob-final-title">The Spreadsheet Was Never The Goal.</p>
+              <p className="prob-final-sub">The goal was always to understand how to win. Coach helps you do both.</p>
+              <p className="prob-final-line">Understand how you get paid.</p>
+              <p className="prob-final-line">Build a personalized success plan.</p>
+              <p className="prob-final-line">Stay focused on the actions that drive results.</p>
             </div>
           </div>
         </section>
