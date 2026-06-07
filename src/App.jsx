@@ -33,7 +33,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--dark);color:var(--ink);}
 .nav-link{
   color:rgba(255,255,255,0.65);font-size:15px;font-weight:500;
   cursor:pointer;transition:color 0.2s;background:none;border:none;
-  font-family:'DM Sans',sans-serif;
+  font-family:'DM Sans',sans-serif;text-decoration:none;
 }
 .nav-link:hover{color:white;}
 .nav-cta{
@@ -177,9 +177,9 @@ export default function App() {
         <nav className={`lnav${scrolled ? " scrolled" : ""}`}>
           <button className="nav-logo">🥕 Earn The Carrot</button>
           <div className="nav-links">
-            <button className="nav-link">How It Works</button>
-            <button className="nav-link">Pricing</button>
-            <button className="nav-link">Meet Coach</button>
+            <a className="nav-link" href="#how-it-works">How It Works</a>
+            <a className="nav-link" href="#coach">Meet Coach</a>
+            <a className="nav-link" href="#pricing">Pricing</a>
           </div>
           <button className="nav-cta" onClick={() => setScreen("onboarding")}>
             Build My Playbook
@@ -198,14 +198,14 @@ export default function App() {
             This Year.
           </h1>
           <p className="hero-sub">
-            We turn your compensation plan into a personalized AI playbook that helps you exceed quota and earn the rewards that matter most to you.
+            Coach helps salespeople understand how they get paid, build a personalized success plan, and stay focused on the actions that drive results.
           </p>
           <button className="hero-cta" onClick={() => setScreen("onboarding")}>
             Build My Personal Playbook →
           </button>
           <div className="hero-hint">
-            <div>Upload your compensation plan.</div>
-            <div>Define your carrots. Get your personal plan in minutes.</div>
+            <div>Upload your compensation plan. Build your plan.</div>
+            <div>Earn your carrot.</div>
           </div>
         </section>
 
@@ -240,6 +240,75 @@ export default function App() {
           </div>
         </section>
 
+        {/* MEET COACH */}
+        <section className="coach-section" id="coach">
+          <div className="coach-inner">
+            <div className="sec-label">Your AI Sales Coach</div>
+            <h2 className="sec-title" style={{ color: "white", marginBottom: 20 }}>Meet Coach 🥕</h2>
+            <p className="coach-quote">"What do I need to do today to earn the income I want this year?"</p>
+            <p className="coach-coachsub">Coach helps you answer that question every single day.</p>
+            <div className="coach-role-grid">
+              {[
+                { Icon: CompIcon, title: "Compensation Analyst", tag: "Understand", desc: "Coach breaks down your compensation plan, identifies earnings opportunities, and helps you understand exactly how you get paid." },
+                { Icon: StrategyIcon, title: "Sales Strategist", tag: "Plan", desc: "Coach helps you build a realistic plan based on your territory, deal sizes, conversion rates, and goals." },
+                { Icon: PerformanceIcon, title: "Performance Coach", tag: "Execute", desc: "Coach helps you stay focused on the activities that drive results and keeps you on track toward your targets." },
+                { Icon: MotivationIcon, title: "Motivation Coach", tag: "Achieve", desc: "Coach keeps your carrots front and center, reminding you why the work matters and helping you stay motivated throughout the year." },
+              ].map((r, i) => (
+                <div key={i} className="coach-role-card">
+                  <div className="coach-role-icon"><r.Icon /></div>
+                  <div className="coach-role-body">
+                    <div className="coach-role-head">
+                      <span className="coach-role-title">{r.title}</span>
+                      <span className="coach-role-tag">{r.tag}</span>
+                    </div>
+                    <div className="coach-role-desc">{r.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="coach-ask-label">Ask Coach Anything</div>
+            <div className="coach-q-grid">
+              {[
+                "How much commission will I make if this deal closes?",
+                "What happens if I finish at 120% of quota?",
+                "How many opportunities do I need to hit my stretch goal?",
+                "What activities should I focus on this month?",
+              ].map((q, i) => (
+                <div key={i} className="coach-q-card">"{q}"</div>
+              ))}
+            </div>
+            <div className="coach-bottom-row">
+              <span className="coach-br-muted">No spreadsheets.</span>
+              <span className="coach-br-muted">No guesswork.</span>
+              <span className="coach-br-muted">No generic activity mandates.</span>
+              <span className="coach-br-bold">Just a plan built specifically for you.</span>
+            </div>
+          </div>
+        </section>
+
+        {/* HOW COACH WORKS */}
+        <section className="hcw-section" id="how-it-works">
+          <div className="hcw-inner">
+            <div className="sec-label">How It Works</div>
+            <h2 className="sec-title">How Coach Works</h2>
+            <p className="hcw-sub">Coach turns your compensation plan into a personalized success plan.</p>
+            <div className="hcw-grid">
+              {[
+                { num: "1", title: "Understand", desc: "Upload your compensation plan. Coach explains exactly how you get paid, including accelerators, tiers, clawbacks, and earnings scenarios." },
+                { num: "2", title: "Plan", desc: "Coach asks questions about your territory, pipeline, goals, deal sizes, and conversion rates. Together you build a realistic success plan." },
+                { num: "3", title: "Execute", desc: "Coach helps you focus on the activities that actually drive results. Not generic activity mandates. Your plan. Your numbers. Your goals." },
+                { num: "4", title: "Achieve", desc: "Track progress toward quota, earnings, and the rewards you are working toward." },
+              ].map((step, i) => (
+                <div key={i} className="hcw-card">
+                  <div className="hcw-num">{step.num}</div>
+                  <div className="hcw-title">{step.title}</div>
+                  <div className="hcw-desc">{step.desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* THE SALES REP PROBLEM */}
         <section className="problem-section">
           <div className="problem-inner">
@@ -260,6 +329,61 @@ export default function App() {
             <div className="prob-bottom">
               <p className="prob-bottom-bold">That is why so many reps miss quota.</p>
               <p className="prob-bottom-muted">Not because they are lazy. Because they are operating without a clear personal plan.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* STOP BUILDING COMMISSION SPREADSHEETS */}
+        <section className="ss-section">
+          <div className="ss-inner">
+            <div className="sec-label">The Spreadsheet Problem</div>
+            <h2 className="sec-title">Stop Building Commission Spreadsheets.</h2>
+            <div className="ss-body">
+              {[
+                "Every motivated sales rep eventually does the same thing.",
+                "They receive a compensation plan. They read it. Then they open Excel.",
+                "They build a commission calculator to estimate earnings, track commissions, and figure out whether they have enough pipeline to hit quota.",
+                "The problem is that most of these spreadsheets are difficult to maintain, often inaccurate, and quickly become outdated.",
+                "Coach automatically builds the earnings model for you and then helps you build a plan around it.",
+              ].map((line, i) => (
+                <p key={i} className="ss-line">{line}</p>
+              ))}
+            </div>
+            <div className="ss-cols">
+              <div className="ss-col today">
+                <div className="ss-col-label">Today</div>
+                {[
+                  "Receive Compensation Plan",
+                  "Build Spreadsheet",
+                  "Update Formulas",
+                  "Guess At Earnings",
+                  "Wonder If You Will Hit Quota",
+                ].map((step, i, arr) => (
+                  <div key={i}>
+                    <div className="ss-step">{step}</div>
+                    {i < arr.length - 1 && <div className="ss-arrow">↓</div>}
+                  </div>
+                ))}
+              </div>
+              <div className="ss-col coach">
+                <div className="ss-col-label">With Coach</div>
+                {[
+                  "Upload Compensation Plan",
+                  "Coach Builds Earnings Model",
+                  "Upload Pipeline",
+                  "See Target And Stretch Scenarios",
+                  "Know Exactly What To Do Next",
+                ].map((step, i, arr) => (
+                  <div key={i}>
+                    <div className="ss-step">{step}</div>
+                    {i < arr.length - 1 && <div className="ss-arrow">↓</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="ss-closing">
+              <p className="ss-closing-muted">No spreadsheets. No formulas. No guesswork.</p>
+              <p className="ss-closing-bold">Just a plan built specifically for you.</p>
             </div>
           </div>
         </section>
@@ -339,61 +463,47 @@ export default function App() {
           .lc-step.last{color:var(--carrot);font-weight:800;}
           .lc-arrow{color:var(--carrot);padding:0 6px;font-size:15px;font-weight:700;}
 
+          /* ── HOW COACH WORKS ── */
+          .hcw-section{background:var(--cream);padding:96px 24px;}
+          .hcw-inner{max-width:900px;margin:0 auto;}
+          .hcw-sub{font-size:18px;color:var(--muted);line-height:1.5;margin-bottom:40px;}
+          .hcw-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+          .hcw-card{background:white;border:1.5px solid var(--border);border-radius:20px;padding:28px;}
+          .hcw-num{font-family:'Playfair Display',serif;font-size:44px;font-weight:900;color:var(--carrot);line-height:1;margin-bottom:12px;}
+          .hcw-title{font-size:18px;font-weight:700;color:var(--ink);margin-bottom:10px;}
+          .hcw-desc{font-size:15px;color:var(--muted);line-height:1.65;}
+
+          /* ── STOP SPREADSHEETS ── */
+          .ss-section{background:var(--cream);padding:96px 24px;}
+          .ss-inner{max-width:900px;margin:0 auto;}
+          .ss-body{margin:0 0 40px;}
+          .ss-line{font-size:17px;color:var(--muted);line-height:1.7;margin-bottom:12px;}
+          .ss-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:36px;}
+          .ss-col{border-radius:20px;padding:24px;}
+          .ss-col.today{border:1.5px solid rgba(26,18,8,0.25);background:rgba(26,18,8,0.03);}
+          .ss-col.coach{border:1.5px solid rgba(244,113,26,0.4);background:rgba(244,113,26,0.05);}
+          .ss-col-label{font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:16px;}
+          .ss-col.today .ss-col-label{color:var(--muted);}
+          .ss-col.coach .ss-col-label{color:var(--carrot);}
+          .ss-step{border-radius:12px;padding:12px 16px;font-size:14px;font-weight:600;text-align:center;line-height:1.4;}
+          .ss-col.today .ss-step{background:rgba(220,38,38,0.07);border:1px solid rgba(220,38,38,0.18);color:#7A2020;}
+          .ss-col.coach .ss-step{background:white;border:1px solid rgba(244,113,26,0.3);color:var(--ink);}
+          .ss-arrow{text-align:center;font-size:16px;line-height:1;margin:6px 0;}
+          .ss-col.today .ss-arrow{color:rgba(220,38,38,0.4);}
+          .ss-col.coach .ss-arrow{color:var(--carrot);}
+          .ss-closing{text-align:center;}
+          .ss-closing-muted{font-size:18px;color:var(--muted);margin-bottom:8px;}
+          .ss-closing-bold{font-size:20px;font-weight:700;color:var(--ink);}
+
           /* ── RESPONSIVE PART 2 ── */
           @media(max-width:768px){
-            .coach-role-grid,.coach-q-grid,.diff-cols,.ladder-grid{grid-template-columns:1fr;}
+            .coach-role-grid,.coach-q-grid,.diff-cols,.ladder-grid,.hcw-grid,.ss-cols{grid-template-columns:1fr;}
             .coach-bottom-row{gap:20px;}
           }
           @media(max-width:480px){
-            .coach-section,.diff-section,.compare-section,.ladder-section{padding:64px 20px;}
+            .coach-section,.diff-section,.compare-section,.ladder-section,.hcw-section,.ss-section{padding:64px 20px;}
           }
         `}</style>
-
-        {/* MEET COACH */}
-        <section className="coach-section">
-          <div className="coach-inner">
-            <div className="sec-label">Your AI Sales Coach</div>
-            <h2 className="sec-title" style={{ color: "white", marginBottom: 20 }}>Meet Coach 🥕</h2>
-            <p className="coach-quote">"What do I need to do today to earn the income I want this year?"</p>
-            <p className="coach-coachsub">Coach helps you answer that question every single day.</p>
-            <div className="coach-role-grid">
-              {[
-                { Icon: CompIcon, title: "Compensation Analyst", tag: "Understand", desc: "Coach breaks down your compensation plan, identifies earnings opportunities, and helps you understand exactly how you get paid." },
-                { Icon: StrategyIcon, title: "Sales Strategist", tag: "Plan", desc: "Coach helps you build a realistic plan based on your territory, deal sizes, conversion rates, and goals." },
-                { Icon: PerformanceIcon, title: "Performance Coach", tag: "Execute", desc: "Coach helps you stay focused on the activities that drive results and keeps you on track toward your targets." },
-                { Icon: MotivationIcon, title: "Motivation Coach", tag: "Achieve", desc: "Coach keeps your carrots front and center, reminding you why the work matters and helping you stay motivated throughout the year." },
-              ].map((r, i) => (
-                <div key={i} className="coach-role-card">
-                  <div className="coach-role-icon"><r.Icon /></div>
-                  <div className="coach-role-body">
-                    <div className="coach-role-head">
-                      <span className="coach-role-title">{r.title}</span>
-                      <span className="coach-role-tag">{r.tag}</span>
-                    </div>
-                    <div className="coach-role-desc">{r.desc}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="coach-ask-label">Ask Coach Anything</div>
-            <div className="coach-q-grid">
-              {[
-                "How much commission will I make if this deal closes?",
-                "What happens if I finish at 120% of quota?",
-                "How many opportunities do I need to hit my stretch goal?",
-                "What activities should I focus on this month?",
-              ].map((q, i) => (
-                <div key={i} className="coach-q-card">"{q}"</div>
-              ))}
-            </div>
-            <div className="coach-bottom-row">
-              <span className="coach-br-muted">No spreadsheets.</span>
-              <span className="coach-br-muted">No guesswork.</span>
-              <span className="coach-br-muted">No generic activity mandates.</span>
-              <span className="coach-br-bold">Just a plan built specifically for you.</span>
-            </div>
-          </div>
-        </section>
 
         {/* MOST COMPANIES TELL YOU WHAT TO DO */}
         <section className="diff-section">
@@ -452,6 +562,7 @@ export default function App() {
                     ["Tracks progress toward carrots", "No", "Yes"],
                     ["Motivates and reinforces goals", "No", "Yes"],
                     ["Reminds you why you are making calls at 4:45 PM Friday", "No", "Yes 🥕"],
+                    ["Builds a personalized success plan", "No", "Yes"],
                   ].map(([feature, generic, coach], i) => (
                     <tr key={i}>
                       <td className="td-feature">{feature}</td>
@@ -594,61 +705,6 @@ export default function App() {
           }
         `}</style>
 
-        {/* FROM COMPENSATION PLAN TO PERSONAL PLAYBOOK */}
-        <section className="steps-section">
-          <div className="steps-inner">
-            <div className="sec-label">Getting Started</div>
-            <h2 className="sec-title">From Compensation Plan to Personal Playbook in Minutes</h2>
-            <div className="steps-grid">
-              {[
-                {
-                  num: "01",
-                  title: "Upload your compensation plan",
-                  desc: "Coach reads every line — tiers, accelerators, clawbacks, and all the fine print. Most reps understand their plan better after 5 minutes with Coach than after a full year.",
-                },
-                {
-                  num: "02",
-                  title: "Tell Coach about your territory",
-                  desc: "Share your deals, goals, current pipeline, and conversion rates. Coach uses this to build a plan that is realistic for your specific situation.",
-                },
-                {
-                  num: "03",
-                  title: "Define your carrots",
-                  desc: "What are you actually working toward? The family vacation. The new car. The boat. These become your personal motivation throughout the year.",
-                },
-                {
-                  num: "04",
-                  title: "Receive your personalized playbook",
-                  desc: "Coach immediately shows you how you get paid, which deals matter most, how many opportunities you need, and what to focus on every single day.",
-                  checklist: ["How you get paid", "Your realistic earning potential", "Which deals matter most", "What activities drive results"],
-                },
-              ].map((step, i) => (
-                <div key={i} className="step-card">
-                  <div className="step-num">Step {step.num}</div>
-                  <div className="step-title">{step.title}</div>
-                  <div className="step-desc">{step.desc}</div>
-                  {step.checklist && (
-                    <div className="step-checklist">
-                      {step.checklist.map((item, j) => (
-                        <div key={j} className="step-check-item">
-                          <span className="step-check-icon">✓</span>
-                          <span>{item}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-            <p className="steps-note">Most reps are fully set up in less than 5 minutes.</p>
-            <div style={{ textAlign: "center" }}>
-              <button className="steps-cta-btn" onClick={() => setScreen("onboarding")}>
-                Build My Personal Playbook →
-              </button>
-            </div>
-          </div>
-        </section>
-
         {/* IT IS 4:45 PM ON FRIDAY */}
         <section className="friday-section">
           <div className="friday-inner">
@@ -667,8 +723,46 @@ export default function App() {
           </div>
         </section>
 
+        {/* WHY EARN THE CARROT PAYS FOR ITSELF */}
+        <section className="roi-section">
+          <div className="roi-inner">
+            <div className="sec-label">The ROI</div>
+            <h2 className="sec-title">Why Earn The Carrot Pays for Itself</h2>
+            <p className="roi-opening">
+              Most salespeople never fully understand how their compensation plan works. Most never build a personalized plan. Most eventually lose focus somewhere between kickoff and year end. Coach changes that.
+            </p>
+            <div className="roi-grid">
+              {[
+                {
+                  title: "Understand Your Compensation Plan",
+                  desc: "Coach explains exactly how you get paid and identifies the earnings opportunities hidden in your plan.",
+                },
+                {
+                  title: "Build Your Success Plan",
+                  desc: "Coach works with you to build a realistic strategy based on your pipeline, deal sizes, conversion rates, and goals.",
+                },
+                {
+                  title: "Stay Focused All Year",
+                  desc: "Coach keeps your goals front and center and helps you stay focused on the activities that matter most.",
+                },
+              ].map((card, i) => (
+                <div key={i} className="roi-card">
+                  <div className="roi-card-title">{card.title}</div>
+                  <div className="roi-card-desc">{card.desc}</div>
+                </div>
+              ))}
+            </div>
+            <div className="roi-callout">
+              Most reps spend one to three hours reading compensation plans, building spreadsheets, estimating commissions, and guessing whether they have enough pipeline to hit quota. Coach does it in minutes. Then Coach goes further by helping you build a personalized success plan.
+            </div>
+            <div className="roi-box">
+              If Coach helps you close just one additional deal this year, the investment pays for itself many times over. For the price of one good client lunch per month, you get a complete personal operating system for sales success.
+            </div>
+          </div>
+        </section>
+
         {/* PRICING */}
-        <section className="pricing-section">
+        <section className="pricing-section" id="pricing">
           <div className="pricing-inner">
             <div className="sec-label">Pricing</div>
             <h2 className="sec-title">Simple. Transparent. Expensable.</h2>
@@ -797,6 +891,7 @@ export default function App() {
           .roi-card-title{font-size:17px;font-weight:700;color:var(--ink);margin-bottom:10px;}
           .roi-card-desc{font-size:15px;color:var(--muted);line-height:1.65;}
           .roi-box{background:rgba(244,113,26,0.07);border:1.5px solid rgba(244,113,26,0.25);border-radius:20px;padding:28px 32px;font-size:16px;color:var(--ink);line-height:1.75;}
+          .roi-callout{background:white;border:1.5px solid var(--border);border-left:4px solid var(--carrot);border-radius:16px;padding:24px 28px;font-size:16px;color:var(--ink);line-height:1.7;margin-bottom:20px;}
 
           /* ── CLOSING ── */
           .closing-section{background:var(--dark);padding:100px 24px;text-align:center;}
@@ -832,45 +927,6 @@ export default function App() {
             .closing-title{font-size:32px;}
           }
         `}</style>
-
-        {/* WHY EARN THE CARROT PAYS FOR ITSELF */}
-        <section className="roi-section">
-          <div className="roi-inner">
-            <div className="sec-label">The ROI</div>
-            <h2 className="sec-title">Why Earn The Carrot Pays for Itself</h2>
-            <p className="roi-opening">
-              Most salespeople never fully understand how their compensation plan works. Most never build a personalized plan. Most eventually lose focus somewhere between kickoff and year end. Coach changes that.
-            </p>
-            <div className="roi-grid">
-              {[
-                {
-                  emoji: "⏱️",
-                  title: "Time Saved",
-                  desc: "We instantly break down your full compensation plan in plain English, highlight what really matters, and show you exactly where to focus to make more money. No more guessing or waiting for the team call.",
-                },
-                {
-                  emoji: "🎯",
-                  title: "Better Motivation",
-                  desc: "Instead of generic manager targets, Earn The Carrot works with you to understand the plan and build realistic actions that actually help you reach your target and stretch goals.",
-                },
-                {
-                  emoji: "💰",
-                  title: "Increased Earnings",
-                  desc: "Industry studies show that less than half of sales reps hit quota in any given year. At some companies that number is even lower. Reps who use a clear personalized plan close 1 to 2 extra deals per year on average.",
-                },
-              ].map((card, i) => (
-                <div key={i} className="roi-card">
-                  <div className="roi-card-emoji">{card.emoji}</div>
-                  <div className="roi-card-title">{card.title}</div>
-                  <div className="roi-card-desc">{card.desc}</div>
-                </div>
-              ))}
-            </div>
-            <div className="roi-box">
-              If Coach helps you close just one additional deal this year, the investment pays for itself many times over. For the price of one good client lunch per month, you get a complete personal operating system for sales success.
-            </div>
-          </div>
-        </section>
 
         {/* EVERY SALESPERSON WANTS TO WIN */}
         <section className="closing-section">
