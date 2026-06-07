@@ -624,7 +624,7 @@ export default function App() {
             <a className="nav-link" href="#pricing">Pricing</a>
           </div>
           <button className="nav-cta" onClick={() => goFlow("upload")}>
-            Build My Playbook
+            Upload Your Comp Plan
           </button>
         </nav>
 
@@ -643,7 +643,7 @@ export default function App() {
             Coach helps salespeople understand how they get paid, build a personalized success plan, and stay focused on the actions that drive results.
           </p>
           <button className="hero-cta" onClick={() => goFlow("upload")}>
-            Build My Personal Playbook →
+            Upload Your Comp Plan
           </button>
           <div className="hero-hint">
             <div>Upload your compensation plan. Build your plan.</div>
@@ -1366,7 +1366,7 @@ export default function App() {
               <div className="closing-line">Earn your carrot.</div>
             </div>
             <button className="closing-cta" onClick={() => goFlow("upload")}>
-              Build My Personal Playbook →
+              Upload Your Comp Plan
             </button>
           </div>
         </section>
