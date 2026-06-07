@@ -188,6 +188,7 @@ const STATE_TAXES = {
 };
 const STATES = Object.keys(STATE_TAXES).sort();
 const AGE_BRACKETS = ["Under 50", "50-59", "60-63", "64+"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const K401_LIMITS = { "Under 50": 23500, "50-59": 31000, "60-63": 34750, "64+": 31000 };
 
 function getFedBracket(income) {
@@ -308,6 +309,37 @@ select.ob-inp{appearance:none;cursor:pointer;background-image:url("data:image/sv
 .ob-tabbar-tab.on{color:var(--carrot);}
 .ob-tabbar-ico{font-size:19px;line-height:1;}
 .ob-tabbar-lbl{font-size:10px;font-weight:700;}
+/* summary — comp fields */
+.ob-card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.ob-card-title{font-size:15px;font-weight:700;color:var(--ink);}
+.ob-badge-green{background:var(--green-light);color:var(--green);font-size:11px;font-weight:700;padding:4px 12px;border-radius:100px;}
+.ob-frow{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);}
+.ob-frow:last-child{border-bottom:none;}
+.ob-fname{flex:1;font-size:14px;color:var(--ink);font-weight:600;}
+.ob-fval{font-size:16px;font-weight:700;color:var(--ink);}
+.ob-ebtn{background:none;border:1.5px solid var(--border);border-radius:8px;padding:5px 12px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);font-family:'DM Sans',sans-serif;}
+.ob-ebtn:hover{border-color:var(--carrot);color:var(--carrot);}
+.ob-erow{display:flex;gap:8px;align-items:center;}
+.ob-einp{width:120px;padding:8px 12px;border:1.5px solid var(--carrot);border-radius:8px;font-size:15px;font-family:'DM Sans',sans-serif;color:var(--ink);}
+.ob-einp:focus{outline:none;}
+.ob-save{background:var(--carrot);color:white;border:none;border-radius:8px;padding:8px 14px;font-weight:700;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.ob-cancel{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+/* summary — tax box */
+.ob-tax{background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:20px;padding:24px;margin-bottom:20px;}
+.ob-tax-title{font-size:16px;font-weight:800;color:#1D4ED8;margin-bottom:8px;}
+.ob-tax-note{font-size:13px;color:#3B5BA5;line-height:1.5;margin-bottom:16px;}
+.ob-tax-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid #BFDBFE;gap:10px;}
+.ob-tax-row:last-child{border-bottom:none;}
+.ob-tax-lbl{font-size:14px;color:#1E3A8A;font-weight:600;}
+.ob-tax-sub{font-size:11px;color:#3B5BA5;margin-top:2px;}
+.ob-tax-val{font-size:15px;font-weight:700;color:#1E3A8A;text-align:right;}
+.ob-tax-override{background:none;border:none;color:#1D4ED8;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline;font-family:'DM Sans',sans-serif;padding:0;margin-top:2px;}
+.ob-tax-total{display:flex;align-items:center;justify-content:space-between;background:white;border-radius:12px;padding:14px 16px;margin-top:14px;}
+.ob-tax-total-v{font-size:16px;font-weight:800;color:#1E3A8A;text-align:right;}
+/* summary — 401k box */
+.ob-401k{background:var(--green-light);border:1.5px solid var(--green);border-radius:16px;padding:18px 20px;margin-bottom:20px;}
+.ob-401k-msg{font-size:15px;font-weight:700;color:var(--green);margin-bottom:6px;}
+.ob-401k-sub{font-size:13px;color:#2D6A4F;opacity:0.9;line-height:1.5;}
 @media(max-width:480px){.ob-row{grid-template-columns:1fr;}}
 `;
 
@@ -322,7 +354,11 @@ export default function App() {
   const [suAge, setSuAge]     = useState("Under 50");
   const [suPass, setSuPass]   = useState("");
   const [planFile, setPlanFile] = useState(null);
-  const [comp] = useState({ base: 150000, quota: 1500000, commissionRate: 8, accelerator: 1.5 });
+  const [comp, setComp] = useState({ base: 150000, quota: 1500000, commissionRate: 8, accelerator: 1.5 });
+  const [editField, setEditField] = useState(null);
+  const [editVal, setEditVal] = useState("");
+  const [taxOverrides, setTaxOverrides] = useState({});
+  const [spiffs] = useState([]);
   const [k401Pct, setK401Pct]   = useState(6);
   const [healthMo, setHealthMo] = useState(200);
   const [carrotTab, setCarrotTab] = useState("big");
@@ -352,8 +388,8 @@ export default function App() {
     const k = Math.min(gross * k401Pct / 100, k401Limit);
     const health = healthMo * 12;
     const taxable = Math.max(0, gross - k - health);
-    const fed = taxable * getFedBracket(gross).rate / 100;
-    const st = taxable * stateTaxPct / 100;
+    const fed = taxable * (taxOverrides.fed ?? getFedBracket(gross).rate) / 100;
+    const st = taxable * (taxOverrides.state ?? stateTaxPct) / 100;
     const fica = gross * 0.0765;
     return gross - fed - st - fica - k - health;
   }
@@ -384,6 +420,9 @@ export default function App() {
   }
 
   const goFlow = (s) => { setScreen(s); window.scrollTo(0, 0); };
+  const startEdit = (f, v) => { setEditField(f); setEditVal(String(v)); };
+  const saveComp = () => { setComp((c) => ({ ...c, [editField]: parseFloat(editVal) || 0 })); setEditField(null); };
+  const saveTax = (key) => { setTaxOverrides((t) => ({ ...t, [key]: parseFloat(editVal) || 0 })); setEditField(null); };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -1318,26 +1357,156 @@ export default function App() {
         </>
       );
     } else if (screen === "summary") {
+      const ote = grossAt100;
+      const fedRate = getFedBracket(ote).rate;
+      const effFed = taxOverrides.fed ?? fedRate;
+      const effState = taxOverrides.state ?? stateTaxPct;
+      const ficaRate = 7.65;
+      const intendedK = ote * k401Pct / 100;
+      const annualK = Math.min(intendedK, k401Limit);
+      const monthly = intendedK / 12;
+      const monthsToMax = monthly > 0 ? k401Limit / monthly : Infinity;
+      const maxMonth = monthsToMax > 0 && monthsToMax < 12 ? MONTHS[Math.floor(monthsToMax)] : null;
+      const willMax = intendedK >= k401Limit;
+      const k401msg = !willMax
+        ? "Increase your 401k % to max it out"
+        : maxMonth
+          ? `🏦 You'll max your 401k around ${maxMonth}`
+          : "🎉 You'll max out your 401k this year!";
+      const taxRatePct = Math.round(effFed + effState + ficaRate);
+      const flatDeductions = ote * (effFed + effState + ficaRate) / 100;
+      const compFields = [
+        { key: "base", name: "Base Salary", display: fmt(comp.base) },
+        { key: "quota", name: "Annual Quota", display: fmt(comp.quota) },
+        { key: "commissionRate", name: "Commission Rate", display: comp.commissionRate + "%" },
+        { key: "accelerator", name: "Accelerator", display: comp.accelerator + "x" },
+      ];
       body = (
         <>
-          <div className="ob-eyebrow">Step 3 of 6 · Plan analysis</div>
-          <h1 className="ob-h1">Here is your plan</h1>
-          <p className="ob-subt">Coach analyzed your compensation plan. Here is what stood out.</p>
+          <div className="ob-eyebrow">Step 3 of 6 · Plan Analysis</div>
+          <h1 className="ob-h1">Here's What We Found</h1>
+
+          {/* Section 1 — Coach Analysis */}
           <div className="ob-coach">
             <span className="ob-coach-badge">🥕 Coach analysis</span>
             <p className="ob-coach-line">Your base salary is {fmt(comp.base)} with an annual quota of {fmt(comp.quota)}.</p>
             <p className="ob-coach-line">You earn {comp.commissionRate}% commission, with a {comp.accelerator}x accelerator on everything above 100% of quota.</p>
-            <p className="ob-coach-line">Hit quota and you are looking at {fmt(grossAt100)} on-target earnings. The accelerator means overperformance pays off fast.</p>
+            <p className="ob-coach-line">Hit quota and you are looking at {fmt(ote)} on-target earnings. The accelerator means overperformance pays off fast.</p>
           </div>
+
+          {/* Section 2 — OTE Hero */}
           <div className="ob-ote">
             <div className="ob-ote-lbl">On-target earnings</div>
-            <div className="ob-ote-val">{fmt(grossAt100)}</div>
+            <div className="ob-ote-val">{fmt(ote)}</div>
             <div className="ob-split">
-              <div className="ob-split-item"><div className="ob-split-k">Base</div><div className="ob-split-v">{fmt(comp.base)}</div></div>
-              <div className="ob-split-item"><div className="ob-split-k">Commission</div><div className="ob-split-v">{fmt(commAt100)}</div></div>
+              <div className="ob-split-item" style={{ background: "rgba(0,0,0,0.13)" }}><div className="ob-split-k">Base</div><div className="ob-split-v">{fmt(comp.base)}</div></div>
+              <div className="ob-split-item" style={{ background: "rgba(0,0,0,0.13)" }}><div className="ob-split-k">Commission</div><div className="ob-split-v">{fmt(commAt100)}</div></div>
             </div>
           </div>
-          <button className="ob-btn" onClick={() => goFlow("paycheck")}>See My Paycheck</button>
+
+          {/* Section 3 — Compensation Fields */}
+          <div className="ob-card">
+            <div className="ob-card-hdr">
+              <div className="ob-card-title">💰 Compensation Structure</div>
+              <span className="ob-badge-green">Looks good</span>
+            </div>
+            {compFields.map((f) => (
+              <div key={f.key} className="ob-frow">
+                <div className="ob-fname">{f.name}</div>
+                {editField === f.key ? (
+                  <div className="ob-erow">
+                    <input className="ob-einp" type="number" value={editVal} onChange={(e) => setEditVal(e.target.value)} autoFocus />
+                    <button className="ob-save" onClick={saveComp}>Save</button>
+                    <button className="ob-cancel" onClick={() => setEditField(null)}>Cancel</button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="ob-fval">{f.display}</div>
+                    <button className="ob-ebtn" onClick={() => startEdit(f.key, comp[f.key])}>✏️ Edit</button>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Section 4 — Tax Assumptions */}
+          <div className="ob-tax">
+            <div className="ob-tax-title">🧮 Here's What We're Assuming for Taxes</div>
+            <p className="ob-tax-note">Based on your income and the state you selected, we have pre-filled your tax rates. Tap override to change any number.</p>
+            <div className="ob-tax-row">
+              <div>
+                <div className="ob-tax-lbl">Federal Income Tax</div>
+                <div className="ob-tax-sub">{fedRate}% bracket{taxOverrides.fed != null ? " · overridden" : ""}</div>
+                {editField !== "taxFed" && <button className="ob-tax-override" onClick={() => startEdit("taxFed", effFed)}>Override</button>}
+              </div>
+              {editField === "taxFed" ? (
+                <div className="ob-erow">
+                  <input className="ob-einp" type="number" value={editVal} onChange={(e) => setEditVal(e.target.value)} autoFocus />
+                  <button className="ob-save" onClick={() => saveTax("fed")}>Save</button>
+                  <button className="ob-cancel" onClick={() => setEditField(null)}>Cancel</button>
+                </div>
+              ) : (
+                <div className="ob-tax-val">{effFed}%</div>
+              )}
+            </div>
+            <div className="ob-tax-row">
+              <div>
+                <div className="ob-tax-lbl">{suState || "State"} Income Tax</div>
+                <div className="ob-tax-sub">{effState === 0 ? "No state income tax" : `${effState}% of taxable income`}</div>
+                {editField !== "taxState" && <button className="ob-tax-override" onClick={() => startEdit("taxState", effState)}>Override</button>}
+              </div>
+              {editField === "taxState" ? (
+                <div className="ob-erow">
+                  <input className="ob-einp" type="number" value={editVal} onChange={(e) => setEditVal(e.target.value)} autoFocus />
+                  <button className="ob-save" onClick={() => saveTax("state")}>Save</button>
+                  <button className="ob-cancel" onClick={() => setEditField(null)}>Cancel</button>
+                </div>
+              ) : (
+                <div className="ob-tax-val">{effState}%</div>
+              )}
+            </div>
+            <div className="ob-tax-row">
+              <div>
+                <div className="ob-tax-lbl">Social Security and Medicare (FICA)</div>
+                <div className="ob-tax-sub">Fixed rate on full gross</div>
+              </div>
+              <div className="ob-tax-val">{ficaRate}%</div>
+            </div>
+            <div className="ob-tax-row">
+              <div>
+                <div className="ob-tax-lbl">401k Contribution</div>
+                <div className="ob-tax-sub">From your profile</div>
+              </div>
+              <div className="ob-tax-val">{k401Pct}%</div>
+            </div>
+            <div className="ob-tax-total">
+              <div className="ob-tax-lbl">Total deduction rate</div>
+              <div className="ob-tax-total-v">~{taxRatePct}% · {fmt(flatDeductions)}/yr</div>
+            </div>
+          </div>
+
+          {/* Section 5 — 401k Max-Out */}
+          {k401Pct > 0 && (
+            <div className="ob-401k">
+              <div className="ob-401k-msg">{k401msg}</div>
+              <div className="ob-401k-sub">At {k401Pct}% you contribute ~{fmt(annualK)}/yr · 2025 limit is {fmt(k401Limit)}</div>
+            </div>
+          )}
+
+          {/* SPIFFs (only if uploaded) */}
+          {spiffs.length > 0 && (
+            <div className="ob-card">
+              <div className="ob-card-title" style={{ marginBottom: 10 }}>🎁 SPIFFs and Bonuses</div>
+              {spiffs.map((s, i) => (
+                <div key={i} className="ob-frow">
+                  <div className="ob-fname">{s.name}</div>
+                  <div className="ob-fval">{fmt(s.amount)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button className="ob-btn" onClick={() => goFlow("paycheck")}>See My Real Numbers →</button>
         </>
       );
     } else if (screen === "paycheck") {
