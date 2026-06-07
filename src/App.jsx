@@ -1493,7 +1493,7 @@ export default function App() {
         <style>{S}</style>
         <style>{OB_STYLES}</style>
         <div className="pitch-inner">
-          <div className="pitch-carrot-callout">🥕 Your carrot: {carrotAnswer || "Your goal"}</div>
+          {carrotAnswer.trim() && <div className="pitch-carrot-callout">🥕 Your carrot: {carrotAnswer}</div>}
           <h1 className="pitch-headline">Your Manager Will Give You a Call List. Coach Gives You a Plan.</h1>
           <div className="pitch-contrast">
             <p className="pitch-mgr">Your manager says: make 50 calls, book 10 meetings, hit your number.</p>
