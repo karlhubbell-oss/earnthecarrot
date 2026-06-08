@@ -708,7 +708,8 @@ export default function App() {
     return { label: "Below floor", cls: "st-below" };
   }
 
-  const goFlow = (s) => { setScreen(s); window.scrollTo(0, 0); };
+  const goToScreen = (name) => { window.history.pushState({ screen: name }, ""); setScreen(name); window.scrollTo(0, 0); };
+  const goFlow = (s) => goToScreen(s);
   const startEdit = (f, v) => { setEditField(f); setEditVal(String(v)); };
   const saveComp = () => { setComp((c) => ({ ...c, [editField]: parseFloat(editVal) || 0 })); setEditField(null); };
   const saveTax = (key) => { setTaxOverrides((t) => ({ ...t, [key]: parseFloat(editVal) || 0 })); setEditField(null); };
@@ -717,6 +718,13 @@ export default function App() {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    window.history.replaceState({ screen: "landing" }, "");
+    const onPop = (e) => setScreen(e.state && e.state.screen ? e.state.screen : "landing");
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
   }, []);
 
   if (screen === "landing") {
