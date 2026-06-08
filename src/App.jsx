@@ -2,6 +2,7 @@
 // Use periods or commas instead. Numeric ranges like 10-15 are fine.
 import { useState, useEffect, useMemo, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Area, AreaChart, Label } from "recharts";
+import SeeWhatMoreIsWorth from "./SeeWhatMoreIsWorth";
 
 const S = `
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
@@ -1684,144 +1685,14 @@ export default function App() {
 
   // ══ REAL PAY + MOTIVATION ════════════════════════════════════════════
   if (screen === "real_pay_motivation") {
-    const MARKERS = [
-      { pct: 75, label: "On Track" },
-      { pct: 100, label: "Quota" },
-      { pct: 125, label: "Stretch" },
-      { pct: 150, label: "Presidents Club" },
-    ];
-    const sliderGross = calcGross(sliderValue);
-    const sliderNet = calcNet(sliderGross);
-    const net100 = calcNet(calcGross(100));
-    const stretchNet = calcNet(calcGross(125));
-    const diff = stretchNet - net100;
-    const extraPerMonth = Math.max(0, sliderNet - net100) / 12;
-    const monthsNeeded = +carrotCost > 0 && extraPerMonth > 0 ? Math.ceil(+carrotCost / extraPerMonth) : null;
-    const costMonth = monthsNeeded ? MONTHS[Math.min(11, monthsNeeded - 1)] : null;
-    const PICKS = ["Family vacation", "Pay off debt", "New car", "Home improvement", "Save it"];
-    const findImage = () => {
-      setImageError(false);
-      setCarrotImage(null);
-      setImageLoading(true);
-      setTimeout(() => {
-        const q = encodeURIComponent(carrotAnswer.split(" ").slice(0, 3).join(","));
-        setCarrotImage(`https://source.unsplash.com/600x400/?${q}`);
-        setImageLoading(false);
-      }, 2000);
-    };
+    // grossAt / takeHomeAt are wired to the real comp engine (calcGross / calcNet).
+    // TODO: if the comp engine is refactored, keep these pointed at the source-of-truth functions.
     return (
-      <div className="rpm-wrap">
-        <style>{S}</style>
-        <style>{OB_STYLES}</style>
-        <div className="cf-top">
-          <button className="ob-back" onClick={() => goFlow("summary")}>← Back</button>
-          <div className="cf-step">Step 5 of 6</div>
-        </div>
-        <div className="rpm-screen">
-          <h1 className="rpm-h1">See Your Real Pay. Set Your Motivation.</h1>
-
-          {/* SECTION 1 — Interactive attainment slider */}
-          <div className="rpm-dark">
-            <div className="rpm-eyebrow">Your Real Numbers</div>
-            <div className="rpm-slider-pct">{sliderValue}% of Plan</div>
-            <div className="rpm-nums">
-              <div className="rpm-num">
-                <div className="rpm-num-k">Gross Earnings</div>
-                <div className="rpm-num-v">{fmt(sliderGross)}</div>
-              </div>
-              <div className="rpm-num">
-                <div className="rpm-num-k net">Est. Take-Home</div>
-                <div className="rpm-num-v net">{fmt(sliderNet)}</div>
-                <div className="rpm-num-sub">after federal tax, state tax, FICA, 401k, and your deductions</div>
-              </div>
-            </div>
-            <input className="rpm-range" type="range" min="50" max="200" step="5" value={sliderValue} onChange={(e) => setSliderValue(+e.target.value)} />
-            <div className="rpm-markers">
-              {MARKERS.map((m) => (
-                <div key={m.pct} className={`rpm-marker ${sliderValue >= m.pct ? "on" : ""}`} style={{ left: `${((m.pct - 50) / 150) * 100}%` }}>
-                  <div className="rpm-marker-pct">{m.pct}%</div>
-                  <div className="rpm-marker-lbl">{m.label}</div>
-                </div>
-              ))}
-            </div>
-            {sliderValue >= 125 && (
-              <div className="rpm-stretchbox">
-                <div className="rpm-stretchbox-big">Your stretch goal take-home: {fmt(stretchNet)}</div>
-                <div className="rpm-stretchbox-sub">That is {fmt(diff)} more than hitting quota.</div>
-              </div>
-            )}
-          </div>
-
-          {/* SECTION 1.5 — Why it works */}
-          <div className="rpm-explain">
-            <p className="rpm-explain-1">The secret to hitting your number is not willpower. It is connecting every small action to something real you want.</p>
-            <p className="rpm-explain-2">When you know that one more call gets you closer to Hawaii, you make the call.</p>
-            <p className="rpm-explain-3">That is what Coach does. Every activity. Every day. All year.</p>
-          </div>
-
-          {/* SECTION 2 — Set Your Goals */}
-          <div className="rpm-goals">
-            <div className="rpm-goal target">
-              <div className="rpm-goal-lbl">Target Goal</div>
-              <div className="rpm-goal-inrow">
-                <input className="rpm-goal-input" type="number" value={targetGoal} onChange={(e) => setTargetGoal(e.target.value)} placeholder="—" />
-                <span className="rpm-goal-suffix">% of Plan</span>
-              </div>
-            </div>
-            <div className="rpm-goal stretch">
-              <div className="rpm-goal-lbl">Stretch Goal</div>
-              <div className="rpm-goal-inrow">
-                <input className="rpm-goal-input" type="number" value={stretchGoal} onChange={(e) => setStretchGoal(e.target.value)} placeholder="—" />
-                <span className="rpm-goal-suffix">% of Plan</span>
-              </div>
-            </div>
-          </div>
-
-          {!goalsLocked ? (
-            <button
-              className="rpm-lockbtn"
-              disabled={targetGoal.trim() === "" || stretchGoal.trim() === "" || isNaN(+targetGoal) || isNaN(+stretchGoal)}
-              onClick={() => { setGoalsLocked(true); setTargetPct(+targetGoal); }}
-            >
-              Lock In
-            </button>
-          ) : (
-            <>
-              <div className="rpm-locked">✓ Locked In, Target {targetGoal}% and Stretch {stretchGoal}%</div>
-              <div className="rpm-result target">At your Target of {targetGoal}% your take-home is <span className="rpm-result-amt">{fmt(calcNet(calcGross(+targetGoal)))}</span></div>
-              <div className="rpm-result stretch">At your Stretch of {stretchGoal}% your take-home is <span className="rpm-result-amt">{fmt(calcNet(calcGross(+stretchGoal)))}</span></div>
-            </>
-          )}
-
-          {/* SECTION 3 — Carrot cards (appear once goals locked) */}
-          {goalsLocked && (
-            <>
-              <div className="rpm-card" style={{ marginTop: 20 }}>
-                <div className="rpm-card-hdr">
-                  <div className="rpm-card-title" style={{ lineHeight: 1.4 }}>If you hit your Target of {targetGoal}% and took home {fmt(calcNet(calcGross(+targetGoal)))}, what would you do with it?</div>
-                </div>
-                <div className="rpm-pad" style={{ paddingTop: 14 }}>
-                  <input className="rpm-input" value={carrotAnswer} onChange={(e) => setCarrotAnswer(e.target.value)} placeholder="e.g. Family vacation in Hawaii, Pay off my car, New boat..." />
-                  <CarrotImageFinder answer={carrotAnswer} />
-                </div>
-              </div>
-              <div className="rpm-card">
-                <div className="rpm-card-hdr">
-                  <div className="rpm-card-title" style={{ lineHeight: 1.4 }}>If you hit your Stretch of {stretchGoal}% and took home {fmt(calcNet(calcGross(+stretchGoal)))}, what would you do with it?</div>
-                </div>
-                <div className="rpm-pad" style={{ paddingTop: 14 }}>
-                  <input className="rpm-input" value={stretchCarrot} onChange={(e) => setStretchCarrot(e.target.value)} placeholder="e.g. Pay off the mortgage, A boat, Dream kitchen..." />
-                  <CarrotImageFinder answer={stretchCarrot} />
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* SECTION 3 — Save + Continue */}
-          <div className="rpm-goldbox">Your carrot and real numbers will be saved when you create your account in the next step.</div>
-          <button className="cf-cta" disabled={!carrotAnswer.trim()} onClick={() => goFlow("create_account")}>Save My Carrot and Create My Account →</button>
-        </div>
-      </div>
+      <SeeWhatMoreIsWorth
+        grossAt={calcGross}
+        takeHomeAt={(pct) => calcNet(calcGross(pct))}
+        onContinue={() => goFlow("build_strategy")}
+      />
     );
   }
 
