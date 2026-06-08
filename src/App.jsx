@@ -2855,7 +2855,7 @@ function CompSummaryScreen({ onContinue }) {
           ? <div className="confirm-bar" style={{ flexDirection: "column", alignItems: "stretch" }}>
               <div className="confirm-bar-title">Does this look right?</div>
               <div className="confirm-bar-sub">Fix anything above, then continue to calculate your real take-home numbers.</div>
-              <button className="btn-confirm" style={{ width: "100%", padding: 18, fontSize: 17, marginTop: 14 }} onClick={() => setConfirmed(true)}>Continue to My Earnings →</button>
+              <button className="btn-confirm" style={{ width: "100%", padding: 18, fontSize: 17, marginTop: 14 }} onClick={onContinue}>Continue to My Earnings →</button>
               <div style={{ fontSize: 13, color: "var(--muted)", textAlign: "center", marginTop: 10 }}>Next: See exactly what you take home at every milestone</div>
               <button className="btn-fix" style={{ alignSelf: "center", marginTop: 10 }}>Something's wrong</button>
             </div>
