@@ -740,8 +740,8 @@ export default function App() {
             <a className="nav-link" href="#coach">Meet Coach</a>
             <a className="nav-link" href="#pricing">Pricing</a>
           </div>
-          <button className="nav-cta" onClick={() => goFlow("upload")}>
-            Upload Your Comp Plan
+          <button className="nav-cta" onClick={() => goFlow("upload")} style={{ lineHeight: 1.2 }}>
+            Start by Uploading<br />your Comp Plan
           </button>
         </nav>
 
@@ -759,8 +759,8 @@ export default function App() {
           <p className="hero-sub">
             Coach helps salespeople understand how they get paid, build a personalized success plan, and stay focused on the actions that drive results.
           </p>
-          <button className="hero-cta" onClick={() => goFlow("upload")}>
-            Upload Your Comp Plan
+          <button className="hero-cta" onClick={() => goFlow("upload")} style={{ lineHeight: 1.2 }}>
+            Start by Uploading<br />your Comp Plan
           </button>
           <div className="hero-hint">
             <div>Upload your compensation plan. Build your plan.</div>
@@ -1482,8 +1482,8 @@ export default function App() {
               <div className="closing-line">Build a plan to exceed quota.</div>
               <div className="closing-line">Earn your carrot.</div>
             </div>
-            <button className="closing-cta" onClick={() => goFlow("upload")}>
-              Upload Your Comp Plan
+            <button className="closing-cta" onClick={() => goFlow("upload")} style={{ lineHeight: 1.2 }}>
+              Start by Uploading<br />your Comp Plan
             </button>
           </div>
         </section>
