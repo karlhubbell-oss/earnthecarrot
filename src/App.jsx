@@ -2197,6 +2197,14 @@ export default function App() {
     );
     const secH = { fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, margin: "0 0 8px" };
     const noteStyle = { fontSize: 13, color: "var(--muted)", lineHeight: 1.5, marginTop: 8 };
+    // Subtle zone tints + colored serif titles for the Coach read sections.
+    const tintThesis = { background: "var(--carrot-light)", border: "1.5px solid rgba(244,113,26,0.35)" };
+    const tintMoney = { background: "var(--green-light)", border: "1.5px solid rgba(45,106,79,0.30)" };
+    const tintPush = { background: "var(--gold-light)", border: "1.5px solid var(--gold)" };
+    const tintBlind = { background: "#FFF1F2", border: "1.5px solid #FBB6CE" };
+    const secHGreen = { ...secH, color: "var(--green)" };
+    const secHGold = { ...secH, color: "#7A5C00" };
+    const secHRose = { ...secH, color: "#9F1239" };
 
     // ── Coach's read (live narrative) ──
     const signalPill = (sig) => {
@@ -2226,14 +2234,13 @@ export default function App() {
         </div>
         <div className="cf-screen">
           <h1 className="cf-h1" style={{ marginBottom: 8 }}>Here's What Coach Found in Your Plan</h1>
-          <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.55, marginBottom: 24 }}>Review the details below. You can confirm everything or flag anything that looks off.</p>
+          <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.55, marginBottom: 18 }}>Review the details below. You can confirm everything or flag anything that looks off.</p>
+
+          <button className="cf-cta" style={{ marginBottom: 26 }} onClick={() => goFlow("confirm")}>Continue →</button>
 
           {/* Coach's read — live narrative, rendered only when loading or content exists */}
           {(coachReadLoading || hasReadContent) && (
             <div style={{ marginBottom: 26 }}>
-              <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 24, fontWeight: 900, color: "var(--ink)", marginBottom: 4, lineHeight: 1.2 }}>Here's How Coach Reads Your Plan</h2>
-              <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.5, marginBottom: 16 }}>Coach read the full plan and pulled out what actually drives your earnings.</p>
-
               {coachReadLoading ? (
                 <div className="ob-card" style={{ display: "flex", alignItems: "center", gap: 14, padding: 20, marginBottom: 0 }}>
                   <div style={{ width: 30, height: 30, borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "var(--carrot)", animation: "azspin 0.9s linear infinite", flex: "none" }} />
@@ -2242,15 +2249,15 @@ export default function App() {
               ) : (
                 <>
                   {cr.thesis ? (
-                    <div className="ob-card">
+                    <div className="ob-card" style={tintThesis}>
                       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "var(--carrot)", marginBottom: 8 }}>Coach's read</div>
                       <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, lineHeight: 1.35, color: "var(--ink)" }}>{cr.thesis}</div>
                     </div>
                   ) : null}
 
                   {crMoney.length > 0 ? (
-                    <div className="ob-card">
-                      <div style={secH}>Where your money is</div>
+                    <div className="ob-card" style={tintMoney}>
+                      <div style={secHGreen}>Where your money is</div>
                       {crMoney.map((row, i) => (
                         <div key={i} style={{ borderTop: i === 0 ? "none" : "1px solid var(--border)", paddingTop: i === 0 ? 0 : 12, marginTop: i === 0 ? 0 : 12 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
@@ -2265,15 +2272,15 @@ export default function App() {
                   ) : null}
 
                   {cr.pushing_toward ? (
-                    <div className="ob-card">
-                      <div style={secH}>What this plan is pushing you toward</div>
+                    <div className="ob-card" style={tintPush}>
+                      <div style={secHGold}>What this plan is pushing you toward</div>
                       <div style={{ fontSize: 14, color: "var(--ink)", lineHeight: 1.65 }}>{cr.pushing_toward}</div>
                     </div>
                   ) : null}
 
                   {crBlind.length > 0 ? (
-                    <div className="ob-card">
-                      <div style={secH}>Watch your blind spots</div>
+                    <div className="ob-card" style={tintBlind}>
+                      <div style={secHRose}>Watch your blind spots</div>
                       {crBlind.map((b, i) => (
                         <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: i === 0 ? 0 : 12 }}>
                           <span style={{ flex: "none", width: 8, height: 8, borderRadius: "50%", background: "#E11D48", marginTop: 6 }} />
