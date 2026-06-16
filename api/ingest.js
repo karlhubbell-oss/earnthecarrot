@@ -66,7 +66,7 @@ Rules:
    Backup signals from wording: "commission rate" plus a percent applied to revenue points to pct_of_revenue. "Target incentive" or payout tied to percent of quota points to pct_of_variable. Rates roughly in the 5 to 15 percent range usually mean revenue. A rate near 100 percent usually means target variable.
    Record the chosen basis in commission.rate_basis, a short plain explanation of the exact signal you used in commission.rate_basis_evidence, and high, medium, or low in commission.rate_basis_confidence.
 
-2. Never fabricate. Any value not clearly stated in the plan is null. For every null that affects earnings, and for anything genuinely ambiguous, add an entry to provenance.needs_clarification of the form { "field": "<field path>", "question": "<specific question to ask the rep>" }.
+2. Never fabricate. Any value not clearly stated in the plan is null. For every null that affects earnings, and for anything genuinely ambiguous, add an entry to provenance.needs_clarification of the form { "field": "<field path>", "question": "<specific question to ask the rep>" }. Every question must be written in the second person, addressed directly to the rep using "you" and "your". Never refer to "the rep" or "the representative" in a question. For example, write "What is your annual base salary for this plan year?" not "What is the rep's annual base salary?". Keep questions specific, plain, and friendly.
 
 3. Confidence. For the money critical fields (base_salary, ote, target_variable, total_quota, tiers, floor, cap, rate_basis), add an entry to provenance.field_confidence mapping the field path to high, medium, or low.
 
