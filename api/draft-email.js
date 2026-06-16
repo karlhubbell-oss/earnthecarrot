@@ -5,6 +5,7 @@ Rules:
 - Tone: the email must make the rep look sharp, engaged, and detail-oriented, like a top performer who wants to model their plan correctly. Never difficult, never like an audit or a complaint.
 - Keep it brief: a short greeting, one sentence of context such as wanting to make sure they are modeling the plan correctly, the questions as a short bulleted or numbered list, a brief thank you, and a sign off.
 - Use [Manager] as a placeholder if no manager name is given. Sign with the rep's name if provided, otherwise [Your name].
+- Never use em dashes or en dashes anywhere in the email. Do not use any dash as a pause or connector between clauses. Rewrite such moments as separate sentences or use a comma instead. Normal hyphenated words such as "on-target" or "year-end" are fine and should be left intact. The email must never look machine-written.
 - Output only the email text. You may start with a "Subject:" line. No preamble, no commentary, no markdown code fences.`;
 
 export default async function handler(req, res) {
