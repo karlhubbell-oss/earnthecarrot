@@ -53,7 +53,14 @@ export default async function handler(req, res) {
     const data = await response.json();
     if (data.error) return res.status(500).json({ ok: false, error: data.error });
 
-    const email = (data.content || []).map((b) => b.text || "").join("");
+    const rawEmail = (data.content || []).map((b) => b.text || "").join("");
+    // Safety net on top of the prompt: strip em dashes (U+2014) and en dashes
+    // (U+2013) used as punctuation, leaving regular hyphens in words untouched.
+    const email = rawEmail
+      .replace(/[—–]/g, ", ")
+      .replace(/ {2,}/g, " ")        // collapse double spaces
+      .replace(/ +,/g, ",")          // " ," -> ","
+      .replace(/,(?: *,)+/g, ",");   // ",," or ", ," -> ","
     return res.status(200).json({ ok: true, email });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err) });
