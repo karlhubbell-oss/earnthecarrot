@@ -623,6 +623,11 @@ export default function App() {
   const [planFiles, setPlanFiles] = useState([]);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const fileInputRef = useRef(null);
+  // Parsed comp plan returned by /api/ingest. Shared top-level state so
+  // downstream screens (confirm, summary, etc.) can read it later.
+  const [compPlan, setCompPlan] = useState(null);
+  const [ingesting, setIngesting] = useState(false);
+  const [ingestError, setIngestError] = useState(null);
   const [comp, setComp] = useState({ base: 150000, quota: 1500000, commissionRate: 8, accelerator: 1.5 });
   const [editField, setEditField] = useState(null);
   const [editVal, setEditVal] = useState("");
@@ -1887,6 +1892,51 @@ export default function App() {
     const fmtSize = (b) => (b < 1024 * 1024 ? Math.round(b / 1024) + " KB" : (b / 1024 / 1024).toFixed(1) + " MB");
     const addFiles = (fileList) => setUploadedFiles((prev) => [...prev, ...Array.from(fileList || [])].slice(0, 10));
     const removeFile = (i) => setUploadedFiles((prev) => prev.filter((_, j) => j !== i));
+
+    // Read a file as base64, stripping the "data:application/pdf;base64," prefix.
+    const readPdfBase64 = (file) =>
+      new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = String(reader.result || "");
+          const comma = result.indexOf(",");
+          resolve(comma >= 0 ? result.slice(comma + 1) : result);
+        };
+        reader.onerror = () => reject(reader.error || new Error("Could not read file"));
+        reader.readAsDataURL(file);
+      });
+
+    // Send the rep's comp plan PDF to the live ingestion endpoint, store the
+    // parsed plan in shared state, then advance exactly as the flow already does.
+    const reviewPlan = async () => {
+      const pdf = uploadedFiles.find(
+        (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
+      );
+      if (!pdf) {
+        setIngestError("Please add a PDF of your comp plan so Coach can read it.");
+        return;
+      }
+      setIngestError(null);
+      setIngesting(true);
+      try {
+        const pdfBase64 = await readPdfBase64(pdf);
+        const res = await fetch("/api/ingest", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ pdfBase64, filename: pdf.name }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || !data.ok) {
+          throw new Error("ingest_failed");
+        }
+        setCompPlan(data.plan);
+        setIngesting(false);
+        goFlow("confirm");
+      } catch (err) {
+        setIngesting(false);
+        setIngestError("Coach had trouble reading your plan. Please try again.");
+      }
+    };
     return (
       <div className="up-wrap">
         <style>{S}</style>
@@ -1959,8 +2009,33 @@ export default function App() {
             <div className="up-next-line"><span className="up-next-num">3</span><span>Coach shows you your full earnings analysis and real take-home numbers</span></div>
           </div>
 
-          <button className="up-cta" disabled={uploadedFiles.length === 0} onClick={() => goFlow("confirm")}>Review My Plan →</button>
+          {ingestError && (
+            <div className="up-priv" style={{ background: "#FEE2E2", borderColor: "#FCA5A5", color: "#B91C1C", marginTop: 12 }}>
+              <span>⚠️</span><span>{ingestError}</span>
+            </div>
+          )}
+
+          <button className="up-cta" disabled={uploadedFiles.length === 0 || ingesting} onClick={reviewPlan}>
+            {ingesting ? "Reading your plan..." : "Review My Plan →"}
+          </button>
         </div>
+
+        {ingesting && (
+          <div
+            style={{
+              position: "fixed", inset: 0, zIndex: 200,
+              background: "rgba(15,10,5,0.82)", backdropFilter: "blur(4px)",
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              padding: 24, textAlign: "center",
+            }}
+          >
+            <div style={{ width: 54, height: 54, borderRadius: "50%", border: "4px solid rgba(255,255,255,0.18)", borderTopColor: "#F4711A", animation: "azspin 0.9s linear infinite" }} />
+            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, fontWeight: 900, color: "white", marginTop: 22 }}>Reading your plan...</div>
+            <div style={{ fontSize: 15, color: "rgba(255,255,255,0.7)", marginTop: 10, maxWidth: 360, lineHeight: 1.5 }}>
+              Coach is reading every line of your comp plan. This can take up to a minute. Please keep this tab open.
+            </div>
+          </div>
+        )}
       </div>
     );
   }
