@@ -214,7 +214,8 @@ const planTitle = (p) => {
   return "Your plan";
 };
 
-// Collect the question strings the rep flagged for their manager, across all plans.
+// Collect the questions the rep flagged for their manager, across all plans.
+// Each item carries its question text and the plan source_quote (or null).
 const collectFlaggedQuestions = (plans, flags) => {
   const out = [];
   plans.forEach((p) => {
@@ -224,7 +225,9 @@ const collectFlaggedQuestions = (plans, flags) => {
       : [];
     qs.forEach((q, qi) => {
       const key = heading + "::" + (q && q.field ? q.field : qi);
-      if (flags[key] && q && q.question) out.push(q.question);
+      if (flags[key] && q && q.question) {
+        out.push({ question: q.question, source_quote: q.source_quote || null });
+      }
     });
   });
   return out;
@@ -1891,7 +1894,7 @@ export default function App() {
   if (screen === "manager_email") {
     const plans = compPlan ? [compPlan] : [];
     const flagged = collectFlaggedQuestions(plans, askManagerFlags);
-    const copyText = draftedEmail || flagged.map((q, i) => `${i + 1}. ${q}`).join("\n");
+    const copyText = draftedEmail || flagged.map((q, i) => `${i + 1}. ${q.question}`).join("\n");
     const doCopy = () => {
       try {
         navigator.clipboard.writeText(copyText).then(
@@ -1924,7 +1927,7 @@ export default function App() {
               <div className="cf-info">Coach could not draft the email just now. Here are the questions you flagged. You can copy these and send them to your manager.</div>
               <div className="cf-card" style={{ padding: 20 }}>
                 <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.6, fontSize: 15, color: "var(--ink)" }}>
-                  {flagged.map((q, i) => <li key={i} style={{ marginBottom: 8 }}>{q}</li>)}
+                  {flagged.map((q, i) => <li key={i} style={{ marginBottom: 8 }}>{q.question}</li>)}
                 </ul>
               </div>
             </>

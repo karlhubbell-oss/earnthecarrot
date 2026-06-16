@@ -5,6 +5,7 @@ Rules:
 - Tone: the email must make the rep look sharp, engaged, and detail-oriented, like a top performer who wants to model their plan correctly. Never difficult, never like an audit or a complaint.
 - Keep it brief: a short greeting, one sentence of context such as wanting to make sure they are modeling the plan correctly, the questions as a short bulleted or numbered list, a brief thank you, and a sign off.
 - Use [Manager] as a placeholder if no manager name is given. Sign with the rep's name if provided, otherwise [Your name].
+- When a question includes a quote of what the plan says (a "Plan says:" line), briefly reference that exact plan language before asking the question, so the manager sees the specific wording being asked about. Frame it naturally, for example noting that the plan states a particular thing and asking the manager to confirm. Keep the quoted language short and woven into the sentence, never dumped as a block. If a question has no source quote, just ask it plainly as before.
 - Never use em dashes or en dashes anywhere in the email. Do not use any dash as a pause or connector between clauses. Rewrite such moments as separate sentences or use a comma instead. Normal hyphenated words such as "on-target" or "year-end" are fine and should be left intact. The email must never look machine-written.
 - Output only the email text. You may start with a "Subject:" line. No preamble, no commentary, no markdown code fences.`;
 
@@ -27,7 +28,13 @@ export default async function handler(req, res) {
     if (planYear) lines.push(`Plan year: ${planYear}`);
     lines.push("");
     lines.push("Clarifying questions (originally addressed to the rep):");
-    questions.forEach((q, i) => lines.push(`${i + 1}. ${q}`));
+    questions.forEach((q, i) => {
+      // Each question is { question, source_quote }. Tolerate plain strings too.
+      const text = q && typeof q === "object" ? (q.question || "") : String(q);
+      const quote = q && typeof q === "object" ? q.source_quote : null;
+      lines.push(`${i + 1}. ${text}`);
+      if (quote) lines.push(`   Plan says: "${quote}"`);
+    });
     const userText = lines.join("\n");
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
