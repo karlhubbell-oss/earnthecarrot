@@ -1824,6 +1824,12 @@ export default function App() {
                       return (
                         <div className="cf-q" key={qi}>
                           <div className="cf-q-label">{q && q.question ? q.question : "Can you confirm this detail?"}</div>
+                          {q && q.source_quote ? (
+                            <div style={{ borderLeft: "3px solid var(--carrot)", padding: "6px 12px", margin: "8px 0 12px", background: "var(--carrot-light)", borderRadius: "0 8px 8px 0" }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--carrot-dark)", marginBottom: 3 }}>Your plan says:</div>
+                              <div style={{ fontSize: 13, fontStyle: "italic", color: "var(--muted)", lineHeight: 1.5 }}>{q.source_quote}</div>
+                            </div>
+                          ) : null}
                           <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
                             <input
                               className="ob-inp"

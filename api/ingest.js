@@ -66,7 +66,12 @@ Rules:
    Backup signals from wording: "commission rate" plus a percent applied to revenue points to pct_of_revenue. "Target incentive" or payout tied to percent of quota points to pct_of_variable. Rates roughly in the 5 to 15 percent range usually mean revenue. A rate near 100 percent usually means target variable.
    Record the chosen basis in commission.rate_basis, a short plain explanation of the exact signal you used in commission.rate_basis_evidence, and high, medium, or low in commission.rate_basis_confidence.
 
-2. Never fabricate. Any value not clearly stated in the plan is null. For every null that affects earnings, and for anything genuinely ambiguous, add an entry to provenance.needs_clarification of the form { "field": "<field path>", "question": "<specific question to ask the rep>" }. Every question must be written in the second person, addressed directly to the rep using "you" and "your". Never refer to "the rep" or "the representative" in a question. For example, write "What is your annual base salary for this plan year?" not "What is the rep's annual base salary?". Keep questions specific, plain, and friendly.
+2. Never fabricate. Any value not clearly stated in the plan is null. For every null that affects earnings, and for anything genuinely ambiguous, add an entry to provenance.needs_clarification of the form { "field": "<field path>", "question": "<specific question to ask the rep>", "source_quote": "<exact text from the plan, or null>" }. Every question must be written in the second person, addressed directly to the rep using "you" and "your". Never refer to "the rep" or "the representative" in a question. For example, write "What is your annual base salary for this plan year?" not "What is the rep's annual base salary?". Keep questions specific, plain, and friendly.
+   source_quote rules:
+   - source_quote is the exact text from the plan that the question relates to, copied verbatim from the document.
+   - Keep it short: a single sentence or a brief phrase. Never quote a whole paragraph.
+   - It must be exact text from the plan. Never paraphrase, summarize, or invent it.
+   - If the question is about something the plan does not mention at all, so there is no relevant text to quote, set source_quote to null.
 
 3. Confidence. For the money critical fields (base_salary, ote, target_variable, total_quota, tiers, floor, cap, rate_basis), add an entry to provenance.field_confidence mapping the field path to high, medium, or low.
 
