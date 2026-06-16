@@ -2043,14 +2043,22 @@ export default function App() {
     const tiers = Array.isArray(commission.tiers) ? commission.tiers : [];
     const floor = commission.floor || {};
     const cap = commission.cap || {};
-    let floorText = null;
-    if (floor.type === "threshold") floorText = `No commission below ${floor.attainment_pct}% attainment.`;
-    else if (floor.type && floor.type !== "none") floorText = `Floor: ${floor.type}${isMissing(floor.attainment_pct) ? "" : ` at ${floor.attainment_pct}%`}.`;
-    else if (floor.type === "none") floorText = "No floor.";
-    let capText = null;
-    if (cap.type === "hard") capText = `Earnings cap at ${cap.attainment_pct}% attainment.`;
-    else if (cap.type && cap.type !== "none") capText = `Cap: ${cap.type}${isMissing(cap.attainment_pct) ? "" : ` at ${cap.attainment_pct}%`}.`;
-    else if (cap.type === "none") capText = "No cap.";
+    // Floor: never render "null"; fall back to "not specified" and flag it.
+    const floorComplete = floor.type === "none" || (!isMissing(floor.type) && !isMissing(floor.attainment_pct));
+    let floorText;
+    if (floor.type === "none") floorText = "No floor.";
+    else if (floor.type === "threshold" && !isMissing(floor.attainment_pct)) floorText = `No commission below ${floor.attainment_pct}% attainment.`;
+    else if (!isMissing(floor.type) && !isMissing(floor.attainment_pct)) floorText = `${floor.type} at ${floor.attainment_pct}%`;
+    else floorText = "not specified";
+    const floorKind = floorComplete ? (fc["commission.floor"] === "low" ? "assumed" : null) : "needs";
+
+    const capComplete = cap.type === "none" || (!isMissing(cap.type) && !isMissing(cap.attainment_pct));
+    let capText;
+    if (cap.type === "none") capText = "No cap.";
+    else if (cap.type === "hard" && !isMissing(cap.attainment_pct)) capText = `Earnings cap at ${cap.attainment_pct}% attainment.`;
+    else if (!isMissing(cap.type) && !isMissing(cap.attainment_pct)) capText = `${cap.type} at ${cap.attainment_pct}%`;
+    else capText = "not specified";
+    const capKind = capComplete ? (fc["commission.cap"] === "low" ? "assumed" : null) : "needs";
     const calcText = commission.calculation === "marginal"
       ? "Marginal: each rate applies only to the dollars within its band."
       : commission.calculation === "retroactive"
@@ -2058,6 +2066,10 @@ export default function App() {
         : null;
 
     const components = Array.isArray(quota.components) ? quota.components : [];
+    // Tiers/accelerators may live at the component level instead of plan level.
+    const hasComponentCommission = components.some(
+      (c) => c && c.commission && ((Array.isArray(c.commission.tiers) && c.commission.tiers.length > 0) || c.commission.rate_basis)
+    );
     const secH = { fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, margin: "0 0 8px" };
     const noteStyle = { fontSize: 13, color: "var(--muted)", lineHeight: 1.5, marginTop: 8 };
 
@@ -2125,11 +2137,9 @@ export default function App() {
 
             <div style={{ marginTop: 14 }}>
               <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--muted)", marginBottom: 6 }}>
-                Tiers {tagEl(tiers.length === 0 ? "needs" : (fc["commission.tiers"] === "low" ? "assumed" : null))}
+                Tiers {tagEl(tiers.length > 0 ? (fc["commission.tiers"] === "low" ? "assumed" : null) : (hasComponentCommission ? null : "needs"))}
               </div>
-              {tiers.length === 0 ? (
-                <div style={{ fontSize: 14, fontStyle: "italic", color: "var(--muted)" }}>No tiers found.</div>
-              ) : (
+              {tiers.length > 0 ? (
                 tiers.map((t, i) => {
                   const range = isMissing(t.to_attainment_pct) ? `${t.from_attainment_pct}% and above` : `${t.from_attainment_pct}% to ${t.to_attainment_pct}%`;
                   return (
@@ -2139,12 +2149,16 @@ export default function App() {
                     </div>
                   );
                 })
+              ) : hasComponentCommission ? (
+                <div style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.5 }}>Tier and accelerator detail is shown per quota component above.</div>
+              ) : (
+                <div style={{ fontSize: 14, fontStyle: "italic", color: "var(--muted)" }}>No tiers found.</div>
               )}
             </div>
 
             <div style={{ marginTop: 12 }}>
-              <div style={noteStyle}><b>Floor:</b> {floorText || <span style={{ fontStyle: "italic" }}>not specified</span>} {tagEl(isMissing(floor.type) ? "needs" : (fc["commission.floor"] === "low" ? "assumed" : null))}</div>
-              <div style={noteStyle}><b>Cap:</b> {capText || <span style={{ fontStyle: "italic" }}>not specified</span>} {tagEl(isMissing(cap.type) ? "needs" : (fc["commission.cap"] === "low" ? "assumed" : null))}</div>
+              <div style={noteStyle}><b>Floor:</b> {floorComplete ? floorText : <span style={{ fontStyle: "italic" }}>{floorText}</span>} {tagEl(floorKind)}</div>
+              <div style={noteStyle}><b>Cap:</b> {capComplete ? capText : <span style={{ fontStyle: "italic" }}>{capText}</span>} {tagEl(capKind)}</div>
               <div style={noteStyle}><b>Calculation:</b> {calcText || <span style={{ fontStyle: "italic" }}>not specified</span>} {tagEl(isMissing(commission.calculation) ? "needs" : (fc["commission.calculation"] === "low" ? "assumed" : null))}</div>
             </div>
           </div>
@@ -2156,12 +2170,33 @@ export default function App() {
             {spiffs.length === 0 ? (
               <div style={{ fontSize: 14, fontStyle: "italic", color: "var(--muted)", marginBottom: 6 }}>None found.</div>
             ) : (
-              spiffs.map((s, i) => (
-                <div key={i} style={{ borderTop: i === 0 ? "none" : "1px solid var(--border)", paddingTop: i === 0 ? 0 : 10, marginTop: i === 0 ? 0 : 10, marginBottom: 6 }}>
-                  <div style={{ fontWeight: 700, color: "var(--ink)" }}>{s.name || `SPIFF ${i + 1}`}{s.payout ? ` · ${s.payout}` : ""}</div>
-                  {s.trigger ? <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.5, marginTop: 2 }}>{s.trigger}</div> : null}
-                </div>
-              ))
+              spiffs.map((s, i) => {
+                const wrap = { borderTop: i === 0 ? "none" : "1px solid var(--border)", paddingTop: i === 0 ? 0 : 10, marginTop: i === 0 ? 0 : 10, marginBottom: 6 };
+                if (typeof s === "string") {
+                  return <div key={i} style={wrap}><div style={{ fontWeight: 700, color: "var(--ink)" }}>{s}</div></div>;
+                }
+                const sp = s || {};
+                const name = sp.name || sp.title || `SPIFF ${i + 1}`;
+                // Show full detail: gather every other primitive field, friendly fields first.
+                const order = ["amount", "payout", "value", "condition", "trigger", "criteria", "requirement", "description", "notes", "detail", "limit", "cap", "frequency", "payout_timing", "clawback"];
+                const seen = new Set(["name", "title"]);
+                const parts = [];
+                const pushKey = (k) => {
+                  if (seen.has(k)) return;
+                  seen.add(k);
+                  const v = sp[k];
+                  if (!isMissing(v) && (typeof v === "string" || typeof v === "number")) parts.push(String(v));
+                };
+                order.forEach(pushKey);
+                Object.keys(sp).forEach(pushKey);
+                const detail = parts.join(" · ");
+                return (
+                  <div key={i} style={wrap}>
+                    <div style={{ fontWeight: 700, color: "var(--ink)" }}>{name}</div>
+                    {detail ? <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.5, marginTop: 2 }}>{detail}</div> : null}
+                  </div>
+                );
+              })
             )}
             <div style={{ marginTop: 12 }}>
               {Row("Draw", other.draw && (other.draw.type === "none" ? "No draw" : (other.draw.type || other.draw.amount)), "other_terms.draw", (v) => (other.draw && other.draw.type !== "none" && !isMissing(other.draw.amount)) ? `${other.draw.type} · ${fmt(other.draw.amount)}` : v)}
