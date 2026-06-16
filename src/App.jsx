@@ -628,6 +628,8 @@ export default function App() {
   const [compPlan, setCompPlan] = useState(null);
   const [ingesting, setIngesting] = useState(false);
   const [ingestError, setIngestError] = useState(null);
+  // Rep's typed answers to clarification questions, keyed by "<source file>::<field>".
+  const [clarificationAnswers, setClarificationAnswers] = useState({});
   const [comp, setComp] = useState({ base: 150000, quota: 1500000, commissionRate: 8, accelerator: 1.5 });
   const [editField, setEditField] = useState(null);
   const [editVal, setEditVal] = useState("");
@@ -1609,6 +1611,96 @@ export default function App() {
     return <CompSummaryScreen onContinue={() => goFlow("real_pay_motivation")} />;
   }
 
+  // ══ PLAN CLARIFICATION ═══════════════════════════════════════════════
+  if (screen === "plan_clarification") {
+    // Treat plans as a list so this extends to multiple plans later.
+    const plans = compPlan ? [compPlan] : [];
+    const planTitle = (p) => {
+      const sf = p && p.provenance && p.provenance.source_files;
+      if (Array.isArray(sf) && sf.length > 0 && sf[0]) return sf[0];
+      if (p && p.meta && p.meta.plan_name) return p.meta.plan_name;
+      return "Your plan";
+    };
+
+    // Null / missing plan: friendly message back to upload, never crash.
+    if (plans.length === 0) {
+      return (
+        <div className="cf-wrap">
+          <style>{S}</style>
+          <style>{OB_STYLES}</style>
+          <div className="cf-top">
+            <button className="ob-back" onClick={() => goFlow("upload")}>← Back</button>
+            <div className="cf-step">Step 2 of 7</div>
+          </div>
+          <div className="cf-screen">
+            <h1 className="cf-h1" style={{ marginBottom: 8 }}>Let's Make Sure Coach Got This Right</h1>
+            <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.55, marginBottom: 24 }}>Coach read your files. Confirm a few details so your numbers are exactly right.</p>
+            <div className="cf-info">Coach does not have a plan to review yet. Head back and upload your comp plan so Coach can read it.</div>
+            <button className="cf-cta" onClick={() => goFlow("upload")}>Back to upload →</button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="cf-wrap">
+        <style>{S}</style>
+        <style>{OB_STYLES}</style>
+        <div className="cf-top">
+          <button className="ob-back" onClick={() => goFlow("upload")}>← Back</button>
+          <div className="cf-step">Step 2 of 7</div>
+        </div>
+        <div className="cf-screen">
+          <h1 className="cf-h1" style={{ marginBottom: 8 }}>Let's Make Sure Coach Got This Right</h1>
+          <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.55, marginBottom: 24 }}>Coach read your files. Confirm a few details so your numbers are exactly right.</p>
+
+          {plans.map((p, idx) => {
+            const heading = planTitle(p);
+            const questions = Array.isArray(p && p.provenance && p.provenance.needs_clarification)
+              ? p.provenance.needs_clarification
+              : [];
+            return (
+              <div className="cf-card" key={idx}>
+                <div className="cf-card-hdr">
+                  <div className="cf-card-title"><span>📄 {heading}</span></div>
+                </div>
+
+                {questions.length === 0 ? (
+                  <div className="cf-q">
+                    <div className="cf-q-label" style={{ color: "var(--green)" }}>✓ Makes sense, nothing to clarify here.</div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="cf-q">
+                      <div className="cf-q-hint">Coach read this and has a few things to confirm.</div>
+                    </div>
+                    {questions.map((q, qi) => {
+                      const key = heading + "::" + (q && q.field ? q.field : qi);
+                      return (
+                        <div className="cf-q" key={qi}>
+                          <div className="cf-q-label">{q && q.question ? q.question : "Can you confirm this detail?"}</div>
+                          <input
+                            className="ob-inp"
+                            type="text"
+                            value={clarificationAnswers[key] || ""}
+                            onChange={(e) => setClarificationAnswers((prev) => ({ ...prev, [key]: e.target.value }))}
+                            placeholder="Your answer"
+                          />
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+            );
+          })}
+
+          <button className="cf-cta" onClick={() => goFlow("confirm")}>Continue →</button>
+        </div>
+      </div>
+    );
+  }
+
   // ══ CONFIRM (deduction questions) ════════════════════════════════════
   if (screen === "confirm") {
     const intendedK = grossAt100 * k401Pct / 100;
@@ -1628,8 +1720,8 @@ export default function App() {
         <style>{S}</style>
         <style>{OB_STYLES}</style>
         <div className="cf-top">
-          <button className="ob-back" onClick={() => goFlow("upload")}>← Back</button>
-          <div className="cf-step">Step 2 of 6</div>
+          <button className="ob-back" onClick={() => goFlow("plan_clarification")}>← Back</button>
+          <div className="cf-step">Step 3 of 7</div>
         </div>
         <div className="cf-screen">
           <h1 className="cf-h1">Help Coach Understand Your True Take-Home Pay</h1>
@@ -1721,7 +1813,7 @@ export default function App() {
         <style>{OB_STYLES}</style>
         <div className="cf-top" style={{ background: "rgba(15,10,5,0.9)", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
           <button className="ob-back" onClick={() => goFlow("real_pay_motivation")}>← Back</button>
-          <div className="cf-step" style={{ color: "rgba(255,255,255,0.6)" }}>Step 6 of 6</div>
+          <div className="cf-step" style={{ color: "rgba(255,255,255,0.6)" }}>Step 7 of 7</div>
         </div>
         <div className="ca-screen">
           <div className="ca-callout">
@@ -1931,7 +2023,7 @@ export default function App() {
         }
         setCompPlan(data.plan);
         setIngesting(false);
-        goFlow("confirm");
+        goFlow("plan_clarification");
       } catch (err) {
         setIngesting(false);
         setIngestError("Coach had trouble reading your plan. Please try again.");
@@ -1943,7 +2035,7 @@ export default function App() {
         <style>{OB_STYLES}</style>
         <div className="cf-top">
           <button className="ob-back" onClick={() => goFlow("landing")}>← Back</button>
-          <div className="cf-step">Step 1 of 6</div>
+          <div className="cf-step">Step 1 of 7</div>
         </div>
         <div className="up-screen">
           <h1 className="up-h1">Upload Your Files for Coach to Review</h1>
@@ -2514,7 +2606,7 @@ function CompSummaryScreen({ onContinue }) {
 
         {/* HEADER */}
         <div className="page-header">
-          <div className="page-eyebrow">Step 2 of 6 · Comp Plan Review</div>
+          <div className="page-eyebrow">Step 4 of 7 · Comp Plan Review</div>
           <h1 className="page-title">Here's What Coach <span>Found</span></h1>
           <p className="page-sub">We read your plan and did two things. We pulled out every number, and decoded what leadership is actually trying to get you to do.</p>
         </div>
