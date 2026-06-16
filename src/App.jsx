@@ -667,6 +667,15 @@ export default function App() {
   const [draftedEmail, setDraftedEmail] = useState("");
   const [emailError, setEmailError] = useState(false);
   const [emailCopied, setEmailCopied] = useState(false);
+  // Inline corrections the rep makes on the plan summary, keyed by field path.
+  // Append-only: compPlan itself is never mutated.
+  const [planEdits, setPlanEdits] = useState({});
+  const [editPath, setEditPath] = useState(null);
+  const [editDraft, setEditDraft] = useState("");
+  // Effective value for a field path: the rep's edit if present, else the original.
+  // Available to any screen so downstream can read corrected values too.
+  const effectivePlanValue = (path, original) =>
+    (path && Object.prototype.hasOwnProperty.call(planEdits, path)) ? planEdits[path] : original;
   const [comp, setComp] = useState({ base: 150000, quota: 1500000, commissionRate: 8, accelerator: 1.5 });
   const [editField, setEditField] = useState(null);
   const [editVal, setEditVal] = useState("");
@@ -2001,17 +2010,75 @@ export default function App() {
         }}>{needs ? "Needs confirming" : "Coach assumed"}</span>
       );
     };
-    // raw = underlying value (for missing/confidence), path = field_confidence key.
-    const Row = (label, raw, path, fmtFn) => {
-      const missing = isMissing(raw);
+    // ── inline editing helpers ──
+    const hasEdit = (path) => Object.prototype.hasOwnProperty.call(planEdits, path);
+    const editedMarker = <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, color: "var(--green)", whiteSpace: "nowrap" }}>✓ edited by you</span>;
+    const beginPlanEdit = (path, startVal) => { setEditPath(path); setEditDraft(startVal === null || startVal === undefined ? "" : String(startVal)); };
+    const cancelPlanEdit = () => { setEditPath(null); setEditDraft(""); };
+    const commitPlanEdit = (path, isNum) => {
+      let v;
+      if (isNum) { const n = parseFloat(editDraft); v = (editDraft === "" || isNaN(n)) ? null : n; }
+      else { v = editDraft; }
+      setPlanEdits((prev) => ({ ...prev, [path]: v }));
+      setEditPath(null); setEditDraft("");
+    };
+    const pencilBtn = (path, startVal) => (
+      <button type="button" onClick={() => beginPlanEdit(path, startVal)} aria-label="Edit value" title="Edit"
+        style={{ marginLeft: 6, border: "1px solid var(--border)", background: "white", borderRadius: 8, cursor: "pointer", padding: "2px 5px", lineHeight: 0, verticalAlign: "middle", flex: "none" }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--carrot)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+      </button>
+    );
+    const editBox = (path, isNum) => (
+      <span className="cf-edit" style={{ display: "inline-flex", width: "100%", marginTop: 0 }}>
+        <input className="cf-einp" type={isNum ? "number" : "text"} autoFocus value={editDraft}
+          onChange={(e) => setEditDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") commitPlanEdit(path, isNum); else if (e.key === "Escape") cancelPlanEdit(); }} />
+        <button type="button" className="cf-save" onClick={() => commitPlanEdit(path, isNum)}>✓</button>
+        <button type="button" className="cf-cancel" onClick={cancelPlanEdit}>✕</button>
+      </span>
+    );
+    // Editable ob-stat row. type: "money" | "percent" | "text".
+    const eRow = (label, original, path, type) => {
+      const isNum = type === "money" || type === "percent";
+      const effective = effectivePlanValue(path, original);
+      const edited = hasEdit(path);
+      const missing = isMissing(effective);
+      if (editPath === path) {
+        return (
+          <div className="ob-stat" key={label} style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}>
+            <div className="ob-stat-lbl">{label}</div>
+            {editBox(path, isNum)}
+          </div>
+        );
+      }
       const kind = missing ? "needs" : (path && fc[path] === "low" ? "assumed" : null);
       const display = missing
-        ? <span style={{ fontStyle: "italic", color: "var(--muted)" }}>Not specified</span>
-        : (fmtFn ? fmtFn(raw) : raw);
+        ? <span style={{ fontStyle: "italic", color: "var(--muted)" }}>not specified</span>
+        : (type === "money" && typeof effective === "number" ? fmt(effective) : effective);
       return (
         <div className="ob-stat" key={label}>
           <div className="ob-stat-lbl">{label}</div>
-          <div className="ob-stat-val">{display}{tagEl(kind)}</div>
+          <div className="ob-stat-val" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end", gap: 4 }}>
+            {display}{pencilBtn(path, missing ? "" : effective)}{edited ? editedMarker : tagEl(kind)}
+          </div>
+        </div>
+      );
+    };
+    // Editable noteStyle line (Floor / Cap / Calculation). Carries its own tag kind.
+    const eNote = (label, original, path, tagKind) => {
+      const effective = effectivePlanValue(path, original);
+      const edited = hasEdit(path);
+      const missing = isMissing(effective);
+      return (
+        <div style={noteStyle} key={label}>
+          <b>{label}:</b>{" "}
+          {editPath === path ? editBox(path, false) : (
+            <>
+              {missing ? <span style={{ fontStyle: "italic" }}>not specified</span> : effective}
+              {pencilBtn(path, missing ? "" : effective)}
+              {edited ? editedMarker : tagEl(tagKind)}
+            </>
+          )}
         </div>
       );
     };
@@ -2049,7 +2116,7 @@ export default function App() {
     if (floor.type === "none") floorText = "No floor.";
     else if (floor.type === "threshold" && !isMissing(floor.attainment_pct)) floorText = `No commission below ${floor.attainment_pct}% attainment.`;
     else if (!isMissing(floor.type) && !isMissing(floor.attainment_pct)) floorText = `${floor.type} at ${floor.attainment_pct}%`;
-    else floorText = "not specified";
+    else floorText = null;
     const floorKind = floorComplete ? (fc["commission.floor"] === "low" ? "assumed" : null) : "needs";
 
     const capComplete = cap.type === "none" || (!isMissing(cap.type) && !isMissing(cap.attainment_pct));
@@ -2057,13 +2124,23 @@ export default function App() {
     if (cap.type === "none") capText = "No cap.";
     else if (cap.type === "hard" && !isMissing(cap.attainment_pct)) capText = `Earnings cap at ${cap.attainment_pct}% attainment.`;
     else if (!isMissing(cap.type) && !isMissing(cap.attainment_pct)) capText = `${cap.type} at ${cap.attainment_pct}%`;
-    else capText = "not specified";
+    else capText = null;
     const capKind = capComplete ? (fc["commission.cap"] === "low" ? "assumed" : null) : "needs";
     const calcText = commission.calculation === "marginal"
       ? "Marginal: each rate applies only to the dollars within its band."
       : commission.calculation === "retroactive"
         ? "Retroactive: reaching a tier lifts the rate on the whole amount."
         : null;
+    const calcKind = isMissing(commission.calculation) ? "needs" : (fc["commission.calculation"] === "low" ? "assumed" : null);
+
+    // Draw display string for the Extras section.
+    let drawText = null;
+    if (other.draw) {
+      if (other.draw.type === "none") drawText = "No draw.";
+      else if (!isMissing(other.draw.type) && !isMissing(other.draw.amount)) drawText = `${other.draw.type} · ${fmt(other.draw.amount)}`;
+      else if (!isMissing(other.draw.type)) drawText = other.draw.type;
+      else if (!isMissing(other.draw.amount)) drawText = fmt(other.draw.amount);
+    }
 
     const components = Array.isArray(quota.components) ? quota.components : [];
     // Tiers/accelerators may live at the component level instead of plan level.
@@ -2088,26 +2165,26 @@ export default function App() {
           {/* 1. The basics */}
           <div className="ob-card">
             <div style={secH}>The basics</div>
-            {Row("Name", meta.rep_name, "meta.rep_name")}
-            {Row("Role", meta.rep_role, "meta.rep_role")}
-            {Row("Plan name", meta.plan_name, "meta.plan_name")}
-            {Row("Plan period", periodStr, "meta.plan_period")}
+            {eRow("Name", meta.rep_name, "meta.rep_name", "text")}
+            {eRow("Role", meta.rep_role, "meta.rep_role", "text")}
+            {eRow("Plan name", meta.plan_name, "meta.plan_name", "text")}
+            {eRow("Plan period", periodStr, "meta.plan_period", "text")}
           </div>
 
           {/* 2. Your pay */}
           <div className="ob-card">
             <div style={secH}>Your pay</div>
-            {Row("Base salary", pay.base_salary && pay.base_salary.amount, "pay.base_salary", fmt)}
-            {Row("On-target earnings", pay.ote && pay.ote.amount, "pay.ote", fmt)}
-            {Row("Target variable", pay.target_variable && pay.target_variable.amount, "pay.target_variable", fmt)}
-            {Row("Pay mix", payMix, "pay.pay_mix")}
+            {eRow("Base salary", pay.base_salary && pay.base_salary.amount, "pay.base_salary", "money")}
+            {eRow("On-target earnings", pay.ote && pay.ote.amount, "pay.ote", "money")}
+            {eRow("Target variable", pay.target_variable && pay.target_variable.amount, "pay.target_variable", "money")}
+            {eRow("Pay mix", payMix, "pay.pay_mix", "text")}
           </div>
 
           {/* 3. Your quota */}
           <div className="ob-card">
             <div style={secH}>Your quota</div>
-            {Row("Total quota", quota.total_quota && quota.total_quota.amount, "quota.total_quota", fmt)}
-            {Row("Quota period", quota.total_quota && quota.total_quota.period, "quota.total_quota.period")}
+            {eRow("Total quota", quota.total_quota && quota.total_quota.amount, "quota.total_quota", "money")}
+            {eRow("Quota period", quota.total_quota && quota.total_quota.period, "quota.total_quota.period", "text")}
             {components.length > 0 && (
               <div style={{ marginTop: 14 }}>
                 {components.map((c, i) => (
@@ -2157,9 +2234,9 @@ export default function App() {
             </div>
 
             <div style={{ marginTop: 12 }}>
-              <div style={noteStyle}><b>Floor:</b> {floorComplete ? floorText : <span style={{ fontStyle: "italic" }}>{floorText}</span>} {tagEl(floorKind)}</div>
-              <div style={noteStyle}><b>Cap:</b> {capComplete ? capText : <span style={{ fontStyle: "italic" }}>{capText}</span>} {tagEl(capKind)}</div>
-              <div style={noteStyle}><b>Calculation:</b> {calcText || <span style={{ fontStyle: "italic" }}>not specified</span>} {tagEl(isMissing(commission.calculation) ? "needs" : (fc["commission.calculation"] === "low" ? "assumed" : null))}</div>
+              {eNote("Floor", floorText, "commission.floor", floorKind)}
+              {eNote("Cap", capText, "commission.cap", capKind)}
+              {eNote("Calculation", calcText, "commission.calculation", calcKind)}
             </div>
           </div>
 
@@ -2199,9 +2276,9 @@ export default function App() {
               })
             )}
             <div style={{ marginTop: 12 }}>
-              {Row("Draw", other.draw && (other.draw.type === "none" ? "No draw" : (other.draw.type || other.draw.amount)), "other_terms.draw", (v) => (other.draw && other.draw.type !== "none" && !isMissing(other.draw.amount)) ? `${other.draw.type} · ${fmt(other.draw.amount)}` : v)}
-              {Row("Payout frequency", other.payout_frequency, "other_terms.payout_frequency")}
-              {Row("Clawback", other.clawback_terms, "other_terms.clawback_terms")}
+              {eRow("Draw", drawText, "other_terms.draw", "text")}
+              {eRow("Payout frequency", other.payout_frequency, "other_terms.payout_frequency", "text")}
+              {eRow("Clawback", other.clawback_terms, "other_terms.clawback_terms", "text")}
             </div>
           </div>
 
