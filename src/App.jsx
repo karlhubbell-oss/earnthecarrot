@@ -630,6 +630,9 @@ export default function App() {
   const [ingestError, setIngestError] = useState(null);
   // Rep's typed answers to clarification questions, keyed by "<source file>::<field>".
   const [clarificationAnswers, setClarificationAnswers] = useState({});
+  // Which clarification input is currently dictating (its answer key), or null.
+  const [listeningKey, setListeningKey] = useState(null);
+  const recognitionRef = useRef(null);
   const [comp, setComp] = useState({ base: 150000, quota: 1500000, commissionRate: 8, accelerator: 1.5 });
   const [editField, setEditField] = useState(null);
   const [editVal, setEditVal] = useState("");
@@ -727,6 +730,15 @@ export default function App() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Stop any active dictation when leaving the plan clarification screen.
+  useEffect(() => {
+    if (screen !== "plan_clarification" && recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch {}
+      recognitionRef.current = null;
+      setListeningKey(null);
+    }
+  }, [screen]);
 
   useEffect(() => {
     window.history.replaceState({ screen: "landing" }, "");
@@ -1642,6 +1654,59 @@ export default function App() {
       );
     }
 
+    // Web Speech API dictation. Only expose the mic when the browser supports it.
+    const SpeechRecognition =
+      typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    const speechSupported = !!SpeechRecognition;
+
+    const toggleDictation = (key) => {
+      if (!speechSupported) return;
+      // Tapping the active mic stops it.
+      if (listeningKey === key) {
+        try { recognitionRef.current && recognitionRef.current.stop(); } catch {}
+        return;
+      }
+      // Starting a new mic stops any other that is active, so only one listens at once.
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch {}
+        recognitionRef.current = null;
+      }
+      let rec;
+      try {
+        rec = new SpeechRecognition();
+      } catch {
+        setListeningKey(null);
+        return;
+      }
+      rec.lang = "en-US";
+      rec.continuous = true;
+      rec.interimResults = true;
+      const baseText = clarificationAnswers[key] || "";
+      rec.onresult = (e) => {
+        let transcript = "";
+        for (let i = 0; i < e.results.length; i++) transcript += e.results[i][0].transcript;
+        const combined = baseText ? baseText.replace(/\s*$/, "") + " " + transcript : transcript;
+        setClarificationAnswers((prev) => ({ ...prev, [key]: combined }));
+      };
+      // Fail quietly on permission denial or any error: drop back to the text input.
+      rec.onerror = () => {
+        if (recognitionRef.current === rec) recognitionRef.current = null;
+        setListeningKey((cur) => (cur === key ? null : cur));
+      };
+      rec.onend = () => {
+        if (recognitionRef.current === rec) recognitionRef.current = null;
+        setListeningKey((cur) => (cur === key ? null : cur));
+      };
+      recognitionRef.current = rec;
+      setListeningKey(key);
+      try {
+        rec.start();
+      } catch {
+        recognitionRef.current = null;
+        setListeningKey(null);
+      }
+    };
+
     return (
       <div className="cf-wrap">
         <style>{S}</style>
@@ -1653,6 +1718,7 @@ export default function App() {
         <div className="cf-screen">
           <h1 className="cf-h1" style={{ marginBottom: 8 }}>Let's Make Sure Coach Got This Right</h1>
           <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.55, marginBottom: 24 }}>Coach read your files. Confirm a few details so your numbers are exactly right.</p>
+          <style>{`@keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(244,113,26,0.5);}50%{box-shadow:0 0 0 6px rgba(244,113,26,0);}}`}</style>
 
           {plans.map((p, idx) => {
             const heading = planTitle(p);
@@ -1679,13 +1745,40 @@ export default function App() {
                       return (
                         <div className="cf-q" key={qi}>
                           <div className="cf-q-label">{q && q.question ? q.question : "Can you confirm this detail?"}</div>
-                          <input
-                            className="ob-inp"
-                            type="text"
-                            value={clarificationAnswers[key] || ""}
-                            onChange={(e) => setClarificationAnswers((prev) => ({ ...prev, [key]: e.target.value }))}
-                            placeholder="Your answer"
-                          />
+                          <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+                            <input
+                              className="ob-inp"
+                              style={{ flex: 1, minWidth: 0 }}
+                              type="text"
+                              value={clarificationAnswers[key] || ""}
+                              onChange={(e) => setClarificationAnswers((prev) => ({ ...prev, [key]: e.target.value }))}
+                              placeholder="Your answer"
+                            />
+                            {speechSupported && (
+                              <button
+                                type="button"
+                                onClick={() => toggleDictation(key)}
+                                aria-label={listeningKey === key ? "Stop dictation" : "Dictate your answer"}
+                                title={listeningKey === key ? "Stop dictation" : "Dictate your answer"}
+                                style={{
+                                  flex: "none",
+                                  width: 50,
+                                  borderRadius: 12,
+                                  cursor: "pointer",
+                                  fontSize: 18,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  border: listeningKey === key ? "1.5px solid var(--carrot)" : "1.5px solid var(--border)",
+                                  background: listeningKey === key ? "var(--carrot)" : "white",
+                                  color: listeningKey === key ? "white" : "var(--muted)",
+                                  animation: listeningKey === key ? "micpulse 1.2s ease-in-out infinite" : "none",
+                                }}
+                              >
+                                🎤
+                              </button>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
