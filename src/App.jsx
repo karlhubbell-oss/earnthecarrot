@@ -676,6 +676,10 @@ export default function App() {
   // Available to any screen so downstream can read corrected values too.
   const effectivePlanValue = (path, original) =>
     (path && Object.prototype.hasOwnProperty.call(planEdits, path)) ? planEdits[path] : original;
+  // Coach's narrative read of the plan (plan_summary), fetched once per loaded plan.
+  const [coachRead, setCoachRead] = useState(null);
+  const [coachReadLoading, setCoachReadLoading] = useState(false);
+  const coachReadForRef = useRef(null);
   const [comp, setComp] = useState({ base: 150000, quota: 1500000, commissionRate: 8, accelerator: 1.5 });
   const [editField, setEditField] = useState(null);
   const [editVal, setEditVal] = useState("");
@@ -836,6 +840,33 @@ export default function App() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  // Fetch Coach's read once per loaded plan when the plan summary screen opens.
+  useEffect(() => {
+    if (screen !== "plan_summary" || !compPlan) return;
+    if (coachReadForRef.current === compPlan) return; // already fetched for this plan
+    coachReadForRef.current = compPlan;
+    let cancelled = false;
+    setCoachRead(null);
+    setCoachReadLoading(true);
+    fetch("/api/coach-read", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ plan: compPlan }),
+    })
+      .then((r) => r.json().catch(() => null))
+      .then((data) => {
+        if (cancelled) return;
+        setCoachRead(data && data.ok && data.read ? data.read : null);
+        setCoachReadLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCoachRead(null);
+        setCoachReadLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [screen, compPlan]);
 
   if (screen === "landing") {
     return (
@@ -2167,6 +2198,24 @@ export default function App() {
     const secH = { fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, margin: "0 0 8px" };
     const noteStyle = { fontSize: 13, color: "var(--muted)", lineHeight: 1.5, marginTop: 8 };
 
+    // ── Coach's read (live narrative) ──
+    const signalPill = (sig) => {
+      if (!sig) return null;
+      const green = sig === "highest" || sig === "uncapped" || sig === "steady";
+      return (
+        <span style={{
+          fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 100, textTransform: "capitalize", whiteSpace: "nowrap",
+          background: green ? "var(--green-light)" : "#FFE4E6",
+          color: green ? "var(--green)" : "#9F1239",
+          border: green ? "1px solid #A7D6B5" : "1px solid #FBB6CE",
+        }}>{sig}</span>
+      );
+    };
+    const cr = coachRead || {};
+    const crMoney = Array.isArray(cr.where_money_is) ? cr.where_money_is : [];
+    const crBlind = Array.isArray(cr.blind_spots) ? cr.blind_spots : [];
+    const hasReadContent = !!(cr.thesis || crMoney.length || cr.pushing_toward || crBlind.length || cr.bridge);
+
     return (
       <div className="cf-wrap">
         <style>{S}</style>
@@ -2178,6 +2227,74 @@ export default function App() {
         <div className="cf-screen">
           <h1 className="cf-h1" style={{ marginBottom: 8 }}>Here's What Coach Found in Your Plan</h1>
           <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.55, marginBottom: 24 }}>Review the details below. You can confirm everything or flag anything that looks off.</p>
+
+          {/* Coach's read — live narrative, rendered only when loading or content exists */}
+          {(coachReadLoading || hasReadContent) && (
+            <div style={{ marginBottom: 26 }}>
+              <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 24, fontWeight: 900, color: "var(--ink)", marginBottom: 4, lineHeight: 1.2 }}>Here's How Coach Reads Your Plan</h2>
+              <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.5, marginBottom: 16 }}>Coach read the full plan and pulled out what actually drives your earnings.</p>
+
+              {coachReadLoading ? (
+                <div className="ob-card" style={{ display: "flex", alignItems: "center", gap: 14, padding: 20, marginBottom: 0 }}>
+                  <div style={{ width: 30, height: 30, borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "var(--carrot)", animation: "azspin 0.9s linear infinite", flex: "none" }} />
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>Coach is reading your plan...</div>
+                </div>
+              ) : (
+                <>
+                  {cr.thesis ? (
+                    <div className="ob-card">
+                      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "var(--carrot)", marginBottom: 8 }}>Coach's read</div>
+                      <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, lineHeight: 1.35, color: "var(--ink)" }}>{cr.thesis}</div>
+                    </div>
+                  ) : null}
+
+                  {crMoney.length > 0 ? (
+                    <div className="ob-card">
+                      <div style={secH}>Where your money is</div>
+                      {crMoney.map((row, i) => (
+                        <div key={i} style={{ borderTop: i === 0 ? "none" : "1px solid var(--border)", paddingTop: i === 0 ? 0 : 12, marginTop: i === 0 ? 0 : 12 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                            <div style={{ fontWeight: 700, color: "var(--ink)" }}>{row.name}</div>
+                            {signalPill(row.signal)}
+                          </div>
+                          {row.detail ? <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.5, marginTop: 2 }}>{row.detail}</div> : null}
+                          {row.rate ? <div style={{ fontSize: 14, fontWeight: 700, color: "var(--carrot-dark)", marginTop: 2 }}>{row.rate}</div> : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {cr.pushing_toward ? (
+                    <div className="ob-card">
+                      <div style={secH}>What this plan is pushing you toward</div>
+                      <div style={{ fontSize: 14, color: "var(--ink)", lineHeight: 1.65 }}>{cr.pushing_toward}</div>
+                    </div>
+                  ) : null}
+
+                  {crBlind.length > 0 ? (
+                    <div className="ob-card">
+                      <div style={secH}>Watch your blind spots</div>
+                      {crBlind.map((b, i) => (
+                        <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: i === 0 ? 0 : 12 }}>
+                          <span style={{ flex: "none", width: 8, height: 8, borderRadius: "50%", background: "#E11D48", marginTop: 6 }} />
+                          <div>
+                            {b.title ? <div style={{ fontWeight: 700, color: "var(--ink)" }}>{b.title}</div> : null}
+                            {b.body ? <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.5, marginTop: 2 }}>{b.body}</div> : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {cr.bridge ? (
+                    <div style={{ background: "var(--green-light)", border: "1.5px solid var(--green)", borderRadius: 16, padding: 18, marginBottom: 16 }}>
+                      <div style={{ fontSize: 14, color: "#1B4332", lineHeight: 1.6 }}>{cr.bridge}</div>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
+          )}
 
           {/* 1. The basics */}
           <div className="ob-card">
