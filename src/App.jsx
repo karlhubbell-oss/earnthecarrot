@@ -2013,33 +2013,50 @@ export default function App() {
     // ── inline editing helpers ──
     const hasEdit = (path) => Object.prototype.hasOwnProperty.call(planEdits, path);
     const editedMarker = <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, color: "var(--green)", whiteSpace: "nowrap" }}>✓ edited by you</span>;
-    const beginPlanEdit = (path, startVal) => { setEditPath(path); setEditDraft(startVal === null || startVal === undefined ? "" : String(startVal)); };
+    // Money input helpers: live thousands separators while typing.
+    const formatThousands = (str) => {
+      let s = String(str == null ? "" : str).replace(/[^\d.]/g, "");
+      const dot = s.indexOf(".");
+      if (dot !== -1) s = s.slice(0, dot + 1) + s.slice(dot + 1).replace(/\./g, ""); // keep only first decimal point
+      if (s === "") return "";
+      const [intPart, decPart] = s.split(".");
+      const intFmt = intPart === "" ? "" : Number(intPart).toLocaleString("en-US");
+      return s.indexOf(".") !== -1 ? `${intFmt || "0"}.${decPart === undefined ? "" : decPart}` : intFmt;
+    };
+    const parseMoney = (str) => {
+      const cleaned = String(str).replace(/[^\d.]/g, "");
+      if (cleaned === "" || cleaned === ".") return null;
+      const n = parseFloat(cleaned);
+      return isNaN(n) ? null : n;
+    };
+    const beginPlanEdit = (path, startVal, mode) => {
+      setEditPath(path);
+      setEditDraft(mode === "money" ? formatThousands(startVal) : (startVal === null || startVal === undefined ? "" : String(startVal)));
+    };
     const cancelPlanEdit = () => { setEditPath(null); setEditDraft(""); };
-    const commitPlanEdit = (path, isNum) => {
-      let v;
-      if (isNum) { const n = parseFloat(editDraft); v = (editDraft === "" || isNaN(n)) ? null : n; }
-      else { v = editDraft; }
+    const commitPlanEdit = (path, mode) => {
+      const v = mode === "money" ? parseMoney(editDraft) : editDraft;
       setPlanEdits((prev) => ({ ...prev, [path]: v }));
       setEditPath(null); setEditDraft("");
     };
-    const pencilBtn = (path, startVal) => (
-      <button type="button" onClick={() => beginPlanEdit(path, startVal)} aria-label="Edit value" title="Edit"
+    const pencilBtn = (path, startVal, mode) => (
+      <button type="button" onClick={() => beginPlanEdit(path, startVal, mode)} aria-label="Edit value" title="Edit"
         style={{ marginLeft: 6, border: "1px solid var(--border)", background: "white", borderRadius: 8, cursor: "pointer", padding: "2px 5px", lineHeight: 0, verticalAlign: "middle", flex: "none" }}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--carrot)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
       </button>
     );
-    const editBox = (path, isNum) => (
+    const editBox = (path, mode) => (
       <span className="cf-edit" style={{ display: "inline-flex", width: "100%", marginTop: 0 }}>
-        <input className="cf-einp" type={isNum ? "number" : "text"} autoFocus value={editDraft}
-          onChange={(e) => setEditDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") commitPlanEdit(path, isNum); else if (e.key === "Escape") cancelPlanEdit(); }} />
-        <button type="button" className="cf-save" onClick={() => commitPlanEdit(path, isNum)}>✓</button>
+        <input className="cf-einp" type="text" inputMode={mode === "money" ? "decimal" : "text"} autoFocus value={editDraft}
+          onChange={(e) => setEditDraft(mode === "money" ? formatThousands(e.target.value) : e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") commitPlanEdit(path, mode); else if (e.key === "Escape") cancelPlanEdit(); }} />
+        <button type="button" className="cf-save" onClick={() => commitPlanEdit(path, mode)}>✓</button>
         <button type="button" className="cf-cancel" onClick={cancelPlanEdit}>✕</button>
       </span>
     );
     // Editable ob-stat row. type: "money" | "percent" | "text".
     const eRow = (label, original, path, type) => {
-      const isNum = type === "money" || type === "percent";
+      const mode = type === "money" ? "money" : "text";
       const effective = effectivePlanValue(path, original);
       const edited = hasEdit(path);
       const missing = isMissing(effective);
@@ -2047,7 +2064,7 @@ export default function App() {
         return (
           <div className="ob-stat" key={label} style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}>
             <div className="ob-stat-lbl">{label}</div>
-            {editBox(path, isNum)}
+            {editBox(path, mode)}
           </div>
         );
       }
@@ -2059,7 +2076,7 @@ export default function App() {
         <div className="ob-stat" key={label}>
           <div className="ob-stat-lbl">{label}</div>
           <div className="ob-stat-val" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end", gap: 4 }}>
-            {display}{pencilBtn(path, missing ? "" : effective)}{edited ? editedMarker : tagEl(kind)}
+            {display}{pencilBtn(path, missing ? "" : effective, mode)}{edited ? editedMarker : tagEl(kind)}
           </div>
         </div>
       );
@@ -2072,10 +2089,10 @@ export default function App() {
       return (
         <div style={noteStyle} key={label}>
           <b>{label}:</b>{" "}
-          {editPath === path ? editBox(path, false) : (
+          {editPath === path ? editBox(path, "text") : (
             <>
               {missing ? <span style={{ fontStyle: "italic" }}>not specified</span> : effective}
-              {pencilBtn(path, missing ? "" : effective)}
+              {pencilBtn(path, missing ? "" : effective, "text")}
               {edited ? editedMarker : tagEl(tagKind)}
             </>
           )}
