@@ -1785,7 +1785,7 @@ export default function App() {
     // Finalize: if any question is flagged, draft a manager email; otherwise continue.
     const flaggedCount = collectFlaggedQuestions(plans, askManagerFlags).length;
     const finalizeLabel = flaggedCount > 0 ? "Save & Draft Manager Email" : "Save & Continue";
-    const finalize = () => goFlow(flaggedCount > 0 ? "manager_email" : "confirm");
+    const finalize = () => goFlow(flaggedCount > 0 ? "manager_email" : "plan_summary");
 
     return (
       <div className="cf-wrap">
@@ -1951,8 +1951,226 @@ export default function App() {
             >
               {emailCopied ? "✓ Copied" : "Copy email"}
             </button>
-            <button className="cf-cta" style={{ flex: 1, marginTop: 0 }} onClick={() => goFlow("confirm")}>Continue →</button>
+            <button className="cf-cta" style={{ flex: 1, marginTop: 0 }} onClick={() => goFlow("plan_summary")}>Continue →</button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ══ PLAN SUMMARY ═════════════════════════════════════════════════════
+  if (screen === "plan_summary") {
+    // Null / missing plan: friendly message back to upload, never crash.
+    if (!compPlan) {
+      return (
+        <div className="cf-wrap">
+          <style>{S}</style>
+          <style>{OB_STYLES}</style>
+          <div className="cf-top">
+            <button className="ob-back" onClick={() => goFlow("upload")}>← Back</button>
+            <div className="cf-step">Plan Summary</div>
+          </div>
+          <div className="cf-screen">
+            <h1 className="cf-h1" style={{ marginBottom: 8 }}>Here's What Coach Found in Your Plan</h1>
+            <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.55, marginBottom: 24 }}>Review the details below. You can confirm everything or flag anything that looks off.</p>
+            <div className="cf-info">Coach does not have a plan to review yet. Head back and upload your comp plan so Coach can read it.</div>
+            <button className="cf-cta" onClick={() => goFlow("upload")}>Back to upload →</button>
+          </div>
+        </div>
+      );
+    }
+
+    const meta = compPlan.meta || {};
+    const pay = compPlan.pay || {};
+    const quota = compPlan.quota || {};
+    const commission = compPlan.commission || {};
+    const spiffs = Array.isArray(compPlan.spiffs) ? compPlan.spiffs : [];
+    const other = compPlan.other_terms || {};
+    const fc = (compPlan.provenance && compPlan.provenance.field_confidence) || {};
+
+    const isMissing = (v) => v === null || v === undefined || v === "";
+    const tagEl = (kind) => {
+      if (!kind) return null;
+      const needs = kind === "needs";
+      return (
+        <span style={{
+          marginLeft: 8, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 100, whiteSpace: "nowrap",
+          background: needs ? "#FEE2E2" : "var(--gold-light)",
+          color: needs ? "#B91C1C" : "#7A5C00",
+          border: needs ? "1px solid #FCA5A5" : "1px solid var(--gold)",
+        }}>{needs ? "Needs confirming" : "Coach assumed"}</span>
+      );
+    };
+    // raw = underlying value (for missing/confidence), path = field_confidence key.
+    const Row = (label, raw, path, fmtFn) => {
+      const missing = isMissing(raw);
+      const kind = missing ? "needs" : (path && fc[path] === "low" ? "assumed" : null);
+      const display = missing
+        ? <span style={{ fontStyle: "italic", color: "var(--muted)" }}>Not specified</span>
+        : (fmtFn ? fmtFn(raw) : raw);
+      return (
+        <div className="ob-stat" key={label}>
+          <div className="ob-stat-lbl">{label}</div>
+          <div className="ob-stat-val">{display}{tagEl(kind)}</div>
+        </div>
+      );
+    };
+    const pct = (r) => isMissing(r) ? "?" : (Math.round(r * 1000) / 10) + "%";
+
+    // Plan period as a readable string.
+    let periodStr = null;
+    const pp = meta.plan_period;
+    if (pp) {
+      if (typeof pp === "string") periodStr = pp;
+      else {
+        const parts = [];
+        if (pp.type) parts.push(pp.type);
+        if (pp.start_date && pp.end_date) parts.push(`${pp.start_date} to ${pp.end_date}`);
+        else if (pp.start_date) parts.push(`from ${pp.start_date}`);
+        periodStr = parts.length ? parts.join(" · ") : null;
+      }
+    }
+    const payMix = (pay.pay_mix && (!isMissing(pay.pay_mix.base_pct) || !isMissing(pay.pay_mix.variable_pct)))
+      ? `${isMissing(pay.pay_mix.base_pct) ? "?" : pay.pay_mix.base_pct}% base / ${isMissing(pay.pay_mix.variable_pct) ? "?" : pay.pay_mix.variable_pct}% variable`
+      : null;
+
+    const basisText = {
+      pct_of_revenue: "Pays a percentage of the revenue you book.",
+      pct_of_variable: "Pays a percentage of your target variable, based on the percent of quota you attain.",
+      dollar_per_unit: "Pays a fixed dollar amount per deal or unit.",
+    }[commission.rate_basis] || null;
+
+    const tiers = Array.isArray(commission.tiers) ? commission.tiers : [];
+    const floor = commission.floor || {};
+    const cap = commission.cap || {};
+    let floorText = null;
+    if (floor.type === "threshold") floorText = `No commission below ${floor.attainment_pct}% attainment.`;
+    else if (floor.type && floor.type !== "none") floorText = `Floor: ${floor.type}${isMissing(floor.attainment_pct) ? "" : ` at ${floor.attainment_pct}%`}.`;
+    else if (floor.type === "none") floorText = "No floor.";
+    let capText = null;
+    if (cap.type === "hard") capText = `Earnings cap at ${cap.attainment_pct}% attainment.`;
+    else if (cap.type && cap.type !== "none") capText = `Cap: ${cap.type}${isMissing(cap.attainment_pct) ? "" : ` at ${cap.attainment_pct}%`}.`;
+    else if (cap.type === "none") capText = "No cap.";
+    const calcText = commission.calculation === "marginal"
+      ? "Marginal: each rate applies only to the dollars within its band."
+      : commission.calculation === "retroactive"
+        ? "Retroactive: reaching a tier lifts the rate on the whole amount."
+        : null;
+
+    const components = Array.isArray(quota.components) ? quota.components : [];
+    const secH = { fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, margin: "0 0 8px" };
+    const noteStyle = { fontSize: 13, color: "var(--muted)", lineHeight: 1.5, marginTop: 8 };
+
+    return (
+      <div className="cf-wrap">
+        <style>{S}</style>
+        <style>{OB_STYLES}</style>
+        <div className="cf-top">
+          <button className="ob-back" onClick={() => goFlow("plan_clarification")}>← Back</button>
+          <div className="cf-step">Plan Summary</div>
+        </div>
+        <div className="cf-screen">
+          <h1 className="cf-h1" style={{ marginBottom: 8 }}>Here's What Coach Found in Your Plan</h1>
+          <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.55, marginBottom: 24 }}>Review the details below. You can confirm everything or flag anything that looks off.</p>
+
+          {/* 1. The basics */}
+          <div className="ob-card">
+            <div style={secH}>The basics</div>
+            {Row("Name", meta.rep_name, "meta.rep_name")}
+            {Row("Role", meta.rep_role, "meta.rep_role")}
+            {Row("Plan name", meta.plan_name, "meta.plan_name")}
+            {Row("Plan period", periodStr, "meta.plan_period")}
+          </div>
+
+          {/* 2. Your pay */}
+          <div className="ob-card">
+            <div style={secH}>Your pay</div>
+            {Row("Base salary", pay.base_salary && pay.base_salary.amount, "pay.base_salary", fmt)}
+            {Row("On-target earnings", pay.ote && pay.ote.amount, "pay.ote", fmt)}
+            {Row("Target variable", pay.target_variable && pay.target_variable.amount, "pay.target_variable", fmt)}
+            {Row("Pay mix", payMix, "pay.pay_mix")}
+          </div>
+
+          {/* 3. Your quota */}
+          <div className="ob-card">
+            <div style={secH}>Your quota</div>
+            {Row("Total quota", quota.total_quota && quota.total_quota.amount, "quota.total_quota", fmt)}
+            {Row("Quota period", quota.total_quota && quota.total_quota.period, "quota.total_quota.period")}
+            {components.length > 0 && (
+              <div style={{ marginTop: 14 }}>
+                {components.map((c, i) => (
+                  <div key={i} style={{ borderTop: "1px solid var(--border)", paddingTop: 12, marginTop: 12 }}>
+                    <div style={{ fontWeight: 700, color: "var(--ink)", marginBottom: 4 }}>{c.name || `Component ${i + 1}`}</div>
+                    <div style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.6 }}>
+                      {isMissing(c.weight_pct) ? "Weight not specified" : `Weight: ${c.weight_pct}%`}
+                      {isMissing(c.quota_amount) ? "" : ` · Quota: ${fmt(c.quota_amount)}`}
+                      <br />
+                      {c.commission && Array.isArray(c.commission.tiers) && c.commission.tiers.length > 0
+                        ? `Commission: ${c.commission.tiers.map((t) => pct(t.rate)).join(", ")}`
+                        : "Commission: uses the plan commission below"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 4. How you get paid */}
+          <div className="ob-card">
+            <div style={secH}>How you get paid</div>
+            <div style={{ fontSize: 15, color: "var(--ink)", lineHeight: 1.6, display: "flex", alignItems: "flex-start", flexWrap: "wrap" }}>
+              <span>{basisText || <span style={{ fontStyle: "italic", color: "var(--muted)" }}>Rate basis not specified</span>}</span>
+              {tagEl(isMissing(commission.rate_basis) ? "needs" : (fc["commission.rate_basis"] === "low" ? "assumed" : null))}
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--muted)", marginBottom: 6 }}>
+                Tiers {tagEl(tiers.length === 0 ? "needs" : (fc["commission.tiers"] === "low" ? "assumed" : null))}
+              </div>
+              {tiers.length === 0 ? (
+                <div style={{ fontSize: 14, fontStyle: "italic", color: "var(--muted)" }}>No tiers found.</div>
+              ) : (
+                tiers.map((t, i) => {
+                  const range = isMissing(t.to_attainment_pct) ? `${t.from_attainment_pct}% and above` : `${t.from_attainment_pct}% to ${t.to_attainment_pct}%`;
+                  return (
+                    <div className="ob-stat" key={i}>
+                      <div className="ob-stat-lbl">{range}{t.label ? ` · ${t.label}` : ""}</div>
+                      <div className="ob-stat-val">{pct(t.rate)}</div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div style={{ marginTop: 12 }}>
+              <div style={noteStyle}><b>Floor:</b> {floorText || <span style={{ fontStyle: "italic" }}>not specified</span>} {tagEl(isMissing(floor.type) ? "needs" : (fc["commission.floor"] === "low" ? "assumed" : null))}</div>
+              <div style={noteStyle}><b>Cap:</b> {capText || <span style={{ fontStyle: "italic" }}>not specified</span>} {tagEl(isMissing(cap.type) ? "needs" : (fc["commission.cap"] === "low" ? "assumed" : null))}</div>
+              <div style={noteStyle}><b>Calculation:</b> {calcText || <span style={{ fontStyle: "italic" }}>not specified</span>} {tagEl(isMissing(commission.calculation) ? "needs" : (fc["commission.calculation"] === "low" ? "assumed" : null))}</div>
+            </div>
+          </div>
+
+          {/* 5. Extras */}
+          <div className="ob-card">
+            <div style={secH}>Extras</div>
+            <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--muted)", marginBottom: 6 }}>SPIFFs</div>
+            {spiffs.length === 0 ? (
+              <div style={{ fontSize: 14, fontStyle: "italic", color: "var(--muted)", marginBottom: 6 }}>None found.</div>
+            ) : (
+              spiffs.map((s, i) => (
+                <div key={i} style={{ borderTop: i === 0 ? "none" : "1px solid var(--border)", paddingTop: i === 0 ? 0 : 10, marginTop: i === 0 ? 0 : 10, marginBottom: 6 }}>
+                  <div style={{ fontWeight: 700, color: "var(--ink)" }}>{s.name || `SPIFF ${i + 1}`}{s.payout ? ` · ${s.payout}` : ""}</div>
+                  {s.trigger ? <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.5, marginTop: 2 }}>{s.trigger}</div> : null}
+                </div>
+              ))
+            )}
+            <div style={{ marginTop: 12 }}>
+              {Row("Draw", other.draw && (other.draw.type === "none" ? "No draw" : (other.draw.type || other.draw.amount)), "other_terms.draw", (v) => (other.draw && other.draw.type !== "none" && !isMissing(other.draw.amount)) ? `${other.draw.type} · ${fmt(other.draw.amount)}` : v)}
+              {Row("Payout frequency", other.payout_frequency, "other_terms.payout_frequency")}
+              {Row("Clawback", other.clawback_terms, "other_terms.clawback_terms")}
+            </div>
+          </div>
+
+          <button className="cf-cta" onClick={() => goFlow("confirm")}>Continue →</button>
         </div>
       </div>
     );
