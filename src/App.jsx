@@ -206,6 +206,30 @@ function getFedBracket(income) {
 }
 const fmt = (n) => "$" + Math.round(n || 0).toLocaleString();
 
+// Display title for a parsed plan: source file name, then plan_name, then a fallback.
+const planTitle = (p) => {
+  const sf = p && p.provenance && p.provenance.source_files;
+  if (Array.isArray(sf) && sf.length > 0 && sf[0]) return sf[0];
+  if (p && p.meta && p.meta.plan_name) return p.meta.plan_name;
+  return "Your plan";
+};
+
+// Collect the question strings the rep flagged for their manager, across all plans.
+const collectFlaggedQuestions = (plans, flags) => {
+  const out = [];
+  plans.forEach((p) => {
+    const heading = planTitle(p);
+    const qs = Array.isArray(p && p.provenance && p.provenance.needs_clarification)
+      ? p.provenance.needs_clarification
+      : [];
+    qs.forEach((q, qi) => {
+      const key = heading + "::" + (q && q.field ? q.field : qi);
+      if (flags[key] && q && q.question) out.push(q.question);
+    });
+  });
+  return out;
+};
+
 const FLOW = ["confirm", "summary", "real_pay_motivation", "create_account", "build_strategy"];
 const FLOW_LABELS = ["Confirm", "Summary", "Real Pay", "Account", "Strategy"];
 const DASH_TABS = [
@@ -633,6 +657,13 @@ export default function App() {
   // Which clarification input is currently dictating (its answer key), or null.
   const [listeningKey, setListeningKey] = useState(null);
   const recognitionRef = useRef(null);
+  // Questions the rep flagged to ask their manager, keyed like clarificationAnswers.
+  const [askManagerFlags, setAskManagerFlags] = useState({});
+  // Manager email drafting state (manager_email screen).
+  const [emailDrafting, setEmailDrafting] = useState(false);
+  const [draftedEmail, setDraftedEmail] = useState("");
+  const [emailError, setEmailError] = useState(false);
+  const [emailCopied, setEmailCopied] = useState(false);
   const [comp, setComp] = useState({ base: 150000, quota: 1500000, commissionRate: 8, accelerator: 1.5 });
   const [editField, setEditField] = useState(null);
   const [editVal, setEditVal] = useState("");
@@ -738,6 +769,53 @@ export default function App() {
       recognitionRef.current = null;
       setListeningKey(null);
     }
+  }, [screen]);
+
+  // When the manager email screen opens, draft the email from the flagged questions.
+  useEffect(() => {
+    if (screen !== "manager_email") return;
+    const plans = compPlan ? [compPlan] : [];
+    const flagged = collectFlaggedQuestions(plans, askManagerFlags);
+    setDraftedEmail("");
+    setEmailError(false);
+    setEmailCopied(false);
+    if (flagged.length === 0) { setEmailDrafting(false); return; }
+
+    const meta = (compPlan && compPlan.meta) || {};
+    // planYear derives from plan_period (an object); use its start year if present.
+    const pp = meta.plan_period || null;
+    let planYear = null;
+    if (pp) {
+      if (typeof pp === "string") planYear = pp;
+      else if (pp.start_date) planYear = String(pp.start_date).slice(0, 4);
+      else if (pp.type) planYear = pp.type;
+    }
+
+    let cancelled = false;
+    setEmailDrafting(true);
+    fetch("/api/draft-email", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        questions: flagged,
+        repName: meta.rep_name || null,
+        planName: meta.plan_name || null,
+        planYear,
+      }),
+    })
+      .then((r) => r.json().catch(() => null))
+      .then((data) => {
+        if (cancelled) return;
+        if (data && data.ok && data.email) setDraftedEmail(data.email);
+        else setEmailError(true);
+        setEmailDrafting(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setEmailError(true);
+        setEmailDrafting(false);
+      });
+    return () => { cancelled = true; };
   }, [screen]);
 
   useEffect(() => {
@@ -1627,12 +1705,6 @@ export default function App() {
   if (screen === "plan_clarification") {
     // Treat plans as a list so this extends to multiple plans later.
     const plans = compPlan ? [compPlan] : [];
-    const planTitle = (p) => {
-      const sf = p && p.provenance && p.provenance.source_files;
-      if (Array.isArray(sf) && sf.length > 0 && sf[0]) return sf[0];
-      if (p && p.meta && p.meta.plan_name) return p.meta.plan_name;
-      return "Your plan";
-    };
 
     // Null / missing plan: friendly message back to upload, never crash.
     if (plans.length === 0) {
@@ -1707,6 +1779,11 @@ export default function App() {
       }
     };
 
+    // Finalize: if any question is flagged, draft a manager email; otherwise continue.
+    const flaggedCount = collectFlaggedQuestions(plans, askManagerFlags).length;
+    const finalizeLabel = flaggedCount > 0 ? "Save & Draft Manager Email" : "Save & Continue";
+    const finalize = () => goFlow(flaggedCount > 0 ? "manager_email" : "confirm");
+
     return (
       <div className="cf-wrap">
         <style>{S}</style>
@@ -1719,6 +1796,8 @@ export default function App() {
           <h1 className="cf-h1" style={{ marginBottom: 8 }}>Let's Make Sure Coach Got This Right</h1>
           <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.55, marginBottom: 24 }}>Coach read your files. Confirm a few details so your numbers are exactly right.</p>
           <style>{`@keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(244,113,26,0.5);}50%{box-shadow:0 0 0 6px rgba(244,113,26,0);}}`}</style>
+
+          <button className="cf-cta" style={{ marginBottom: 20 }} onClick={finalize}>{finalizeLabel}</button>
 
           {plans.map((p, idx) => {
             const heading = planTitle(p);
@@ -1779,6 +1858,14 @@ export default function App() {
                               </button>
                             )}
                           </div>
+                          <button
+                            type="button"
+                            className={`bs-opt ${askManagerFlags[key] ? "on" : ""}`}
+                            style={{ marginTop: 10, fontSize: 13 }}
+                            onClick={() => setAskManagerFlags((prev) => ({ ...prev, [key]: !prev[key] }))}
+                          >
+                            {askManagerFlags[key] ? "✓ Flagged to ask your manager" : "🚩 Ask your manager about this"}
+                          </button>
                         </div>
                       );
                     })}
@@ -1788,7 +1875,75 @@ export default function App() {
             );
           })}
 
-          <button className="cf-cta" onClick={() => goFlow("confirm")}>Continue →</button>
+          <button className="cf-cta" onClick={finalize}>{finalizeLabel}</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ══ MANAGER EMAIL ════════════════════════════════════════════════════
+  if (screen === "manager_email") {
+    const plans = compPlan ? [compPlan] : [];
+    const flagged = collectFlaggedQuestions(plans, askManagerFlags);
+    const copyText = draftedEmail || flagged.map((q, i) => `${i + 1}. ${q}`).join("\n");
+    const doCopy = () => {
+      try {
+        navigator.clipboard.writeText(copyText).then(
+          () => { setEmailCopied(true); setTimeout(() => setEmailCopied(false), 2000); },
+          () => {}
+        );
+      } catch {}
+    };
+
+    return (
+      <div className="cf-wrap">
+        <style>{S}</style>
+        <style>{OB_STYLES}</style>
+        <style>{`@keyframes azspin{to{transform:rotate(360deg);}}`}</style>
+        <div className="cf-top">
+          <button className="ob-back" onClick={() => goFlow("plan_clarification")}>← Back to questions</button>
+          <div className="cf-step">Manager Email</div>
+        </div>
+        <div className="cf-screen">
+          <h1 className="cf-h1" style={{ marginBottom: 8 }}>Here's your email to send your manager</h1>
+          <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.55, marginBottom: 24 }}>A quick, professional note to confirm the details you flagged. Copy it, tweak anything, and send.</p>
+
+          {emailDrafting ? (
+            <div className="cf-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, padding: 36 }}>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", border: "4px solid var(--border)", borderTopColor: "var(--carrot)", animation: "azspin 0.9s linear infinite" }} />
+              <div style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)" }}>Drafting your email...</div>
+            </div>
+          ) : emailError ? (
+            <>
+              <div className="cf-info">Coach could not draft the email just now. Here are the questions you flagged. You can copy these and send them to your manager.</div>
+              <div className="cf-card" style={{ padding: 20 }}>
+                <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.6, fontSize: 15, color: "var(--ink)" }}>
+                  {flagged.map((q, i) => <li key={i} style={{ marginBottom: 8 }}>{q}</li>)}
+                </ul>
+              </div>
+            </>
+          ) : (
+            <div className="cf-card" style={{ padding: 20, whiteSpace: "pre-wrap", fontSize: 15, lineHeight: 1.6, color: "var(--ink)" }}>
+              {draftedEmail}
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
+            <button
+              type="button"
+              onClick={doCopy}
+              style={{
+                flex: "none", padding: "14px 22px", borderRadius: 100, cursor: "pointer",
+                fontFamily: "'DM Sans',sans-serif", fontSize: 16, fontWeight: 700,
+                border: "1.5px solid var(--carrot)",
+                background: emailCopied ? "var(--green-light)" : "white",
+                color: emailCopied ? "var(--green)" : "var(--carrot)",
+              }}
+            >
+              {emailCopied ? "✓ Copied" : "Copy email"}
+            </button>
+            <button className="cf-cta" style={{ flex: 1, marginTop: 0 }} onClick={() => goFlow("confirm")}>Continue →</button>
+          </div>
         </div>
       </div>
     );
