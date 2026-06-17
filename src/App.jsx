@@ -1199,7 +1199,8 @@ export default function App() {
     const removeBtn = { background: "none", border: "none", color: "var(--muted)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: "4px 6px", textDecoration: "underline", flex: "none" };
     const keepBtn = { background: "white", border: "1.5px solid var(--border)", color: "var(--muted)", borderRadius: 100, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" };
     const confirmRemoveBtn = { background: "#FEE2E2", border: "1px solid #FCA5A5", color: "#B91C1C", borderRadius: 100, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" };
-    const FolderIcon = <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5Z" /></svg>;
+    const actionPrimary = { background: "var(--carrot)", color: "white", border: "none", borderRadius: 100, padding: "10px 18px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" };
+    const actionSecondary = { background: "white", color: "var(--carrot)", border: "1.5px solid var(--carrot)", borderRadius: 100, padding: "10px 18px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" };
     // Removing a document clears the current plan and all state learned from it.
     const removePlan = () => {
       setCompPlan(null);
@@ -1212,6 +1213,26 @@ export default function App() {
       setDocRemoveIdx(null);
       goFlow("comp_dashboard");
     };
+
+    // Derive the structured fields for the current plan's document(s).
+    const meta = (compPlan && compPlan.meta) || {};
+    const pp = meta.plan_period || null;
+    let planYear = "Year not stated";
+    const yearMatch = String((pp && (pp.start_date || pp.end_date)) || (typeof pp === "string" ? pp : "")).match(/\d{4}/);
+    if (yearMatch) planYear = "FY" + yearMatch[0];
+    const description = meta.plan_name || (meta.rep_role ? `${meta.rep_role} Comp Plan` : "Comp plan");
+    const now = new Date();
+    const dateLoaded = `${MONTHS[now.getMonth()].slice(0, 3)} ${now.getDate()}, ${now.getFullYear()}`;
+    // Plan Year is its own field so we can sort or filter on it later.
+    const docs = sf.map((name) => ({ name, dateLoaded, planYear, description }));
+
+    const field = (label, value, grow) => (
+      <div style={{ flex: grow ? "1 1 200px" : "0 0 auto", minWidth: grow ? 160 : 110 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--muted)", marginBottom: 3 }}>{label}</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)", wordBreak: "break-word" }}>{value}</div>
+      </div>
+    );
+
     return (
       <div className="hb-wrap">
         <style>{S}</style>
@@ -1222,21 +1243,26 @@ export default function App() {
           <h1 className="hb-h1" style={{ marginTop: 12 }}>Loaded Documents</h1>
           <p className="hb-sub">The files Coach has read for this plan. Full document history is coming soon.</p>
 
+          <div style={{ fontSize: 14, color: "#7A5C00", background: "var(--gold-light)", border: "1px solid var(--gold)", borderRadius: 12, padding: "12px 16px", marginBottom: 18, lineHeight: 1.5, maxWidth: 820 }}>For each file, confirm what Coach understood, then see what Coach thinks. If anything looks off, flag it to your manager.</div>
+
           <button style={{ ...orangePill, marginBottom: 22 }} onClick={() => goFlow("upload")}>Add a document</button>
 
-          {sf.length === 0 ? (
+          {docs.length === 0 ? (
             <div style={{ fontSize: 15, color: "var(--muted)", fontStyle: "italic" }}>No documents on file yet. Drop in your comp plan and Coach will read it.</div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 680 }}>
-              {sf.map((name, i) => (
-                <div key={i} style={{ background: "white", border: "1.5px solid var(--border)", borderRadius: 14, padding: "16px 18px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                    {FolderIcon}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, wordBreak: "break-word" }}>{name}</div>
-                      <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 2 }}>Read by Coach{prov.parse_engine ? ` · ${prov.parse_engine}` : ""}</div>
-                    </div>
-                    <span style={readyPill}>Ready</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 900 }}>
+              {docs.map((doc, i) => (
+                <div key={i} style={{ background: "white", border: "1.5px solid var(--border)", borderRadius: 14, padding: "18px 20px" }}>
+                  <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-start" }}>
+                    {field("Date loaded", doc.dateLoaded)}
+                    {field("File name", doc.name, true)}
+                    {field("Plan year", doc.planYear)}
+                    {field("Description", doc.description, true)}
+                  </div>
+                  <div style={{ marginTop: 16, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    <button style={actionPrimary} onClick={() => goFlow("plan_summary")}>Confirm Coach's Understanding</button>
+                    <button style={actionSecondary} onClick={() => goFlow("coach_take")}>What Coach Thinks of This File</button>
+                    <div style={{ flex: "1 1 0", minWidth: 8 }} />
                     {docRemoveIdx !== i && <button style={removeBtn} onClick={() => setDocRemoveIdx(i)}>Remove</button>}
                   </div>
                   {docRemoveIdx === i && (
