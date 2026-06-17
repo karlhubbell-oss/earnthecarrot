@@ -636,6 +636,68 @@ select.ob-inp{appearance:none;cursor:pointer;background-image:url("data:image/sv
 @media(max-width:480px){.ob-row{grid-template-columns:1fr;}.cb-headline{font-size:29px;}.pitch-headline{font-size:28px;}}
 `;
 
+// Day-one setup tasks pre-loaded onto the rep's first week.
+const DAY_ONE_TASKS = {
+  Mon: ["Upload your comp plan", "Add any SPIFF or quota emails", "Review what Coach found"],
+  Tue: ["Set your take-home details", "Pick your big carrot"],
+  Wed: ["Upload your account list", "Upload your pipeline export"],
+  Thu: ["Build your strategy with Coach"],
+  Fri: ["Set medium and small carrots", "Review your first action plan"],
+};
+
+// Home base area squares. Only Comp Plan is active for now.
+const AREAS = [
+  { key: "comp", icon: "📄", name: "Comp Plan", desc: "Understand exactly how you get paid.", status: "Ready", active: true },
+  { key: "accounts", icon: "🏢", name: "Account Strategies", desc: "Plan your top accounts with Coach.", status: "Coming soon", active: false },
+  { key: "territory", icon: "🗺️", name: "Territory Strategies", desc: "Map your territory and find the gaps.", status: "Coming soon", active: false },
+  { key: "qbr", icon: "📊", name: "QBR", desc: "Prep quarterly business reviews.", status: "Coming soon", active: false },
+  { key: "goals", icon: "🥕", name: "Goals & Carrots", desc: "Set the rewards you are working toward.", status: "Coming soon", active: false },
+  { key: "calendar", icon: "🗓️", name: "Full Calendar", desc: "See your whole plan of attack.", status: "Coming soon", active: false },
+];
+
+const HOME_STYLES = `
+.hb-wrap{min-height:100vh;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;}
+.hb-main{max-width:1180px;margin:0 auto;padding:32px 48px 80px;}
+.hb-h1{font-family:'Playfair Display',serif;font-size:34px;font-weight:900;margin-bottom:4px;}
+.hb-sub{font-size:16px;color:var(--muted);margin-bottom:26px;}
+.hb-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;}
+.hb-cal-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;}
+.hb-toggle{display:flex;gap:4px;background:white;border:1.5px solid var(--border);border-radius:12px;padding:4px;}
+.hb-toggle button{border:none;background:none;padding:8px 16px;border-radius:9px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:14px;color:var(--muted);cursor:pointer;}
+.hb-toggle button.on{background:var(--carrot);color:white;}
+.hb-week{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:42px;}
+.hb-day{background:white;border:1.5px solid var(--border);border-radius:16px;padding:14px;min-height:190px;}
+.hb-day.today{border-color:var(--carrot);box-shadow:0 0 0 3px rgba(244,113,26,0.15);}
+.hb-day-name{font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);}
+.hb-day.today .hb-day-name{color:var(--carrot);}
+.hb-day-date{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;margin-bottom:8px;}
+.hb-task{display:flex;align-items:flex-start;gap:8px;padding:7px 0;cursor:pointer;font-size:13px;line-height:1.4;}
+.hb-task input{margin-top:2px;accent-color:var(--carrot);cursor:pointer;flex:none;width:15px;height:15px;}
+.hb-task.done span{text-decoration:line-through;color:var(--muted);}
+.hb-empty{font-size:13px;color:var(--muted);font-style:italic;}
+.hb-month{background:white;border:1.5px solid var(--border);border-radius:16px;padding:18px;margin-bottom:42px;}
+.hb-month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.hb-dow{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);text-align:center;padding:6px 0;}
+.hb-cell{min-height:74px;border:1px solid var(--border);border-radius:10px;padding:6px 8px;background:var(--cream);}
+.hb-cell.blank{background:transparent;border:none;}
+.hb-cell.today{border-color:var(--carrot);background:var(--carrot-light);}
+.hb-cell-n{font-size:13px;font-weight:700;}
+.hb-dot{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;color:var(--carrot);}
+.hb-areas-h{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;margin-bottom:14px;}
+.hb-areas{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+.hb-area{background:white;border:1.5px solid var(--border);border-radius:18px;padding:22px;min-height:170px;display:flex;flex-direction:column;}
+.hb-area.active{cursor:pointer;transition:all .2s;}
+.hb-area.active:hover{border-color:var(--carrot);transform:translateY(-2px);box-shadow:0 10px 28px -12px rgba(244,113,26,0.35);}
+.hb-area.soon{opacity:0.6;}
+.hb-area-icon{font-size:30px;margin-bottom:12px;}
+.hb-area-name{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;margin-bottom:4px;}
+.hb-area-desc{font-size:13px;color:var(--muted);line-height:1.5;flex:1;}
+.hb-area-status{margin-top:14px;align-self:flex-start;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:4px 10px;border-radius:100px;}
+.hb-area-status.ready{background:var(--green-light);color:var(--green);}
+.hb-area-status.soon{background:var(--border);color:var(--muted);}
+@media(max-width:1024px){.hb-areas{grid-template-columns:repeat(2,1fr);}}
+`;
+
 export default function App() {
   const [screen, setScreen] = useState("landing");
   const [scrolled, setScrolled] = useState(false);
@@ -648,6 +710,16 @@ export default function App() {
   const [authError, setAuthError] = useState("");
   const [users, setUsers] = useState({});            // username -> password
   const [currentUser, setCurrentUser] = useState(null);
+
+  // ── HOME BASE STATE ──
+  const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
+  const [homeView, setHomeView] = useState("week"); // "week" | "month"
+  const [monthCursor, setMonthCursor] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
+  const [weekTasks, setWeekTasks] = useState(() => {
+    const o = {};
+    Object.keys(DAY_ONE_TASKS).forEach((d) => { o[d] = DAY_ONE_TASKS[d].map((text, i) => ({ id: d + "-" + i, text, done: false })); });
+    return o;
+  });
 
   // ── ONBOARDING STATE ──
   const [suName, setSuName]   = useState("");
@@ -798,10 +870,28 @@ export default function App() {
       goFlow("home_base");
     }
   };
-  // Shared top bar: brand only (no upload / avatar before sign in).
-  const sharedTopBar = (
-    <div style={{ display: "flex", alignItems: "center", padding: "18px 48px", borderBottom: "1px solid var(--border)", background: "rgba(255,250,244,0.92)", position: "sticky", top: 0, zIndex: 10 }}>
-      <button onClick={() => goFlow("landing")} style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 900, color: "var(--carrot)", background: "none", border: "none", cursor: "pointer" }}>🥕 Earn The Carrot</button>
+  const logout = () => { setCurrentUser(null); setAvatarMenuOpen(false); goFlow("landing"); };
+  // Shared top bar. full=true (signed in) shows Upload + profile avatar; full=false is brand only.
+  const renderTopBar = (full) => (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 48px", borderBottom: "1px solid var(--border)", background: "rgba(255,250,244,0.92)", position: "sticky", top: 0, zIndex: 50 }}>
+      <button onClick={() => goFlow(full ? "home_base" : "landing")} style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 900, color: "var(--carrot)", background: "none", border: "none", cursor: "pointer" }}>🥕 Earn The Carrot</button>
+      {full && (
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <button onClick={() => goFlow("upload")} style={{ background: "var(--carrot)", color: "white", border: "none", borderRadius: 100, padding: "10px 22px", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>↑ Upload</button>
+          <div style={{ position: "relative" }}>
+            <button onClick={() => setAvatarMenuOpen((o) => !o)} aria-label="Account menu" style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "var(--dark2)", color: "white", fontSize: 16, fontWeight: 800, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>{(currentUser || "?").charAt(0).toUpperCase()}</button>
+            {avatarMenuOpen && (
+              <>
+                <div onClick={() => setAvatarMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+                <div style={{ position: "absolute", right: 0, top: 48, background: "white", border: "1.5px solid var(--border)", borderRadius: 12, boxShadow: "0 12px 30px -12px rgba(0,0,0,0.3)", minWidth: 170, zIndex: 60, overflow: "hidden" }}>
+                  <div style={{ padding: "10px 14px", fontSize: 13, color: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Signed in as <b style={{ color: "var(--ink)" }}>{currentUser}</b></div>
+                  <button onClick={logout} style={{ display: "block", width: "100%", textAlign: "left", padding: "11px 14px", background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, color: "var(--ink)", fontFamily: "'DM Sans',sans-serif" }}>Log out</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
   const startEdit = (f, v) => { setEditField(f); setEditVal(String(v)); };
@@ -919,7 +1009,7 @@ export default function App() {
     return (
       <div style={{ minHeight: "100vh", background: "var(--cream)", fontFamily: "'DM Sans',sans-serif", color: "var(--ink)" }}>
         <style>{S}</style>
-        {sharedTopBar}
+        {renderTopBar(false)}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "56px 24px", minHeight: "calc(100vh - 75px)" }}>
           <div style={{ width: "100%", maxWidth: 460, background: "white", border: "1.5px solid var(--border)", borderRadius: 24, padding: "42px 40px", boxShadow: "0 20px 50px -24px rgba(26,18,8,0.25)" }}>
             <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: 34, fontWeight: 900, textAlign: "center", marginBottom: 6, lineHeight: 1.15 }}>{isSignup ? "Create your account" : "Welcome back"}</h1>
@@ -961,18 +1051,102 @@ export default function App() {
     );
   }
 
-  // ══ HOME BASE (placeholder, built next) ══════════════════════════════
+  // ══ HOME BASE ════════════════════════════════════════════════════════
   if (screen === "home_base") {
+    const sameDate = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    const keyOf = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const today = new Date();
+    const dow = today.getDay();
+    const monday = new Date(today); monday.setDate(today.getDate() - ((dow + 6) % 7));
+    const weekdayInfo = ["Mon", "Tue", "Wed", "Thu", "Fri"].map((name, i) => {
+      const d = new Date(monday); d.setDate(monday.getDate() + i);
+      return { name, date: d, isToday: sameDate(d, today) };
+    });
+    const taskCountByDate = {};
+    weekdayInfo.forEach(({ name, date }) => { const list = weekTasks[name] || []; if (list.length) taskCountByDate[keyOf(date)] = list.length; });
+    const toggleTask = (day, id) => setWeekTasks((prev) => ({ ...prev, [day]: prev[day].map((t) => (t.id === id ? { ...t, done: !t.done } : t)) }));
+
+    const { y, m } = monthCursor;
+    const startDow = new Date(y, m, 1).getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < startDow; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    const shiftMonth = (delta) => setMonthCursor((c) => { const d = new Date(c.y, c.m + delta, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
+    const navArrow = { width: 34, height: 34, borderRadius: 9, border: "1.5px solid var(--border)", background: "white", cursor: "pointer", fontSize: 18, color: "var(--ink)", lineHeight: 1 };
+
     return (
-      <div style={{ minHeight: "100vh", background: "var(--cream)", fontFamily: "'DM Sans',sans-serif", color: "var(--ink)" }}>
+      <div className="hb-wrap">
         <style>{S}</style>
-        {sharedTopBar}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "calc(100vh - 75px)", padding: 24, textAlign: "center" }}>
-          <div style={{ fontSize: 56, marginBottom: 16 }}>🥕</div>
-          <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: 36, fontWeight: 900, marginBottom: 10 }}>Home base coming next</h1>
-          <p style={{ color: "var(--muted)", fontSize: 16, lineHeight: 1.5, maxWidth: 440 }}>
-            {currentUser ? `You are signed in as ${currentUser}. ` : ""}This is where your home base will live.
-          </p>
+        <style>{HOME_STYLES}</style>
+        {renderTopBar(true)}
+        <div className="hb-main">
+          <h1 className="hb-h1">Welcome{currentUser ? `, ${currentUser}` : ""}</h1>
+          <p className="hb-sub">Here is your plan of attack. Start with this week's setup, then dive into an area below.</p>
+
+          <div className="hb-cal-head">
+            <div className="hb-cal-title">{homeView === "week" ? "This Week" : `${MONTHS[m]} ${y}`}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {homeView === "month" && (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={() => shiftMonth(-1)} style={navArrow} aria-label="Previous month">‹</button>
+                  <button onClick={() => shiftMonth(1)} style={navArrow} aria-label="Next month">›</button>
+                </div>
+              )}
+              <div className="hb-toggle">
+                <button className={homeView === "week" ? "on" : ""} onClick={() => setHomeView("week")}>Week</button>
+                <button className={homeView === "month" ? "on" : ""} onClick={() => setHomeView("month")}>Month</button>
+              </div>
+            </div>
+          </div>
+
+          {homeView === "week" ? (
+            <div className="hb-week">
+              {weekdayInfo.map(({ name, date, isToday }) => (
+                <div key={name} className={`hb-day${isToday ? " today" : ""}`}>
+                  <div className="hb-day-name">{name}{isToday ? " · Today" : ""}</div>
+                  <div className="hb-day-date">{date.getDate()}</div>
+                  {(weekTasks[name] || []).length === 0
+                    ? <div className="hb-empty">No tasks</div>
+                    : (weekTasks[name] || []).map((t) => (
+                      <label key={t.id} className={`hb-task${t.done ? " done" : ""}`}>
+                        <input type="checkbox" checked={t.done} onChange={() => toggleTask(name, t.id)} />
+                        <span>{t.text}</span>
+                      </label>
+                    ))}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="hb-month">
+              <div className="hb-month-grid">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => <div key={d} className="hb-dow">{d}</div>)}
+                {cells.map((d, i) => {
+                  if (d === null) return <div key={"b" + i} className="hb-cell blank" />;
+                  const cellDate = new Date(y, m, d);
+                  const count = taskCountByDate[keyOf(cellDate)];
+                  return (
+                    <div key={d} className={`hb-cell${sameDate(cellDate, today) ? " today" : ""}`}>
+                      <div className="hb-cell-n">{d}</div>
+                      {count ? <span className="hb-dot">● {count}</span> : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="hb-areas-h">Your Areas</div>
+          <div className="hb-areas">
+            {AREAS.map((a) => (
+              <div key={a.key} className={`hb-area ${a.active ? "active" : "soon"}`} onClick={a.active ? () => goFlow("upload") : undefined}>
+                <div className="hb-area-icon">{a.icon}</div>
+                <div className="hb-area-name">{a.name}</div>
+                <div className="hb-area-desc">{a.desc}</div>
+                <span className={`hb-area-status ${a.active ? "ready" : "soon"}`}>{a.status}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
