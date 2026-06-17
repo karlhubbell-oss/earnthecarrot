@@ -1015,13 +1015,18 @@ export default function App() {
     const inpStyle = { width: "100%", padding: "13px 16px", border: "1.5px solid var(--border)", borderRadius: 12, fontSize: 16, fontFamily: "'DM Sans',sans-serif", background: "white", color: "var(--ink)", marginBottom: 16, boxSizing: "border-box" };
     const onEnter = (e) => { if (e.key === "Enter") submitAuth(); };
     return (
-      <div style={{ minHeight: "100vh", background: "var(--cream)", fontFamily: "'DM Sans',sans-serif", color: "var(--ink)" }}>
+      <div className="auth-root" style={{ minHeight: "100vh", background: "var(--cream)", fontFamily: "'DM Sans',sans-serif", color: "var(--ink)" }}>
         <style>{S}</style>
+        <style>{`
+          .auth-root :focus{ outline:none; }
+          .auth-root :focus-visible{ outline:none; box-shadow:0 0 0 3px rgba(244,113,26,0.35); }
+          .auth-root input:focus-visible{ border-color:var(--carrot); }
+        `}</style>
         {renderTopBar(false)}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "56px 24px", minHeight: "calc(100vh - 75px)" }}>
           <div style={{ width: "100%", maxWidth: 460, background: "white", border: "1.5px solid var(--border)", borderRadius: 24, padding: "42px 40px", boxShadow: "0 20px 50px -24px rgba(26,18,8,0.25)" }}>
-            <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: 34, fontWeight: 900, textAlign: "center", marginBottom: 6, lineHeight: 1.15 }}>{isSignup ? "Create your account" : "Welcome back"}</h1>
-            <p style={{ textAlign: "center", color: "var(--muted)", fontSize: 15, marginBottom: 26, lineHeight: 1.5 }}>{isSignup ? "Set up your Earn The Carrot login. Username and password, that is it." : "Log in to your Earn The Carrot account."}</p>
+            <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: 34, fontWeight: 900, textAlign: "center", marginBottom: 6, lineHeight: 1.15 }}>{isSignup ? "Let's get you started" : "Welcome back"}</h1>
+            <p style={{ textAlign: "center", color: "var(--muted)", fontSize: 15, marginBottom: 26, lineHeight: 1.5 }}>{isSignup ? "Just a couple of details and we'll get to work." : "Let's keep going."}</p>
 
             <div style={{ display: "flex", gap: 6, background: "var(--cream)", border: "1.5px solid var(--border)", borderRadius: 14, padding: 5, marginBottom: 26 }}>
               <button onClick={() => { if (authMode !== "login") toggleAuthMode(); }} style={tabStyle(!isSignup)}>Log in</button>
