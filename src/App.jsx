@@ -688,6 +688,8 @@ const HOME_STYLES = `
 .hb-area{background:white;border:1.5px solid var(--border);border-radius:18px;padding:22px;min-height:170px;display:flex;flex-direction:column;}
 .hb-area.active{cursor:pointer;transition:all .2s;}
 .hb-area.active:hover{border-color:var(--carrot);transform:translateY(-2px);box-shadow:0 10px 28px -12px rgba(244,113,26,0.35);}
+.hb-area.hot{border-color:var(--carrot);background:var(--carrot-light);cursor:pointer;transition:all .2s;}
+.hb-area.hot:hover{transform:translateY(-2px);box-shadow:0 10px 28px -12px rgba(244,113,26,0.35);}
 .hb-area.soon{opacity:0.6;}
 .hb-area-icon{font-size:30px;margin-bottom:12px;}
 .hb-area-name{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;margin-bottom:4px;}
@@ -1124,11 +1126,19 @@ export default function App() {
     const FolderIcon = <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5Z" /></svg>;
     const SummaryIcon = <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" /><path d="M14 3v5h5" /><path d="M9 13h6M9 17h4" /></svg>;
     const TakeIcon = <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8 8 0 0 1-11.5 7.2L4 20l1.3-4.4A8 8 0 1 1 21 11.5Z" /></svg>;
-    const cards = [
-      { key: "docs", icon: FolderIcon, name: "Loaded Documents", desc: "Your comp plan, SPIFF notes, and anything else you have dropped in.", go: "comp_documents" },
-      { key: "summary", icon: SummaryIcon, name: "Your Plan Summary", desc: "Every number Coach pulled out of your plan, in plain terms.", go: "plan_summary" },
-      { key: "take", icon: TakeIcon, name: "Coach's Take", desc: "Coach's read on what this plan is really built to make you do.", go: "plan_summary" },
-    ];
+    const cards = hasPlan
+      ? [
+          { key: "docs", icon: FolderIcon, name: "Comp Plan Documents", desc: "Your comp plan, SPIFF notes, and anything you've dropped in.", cls: "hb-area active", onClick: () => goFlow("comp_documents"), badge: "ready" },
+          { key: "summary", icon: SummaryIcon, name: "Your Plan Summary", desc: "The numbers Coach pulled out, ready to review and edit.", cls: "hb-area active", onClick: () => goFlow("plan_summary"), badge: "ready" },
+          { key: "take", icon: TakeIcon, name: "Coach's Take", desc: "Coach's read on what this plan is really built to make you do.", cls: "hb-area active", onClick: () => goFlow("plan_summary"), badge: "ready" },
+        ]
+      : [
+          { key: "docs", icon: FolderIcon, name: "Comp Plan Documents", desc: "Drop in your comp plan and I'll show you what it's really worth.", cls: "hb-area hot", onClick: () => goFlow("upload"), cue: "Start here", button: "Upload your comp plan" },
+          { key: "summary", icon: SummaryIcon, name: "Your Plan Summary", desc: "The numbers Coach pulls out, ready to review and edit.", cls: "hb-area soon", hint: "Once your plan is loaded" },
+          { key: "take", icon: TakeIcon, name: "Coach's Take", desc: "Coach's read on what your plan is really built to do.", cls: "hb-area soon", hint: "Once your plan is loaded" },
+        ];
+    const cuePill = { alignSelf: "flex-start", fontSize: 11, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--carrot)", background: "white", border: "1px solid var(--carrot)", borderRadius: 100, padding: "3px 10px", marginBottom: 12 };
+    const cardBtn = { marginTop: 14, alignSelf: "flex-start", background: "var(--carrot)", color: "white", border: "none", borderRadius: 100, padding: "10px 18px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" };
     return (
       <div className="hb-wrap">
         <style>{S}</style>
@@ -1139,32 +1149,31 @@ export default function App() {
           <h1 className="hb-h1" style={{ marginTop: 12 }}>Your Comp Plan</h1>
           <p className="hb-sub">Everything that defines how you get paid, in one place. Open a card to dig in.</p>
 
-          {hasPlan ? (
-            <>
-              <div className="hb-areas">
-                {cards.map((c) => (
-                  <div key={c.key} className="hb-area active" onClick={() => goFlow(c.go)}>
-                    <div className="hb-area-icon">{c.icon}</div>
-                    <div className="hb-area-name">{c.name}</div>
-                    <div className="hb-area-desc">{c.desc}</div>
-                    <span className="hb-area-status ready">Ready</span>
-                  </div>
-                ))}
+          <div className="hb-areas">
+            {cards.map((c) => (
+              <div key={c.key} className={c.cls} onClick={c.onClick}>
+                {c.cue && <span style={cuePill}>{c.cue}</span>}
+                <div className="hb-area-icon">{c.icon}</div>
+                <div className="hb-area-name">{c.name}</div>
+                <div className="hb-area-desc">{c.desc}</div>
+                {c.button
+                  ? <button style={cardBtn} onClick={(e) => { e.stopPropagation(); goFlow("upload"); }}>{c.button}</button>
+                  : c.badge === "ready"
+                    ? <span className="hb-area-status ready">Ready</span>
+                    : c.hint
+                      ? <span className="hb-area-status soon">{c.hint}</span>
+                      : null}
               </div>
+            ))}
+          </div>
 
-              <div onClick={() => goFlow("upload")} style={{ cursor: "pointer", border: "2px dashed #E7C9AE", background: "#FFF6EF", marginTop: 28, borderRadius: 16, padding: "20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 15 }}>Got something new?</div>
-                  <div style={{ fontSize: 14, color: "var(--muted)", marginTop: 2, lineHeight: 1.5 }}>Drop in a revised plan, last year's plan, or a SPIFF email and I'll read it in.</div>
-                </div>
-                <button style={orangePill} onClick={(e) => { e.stopPropagation(); goFlow("upload"); }}>Add a document</button>
+          {hasPlan && (
+            <div onClick={() => goFlow("upload")} style={{ cursor: "pointer", border: "2px dashed #E7C9AE", background: "#FFF6EF", marginTop: 28, borderRadius: 16, padding: "20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>Got something new?</div>
+                <div style={{ fontSize: 14, color: "var(--muted)", marginTop: 2, lineHeight: 1.5 }}>Drop in a revised plan, last year's plan, or a SPIFF email and I'll read it in.</div>
               </div>
-            </>
-          ) : (
-            <div onClick={() => goFlow("upload")} style={{ cursor: "pointer", border: "2px dashed #E7C9AE", borderRadius: 20, background: "white", padding: "56px 32px", textAlign: "center", maxWidth: 660 }}>
-              <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 24, fontWeight: 900, marginBottom: 8 }}>Let's start here.</h2>
-              <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.6, maxWidth: 440, margin: "0 auto 22px" }}>Drop in your comp plan and I'll show you what it's really worth.</p>
-              <button style={orangePill} onClick={(e) => { e.stopPropagation(); goFlow("upload"); }}>Upload your comp plan</button>
+              <button style={orangePill} onClick={(e) => { e.stopPropagation(); goFlow("upload"); }}>Add a document</button>
             </div>
           )}
         </div>
