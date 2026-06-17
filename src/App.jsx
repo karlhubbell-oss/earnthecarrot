@@ -704,12 +704,14 @@ export default function App() {
 
   // ── AUTH STATE (front-end stub, in-memory only) ──
   const [authMode, setAuthMode] = useState("login"); // "login" | "signup"
+  const [authFirst, setAuthFirst] = useState("");
   const [authUser, setAuthUser] = useState("");
   const [authPass, setAuthPass] = useState("");
   const [authPass2, setAuthPass2] = useState("");
   const [authError, setAuthError] = useState("");
-  const [users, setUsers] = useState({});            // username -> password
+  const [users, setUsers] = useState({});            // username -> { password, firstName }
   const [currentUser, setCurrentUser] = useState(null);
+  const [currentName, setCurrentName] = useState("");
 
   // ── HOME BASE STATE ──
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
@@ -851,26 +853,32 @@ export default function App() {
   const goFlow = (s) => goToScreen(s);
 
   // ── AUTH helpers (front-end stub) ──
-  const goAuth = (mode) => { setAuthMode(mode); setAuthError(""); setAuthPass(""); setAuthPass2(""); goFlow("auth"); };
-  const toggleAuthMode = () => { setAuthMode((m) => (m === "login" ? "signup" : "login")); setAuthError(""); setAuthPass(""); setAuthPass2(""); };
+  const goAuth = (mode) => { setAuthMode(mode); setAuthError(""); setAuthFirst(""); setAuthPass(""); setAuthPass2(""); goFlow("auth"); };
+  const toggleAuthMode = () => { setAuthMode((m) => (m === "login" ? "signup" : "login")); setAuthError(""); setAuthFirst(""); setAuthPass(""); setAuthPass2(""); };
   const submitAuth = () => {
     const u = authUser.trim();
-    if (!u || !authPass) { setAuthError("Please enter a username and a password."); return; }
+    const fn = authFirst.trim();
     if (authMode === "signup") {
+      if (!fn) { setAuthError("Please enter your first name."); return; }
+      if (!u || !authPass) { setAuthError("Please enter a username and a password."); return; }
       if (authPass !== authPass2) { setAuthError("Those passwords do not match. Please try again."); return; }
       if (users[u]) { setAuthError("That username is already taken. Try logging in instead."); return; }
-      setUsers((prev) => ({ ...prev, [u]: authPass }));
+      setUsers((prev) => ({ ...prev, [u]: { password: authPass, firstName: fn } }));
       setCurrentUser(u);
+      setCurrentName(fn);
       setAuthError("");
       goFlow("home_base");
     } else {
-      if (!users[u] || users[u] !== authPass) { setAuthError("We could not log you in. Check your username and password."); return; }
+      if (!u || !authPass) { setAuthError("Please enter a username and a password."); return; }
+      const rec = users[u];
+      if (!rec || rec.password !== authPass) { setAuthError("We could not log you in. Check your username and password."); return; }
       setCurrentUser(u);
+      setCurrentName(rec.firstName || "");
       setAuthError("");
       goFlow("home_base");
     }
   };
-  const logout = () => { setCurrentUser(null); setAvatarMenuOpen(false); goFlow("landing"); };
+  const logout = () => { setCurrentUser(null); setCurrentName(""); setAvatarMenuOpen(false); goFlow("landing"); };
   // Shared top bar. full=true (signed in) shows Upload + profile avatar; full=false is brand only.
   const renderTopBar = (full) => (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 48px", borderBottom: "1px solid var(--border)", background: "rgba(255,250,244,0.92)", position: "sticky", top: 0, zIndex: 50 }}>
@@ -879,7 +887,7 @@ export default function App() {
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <button onClick={() => goFlow("upload")} style={{ background: "var(--carrot)", color: "white", border: "none", borderRadius: 100, padding: "10px 22px", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>↑ Upload</button>
           <div style={{ position: "relative" }}>
-            <button onClick={() => setAvatarMenuOpen((o) => !o)} aria-label="Account menu" style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "var(--dark2)", color: "white", fontSize: 16, fontWeight: 800, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>{(currentUser || "?").charAt(0).toUpperCase()}</button>
+            <button onClick={() => setAvatarMenuOpen((o) => !o)} aria-label="Account menu" style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "var(--dark2)", color: "white", fontSize: 16, fontWeight: 800, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>{(currentName || currentUser || "?").charAt(0).toUpperCase()}</button>
             {avatarMenuOpen && (
               <>
                 <div onClick={() => setAvatarMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
@@ -1020,6 +1028,13 @@ export default function App() {
               <button onClick={() => { if (authMode !== "signup") toggleAuthMode(); }} style={tabStyle(isSignup)}>Sign up</button>
             </div>
 
+            {isSignup && (
+              <>
+                <label style={lblStyle}>First name</label>
+                <input value={authFirst} onChange={(e) => setAuthFirst(e.target.value)} placeholder="Karl" style={inpStyle} autoComplete="given-name" onKeyDown={onEnter} />
+              </>
+            )}
+
             <label style={lblStyle}>Username</label>
             <input value={authUser} onChange={(e) => setAuthUser(e.target.value)} placeholder="yourname" style={inpStyle} autoComplete="username" onKeyDown={onEnter} />
 
@@ -1081,7 +1096,7 @@ export default function App() {
         <style>{HOME_STYLES}</style>
         {renderTopBar(true)}
         <div className="hb-main">
-          <h1 className="hb-h1">Welcome{currentUser ? `, ${currentUser}` : ""}</h1>
+          <h1 className="hb-h1">Welcome{currentName ? `, ${currentName}` : ""}</h1>
           <p className="hb-sub">Here is your plan of attack. Start with this week's setup, then dive into an area below.</p>
 
           <div className="hb-cal-head">
