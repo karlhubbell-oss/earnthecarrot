@@ -1014,6 +1014,15 @@ export default function App() {
     const lblStyle = { display: "block", fontSize: 14, fontWeight: 700, marginBottom: 6, marginTop: 4 };
     const inpStyle = { width: "100%", padding: "13px 16px", border: "1.5px solid var(--border)", borderRadius: 12, fontSize: 16, fontFamily: "'DM Sans',sans-serif", background: "white", color: "var(--ink)", marginBottom: 16, boxSizing: "border-box" };
     const onEnter = (e) => { if (e.key === "Enter") submitAuth(); };
+    const circle = (cur) => ({ width: 34, height: 34, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 15, flex: "none", background: cur ? "var(--carrot)" : "white", color: cur ? "white" : "var(--muted)", border: cur ? "none" : "1.5px solid var(--border)" });
+    const greenCoach = <span style={{ color: "var(--green)", fontWeight: 700 }}>Coach</span>;
+    const steps = [
+      { n: 1, title: "Create your account", body: "A name and a password. That's all we need to begin.", current: true },
+      { n: 2, title: "Load your plan and meet Coach", body: <>Drop in your comp plan. {greenCoach} reads every line and shows you what it's really worth.</> },
+      { n: 3, title: "Build your strategy", body: "Coach helps you turn your number into a real plan of attack, account by account." },
+      { n: 4, title: "Keep going all season", body: "Come back to stay on track, update your plan, and walk into every QBR ready." },
+    ];
+    const panelTint = { flex: "1 1 400px", background: "#FFF6EF", border: "1.5px solid #F0D9C6", borderRadius: 24, padding: "42px 38px" };
     return (
       <div className="auth-root" style={{ minHeight: "100vh", background: "var(--cream)", fontFamily: "'DM Sans',sans-serif", color: "var(--ink)" }}>
         <style>{S}</style>
@@ -1023,48 +1032,84 @@ export default function App() {
           .auth-root input:focus-visible{ border-color:var(--carrot); }
         `}</style>
         {renderTopBar(false)}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "56px 24px", minHeight: "calc(100vh - 75px)" }}>
-          <div style={{ width: "100%", maxWidth: 460, background: "white", border: "1.5px solid var(--border)", borderRadius: 24, padding: "42px 40px", boxShadow: "0 20px 50px -24px rgba(26,18,8,0.25)" }}>
-            <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: 34, fontWeight: 900, textAlign: "center", marginBottom: 6, lineHeight: 1.15 }}>{isSignup ? "Let's get you started" : "Welcome back"}</h1>
-            <p style={{ textAlign: "center", color: "var(--muted)", fontSize: 15, marginBottom: 26, lineHeight: 1.5 }}>{isSignup ? "Just a couple of details and we'll get to work." : "Let's keep going."}</p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "48px 24px", minHeight: "calc(100vh - 75px)" }}>
+          <div style={{ display: "flex", gap: 28, width: "100%", maxWidth: 1000, flexWrap: "wrap", alignItems: "stretch" }}>
 
-            <div style={{ display: "flex", gap: 6, background: "var(--cream)", border: "1.5px solid var(--border)", borderRadius: 14, padding: 5, marginBottom: 26 }}>
-              <button onClick={() => { if (authMode !== "login") toggleAuthMode(); }} style={tabStyle(!isSignup)}>Log in</button>
-              <button onClick={() => { if (authMode !== "signup") toggleAuthMode(); }} style={tabStyle(isSignup)}>Sign up</button>
+            {/* LEFT: form card */}
+            <div style={{ flex: "1 1 440px", maxWidth: 500, background: "white", border: "1.5px solid var(--border)", borderRadius: 24, padding: "42px 40px", boxShadow: "0 20px 50px -24px rgba(26,18,8,0.25)" }}>
+              <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: 32, fontWeight: 900, marginBottom: 6, lineHeight: 1.15 }}>{isSignup ? "Let's get you started" : "Welcome back"}</h1>
+              <p style={{ color: "var(--muted)", fontSize: 15, marginBottom: 24, lineHeight: 1.5 }}>{isSignup ? "Just a couple of details and we'll get to work." : "Let's keep going."}</p>
+
+              <div style={{ display: "flex", gap: 6, background: "var(--cream)", border: "1.5px solid var(--border)", borderRadius: 14, padding: 5, marginBottom: 24 }}>
+                <button onClick={() => { if (authMode !== "login") toggleAuthMode(); }} style={tabStyle(!isSignup)}>Log in</button>
+                <button onClick={() => { if (authMode !== "signup") toggleAuthMode(); }} style={tabStyle(isSignup)}>Sign up</button>
+              </div>
+
+              {isSignup && (
+                <>
+                  <label style={lblStyle}>First name</label>
+                  <input value={authFirst} onChange={(e) => setAuthFirst(e.target.value)} placeholder="Karl" style={inpStyle} autoComplete="given-name" onKeyDown={onEnter} />
+                </>
+              )}
+
+              <label style={lblStyle}>Username</label>
+              <input value={authUser} onChange={(e) => setAuthUser(e.target.value)} placeholder="yourname" style={inpStyle} autoComplete="username" onKeyDown={onEnter} />
+
+              <label style={lblStyle}>Password</label>
+              <input type="password" value={authPass} onChange={(e) => setAuthPass(e.target.value)} placeholder="••••••••" style={inpStyle} autoComplete={isSignup ? "new-password" : "current-password"} onKeyDown={onEnter} />
+
+              {isSignup && (
+                <>
+                  <label style={lblStyle}>Confirm password</label>
+                  <input type="password" value={authPass2} onChange={(e) => setAuthPass2(e.target.value)} placeholder="••••••••" style={inpStyle} autoComplete="new-password" onKeyDown={onEnter} />
+                </>
+              )}
+
+              {authError && (
+                <div style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", color: "#B91C1C", borderRadius: 12, padding: "10px 14px", fontSize: 14, lineHeight: 1.45, marginBottom: 16 }}>{authError}</div>
+              )}
+
+              <button onClick={submitAuth} style={{ width: "100%", padding: 16, borderRadius: 100, border: "none", background: "var(--carrot)", color: "white", fontSize: 17, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                {isSignup ? "Let's go" : "Log in"}
+              </button>
+
+              <div style={{ textAlign: "center", marginTop: 18, fontSize: 14, color: "var(--muted)" }}>
+                {isSignup ? "Already have an account? " : "New to Earn The Carrot? "}
+                <button onClick={toggleAuthMode} style={{ background: "none", border: "none", color: "var(--carrot)", fontWeight: 700, cursor: "pointer", fontSize: 14, fontFamily: "'DM Sans',sans-serif", padding: 0 }}>{isSignup ? "Log in" : "Sign up"}</button>
+              </div>
             </div>
 
-            {isSignup && (
-              <>
-                <label style={lblStyle}>First name</label>
-                <input value={authFirst} onChange={(e) => setAuthFirst(e.target.value)} placeholder="Karl" style={inpStyle} autoComplete="given-name" onKeyDown={onEnter} />
-              </>
+            {/* RIGHT: journey panel */}
+            {isSignup ? (
+              <div style={panelTint}>
+                <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: "var(--carrot)", marginBottom: 8 }}>Here's how we start</div>
+                <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, fontWeight: 900, lineHeight: 1.2, marginBottom: 24 }}>Your first few steps with Coach</h2>
+                <div>
+                  {steps.map((s, i) => (
+                    <div key={s.n} style={{ display: "flex", gap: 16 }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <div style={circle(s.current)}>{s.n}</div>
+                        {i < steps.length - 1 && <div style={{ width: 2, flex: 1, background: "#E7D2BF", marginTop: 6, minHeight: 18 }} />}
+                      </div>
+                      <div style={{ paddingBottom: i < steps.length - 1 ? 22 : 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                          <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 17, fontWeight: 700, color: "var(--ink)" }}>{s.title}</div>
+                          {s.current && <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--carrot)", background: "var(--carrot-light)", border: "1px solid rgba(244,113,26,0.4)", borderRadius: 100, padding: "2px 9px" }}>You're here</span>}
+                        </div>
+                        <div style={{ fontSize: 13.5, color: "var(--muted)", lineHeight: 1.55, marginTop: 4 }}>{s.body}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div style={{ ...panelTint, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: "var(--carrot)", marginBottom: 10 }}>Good to see you</div>
+                <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 28, fontWeight: 900, lineHeight: 1.2, marginBottom: 12 }}>Welcome back</h2>
+                <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.6 }}>Let's pick up right where you left off and keep your plan moving. {greenCoach} has been holding your spot.</p>
+              </div>
             )}
 
-            <label style={lblStyle}>Username</label>
-            <input value={authUser} onChange={(e) => setAuthUser(e.target.value)} placeholder="yourname" style={inpStyle} autoComplete="username" onKeyDown={onEnter} />
-
-            <label style={lblStyle}>Password</label>
-            <input type="password" value={authPass} onChange={(e) => setAuthPass(e.target.value)} placeholder="••••••••" style={inpStyle} autoComplete={isSignup ? "new-password" : "current-password"} onKeyDown={onEnter} />
-
-            {isSignup && (
-              <>
-                <label style={lblStyle}>Confirm password</label>
-                <input type="password" value={authPass2} onChange={(e) => setAuthPass2(e.target.value)} placeholder="••••••••" style={inpStyle} autoComplete="new-password" onKeyDown={onEnter} />
-              </>
-            )}
-
-            {authError && (
-              <div style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", color: "#B91C1C", borderRadius: 12, padding: "10px 14px", fontSize: 14, lineHeight: 1.45, marginBottom: 16 }}>{authError}</div>
-            )}
-
-            <button onClick={submitAuth} style={{ width: "100%", padding: 16, borderRadius: 100, border: "none", background: "var(--carrot)", color: "white", fontSize: 17, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
-              {isSignup ? "Create account" : "Log in"}
-            </button>
-
-            <div style={{ textAlign: "center", marginTop: 18, fontSize: 14, color: "var(--muted)" }}>
-              {isSignup ? "Already have an account? " : "New to Earn The Carrot? "}
-              <button onClick={toggleAuthMode} style={{ background: "none", border: "none", color: "var(--carrot)", fontWeight: 700, cursor: "pointer", fontSize: 14, fontFamily: "'DM Sans',sans-serif", padding: 0 }}>{isSignup ? "Log in" : "Sign up"}</button>
-            </div>
           </div>
         </div>
       </div>
