@@ -767,6 +767,8 @@ export default function App() {
   const coachReadForRef = useRef(null);
   // True once the rep has confirmed the plan summary; gates Coach's Take.
   const [planConfirmed, setPlanConfirmed] = useState(false);
+  // Which loaded-document row is awaiting remove confirmation (index), or null.
+  const [docRemoveIdx, setDocRemoveIdx] = useState(null);
   const [comp, setComp] = useState({ base: 150000, quota: 1500000, commissionRate: 8, accelerator: 1.5 });
   const [editField, setEditField] = useState(null);
   const [editVal, setEditVal] = useState("");
@@ -1193,7 +1195,23 @@ export default function App() {
     const prov = (compPlan && compPlan.provenance) || {};
     const sf = Array.isArray(prov.source_files) ? prov.source_files : [];
     const readyPill = { fontSize: 11, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", padding: "4px 10px", borderRadius: 100, background: "var(--green-light)", color: "var(--green)", flex: "none" };
+    const orangePill = { background: "var(--carrot)", color: "white", border: "none", borderRadius: 100, padding: "12px 22px", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" };
+    const removeBtn = { background: "none", border: "none", color: "var(--muted)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: "4px 6px", textDecoration: "underline", flex: "none" };
+    const keepBtn = { background: "white", border: "1.5px solid var(--border)", color: "var(--muted)", borderRadius: 100, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" };
+    const confirmRemoveBtn = { background: "#FEE2E2", border: "1px solid #FCA5A5", color: "#B91C1C", borderRadius: 100, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" };
     const FolderIcon = <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5Z" /></svg>;
+    // Removing a document clears the current plan and all state learned from it.
+    const removePlan = () => {
+      setCompPlan(null);
+      setCoachRead(null);
+      coachReadForRef.current = null;
+      setClarificationAnswers({});
+      setAskManagerFlags({});
+      setPlanEdits({});
+      setPlanConfirmed(false);
+      setDocRemoveIdx(null);
+      goFlow("comp_dashboard");
+    };
     return (
       <div className="hb-wrap">
         <style>{S}</style>
@@ -1203,18 +1221,33 @@ export default function App() {
           <button style={backLink} onClick={() => goFlow("comp_dashboard")}>‹ Back to Comp Plan</button>
           <h1 className="hb-h1" style={{ marginTop: 12 }}>Loaded Documents</h1>
           <p className="hb-sub">The files Coach has read for this plan. Full document history is coming soon.</p>
+
+          <button style={{ ...orangePill, marginBottom: 22 }} onClick={() => goFlow("upload")}>Add a document</button>
+
           {sf.length === 0 ? (
-            <div style={{ fontSize: 15, color: "var(--muted)", fontStyle: "italic" }}>No documents on file yet. Head back and add your comp plan.</div>
+            <div style={{ fontSize: 15, color: "var(--muted)", fontStyle: "italic" }}>No documents on file yet. Drop in your comp plan and Coach will read it.</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 680 }}>
               {sf.map((name, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, background: "white", border: "1.5px solid var(--border)", borderRadius: 14, padding: "16px 18px" }}>
-                  {FolderIcon}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, wordBreak: "break-word" }}>{name}</div>
-                    <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 2 }}>Read by Coach{prov.parse_engine ? ` · ${prov.parse_engine}` : ""}</div>
+                <div key={i} style={{ background: "white", border: "1.5px solid var(--border)", borderRadius: 14, padding: "16px 18px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    {FolderIcon}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, wordBreak: "break-word" }}>{name}</div>
+                      <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 2 }}>Read by Coach{prov.parse_engine ? ` · ${prov.parse_engine}` : ""}</div>
+                    </div>
+                    <span style={readyPill}>Ready</span>
+                    {docRemoveIdx !== i && <button style={removeBtn} onClick={() => setDocRemoveIdx(i)}>Remove</button>}
                   </div>
-                  <span style={readyPill}>Ready</span>
+                  {docRemoveIdx === i && (
+                    <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                      <div style={{ fontSize: 14, color: "var(--ink)", lineHeight: 1.5 }}>Remove this document? Coach will forget what it learned from it.</div>
+                      <div style={{ display: "flex", gap: 8, flex: "none" }}>
+                        <button style={keepBtn} onClick={() => setDocRemoveIdx(null)}>Keep it</button>
+                        <button style={confirmRemoveBtn} onClick={removePlan}>Remove</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
