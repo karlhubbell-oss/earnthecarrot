@@ -765,6 +765,8 @@ export default function App() {
   const [coachRead, setCoachRead] = useState(null);
   const [coachReadLoading, setCoachReadLoading] = useState(false);
   const coachReadForRef = useRef(null);
+  // True once the rep has confirmed the plan summary; gates Coach's Take.
+  const [planConfirmed, setPlanConfirmed] = useState(false);
   const [comp, setComp] = useState({ base: 150000, quota: 1500000, commissionRate: 8, accelerator: 1.5 });
   const [editField, setEditField] = useState(null);
   const [editVal, setEditVal] = useState("");
@@ -977,9 +979,9 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  // Fetch Coach's read once per loaded plan when the plan summary screen opens.
+  // Fetch Coach's read on demand when the Coach's Take view opens (once per plan).
   useEffect(() => {
-    if (screen !== "plan_summary" || !compPlan) return;
+    if (screen !== "coach_take" || !compPlan) return;
     if (coachReadForRef.current === compPlan) return; // already fetched for this plan
     coachReadForRef.current = compPlan;
     let cancelled = false;
@@ -993,12 +995,14 @@ export default function App() {
       .then((r) => r.json().catch(() => null))
       .then((data) => {
         if (cancelled) return;
-        setCoachRead(data && data.ok && data.read ? data.read : null);
+        if (data && data.ok && data.read) { setCoachRead(data.read); }
+        else { setCoachRead(null); coachReadForRef.current = null; } // allow retry on reopen
         setCoachReadLoading(false);
       })
       .catch(() => {
         if (cancelled) return;
         setCoachRead(null);
+        coachReadForRef.current = null; // allow retry on reopen
         setCoachReadLoading(false);
       });
     return () => { cancelled = true; };
@@ -1130,7 +1134,9 @@ export default function App() {
       ? [
           { key: "docs", icon: FolderIcon, name: "Comp Plan Documents", desc: "Your comp plan, SPIFF notes, and anything you've dropped in.", cls: "hb-area active", onClick: () => goFlow("comp_documents"), badge: "ready" },
           { key: "summary", icon: SummaryIcon, name: "Your Plan Summary", desc: "The numbers Coach pulled out, ready to review and edit.", cls: "hb-area active", onClick: () => goFlow("plan_summary"), badge: "ready" },
-          { key: "take", icon: TakeIcon, name: "Coach's Take", desc: "Coach's read on what this plan is really built to make you do.", cls: "hb-area active", onClick: () => goFlow("plan_summary"), badge: "ready" },
+          planConfirmed
+            ? { key: "take", icon: TakeIcon, name: "Coach's Take", desc: "Coach's read on what this plan is really built to make you do.", cls: "hb-area active", onClick: () => goFlow("coach_take"), badge: "ready" }
+            : { key: "take", icon: TakeIcon, name: "Coach's Take", desc: "Coach's read on what your plan is really built to do.", cls: "hb-area soon", hint: "Review your plan first" },
         ]
       : [
           { key: "docs", icon: FolderIcon, name: "Comp Plan Documents", desc: "Drop in your comp plan and I'll show you what it's really worth.", cls: "hb-area hot", onClick: () => goFlow("upload"), cue: "Start here", button: "Upload your comp plan" },
@@ -1212,6 +1218,107 @@ export default function App() {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ══ COACH'S TAKE (narrative read, generated on demand) ═══════════════
+  if (screen === "coach_take") {
+    const backLink = { background: "none", border: "none", color: "var(--carrot)", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0 };
+    const cr = coachRead || {};
+    const crMoney = Array.isArray(cr.where_money_is) ? cr.where_money_is : [];
+    const crBlind = Array.isArray(cr.blind_spots) ? cr.blind_spots : [];
+    const hasReadContent = !!(cr.thesis || crMoney.length || cr.pushing_toward || crBlind.length || cr.bridge);
+    const secH = { fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, margin: "0 0 8px" };
+    const tintThesis = { background: "var(--carrot-light)", border: "1.5px solid rgba(244,113,26,0.35)" };
+    const tintMoney = { background: "var(--green-light)", border: "1.5px solid rgba(45,106,79,0.30)" };
+    const tintPush = { background: "var(--gold-light)", border: "1.5px solid var(--gold)" };
+    const tintBlind = { background: "#FFF1F2", border: "1.5px solid #FBB6CE" };
+    const secHGreen = { ...secH, color: "var(--green)" };
+    const secHGold = { ...secH, color: "#7A5C00" };
+    const secHRose = { ...secH, color: "#9F1239" };
+    const signalPill = (sig) => {
+      if (!sig) return null;
+      const green = sig === "highest" || sig === "uncapped" || sig === "steady";
+      return (
+        <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 100, textTransform: "capitalize", whiteSpace: "nowrap", background: green ? "var(--green-light)" : "#FFE4E6", color: green ? "var(--green)" : "#9F1239", border: green ? "1px solid #A7D6B5" : "1px solid #FBB6CE" }}>{sig}</span>
+      );
+    };
+    return (
+      <div className="hb-wrap">
+        <style>{S}</style>
+        <style>{OB_STYLES}</style>
+        <style>{HOME_STYLES}</style>
+        {renderTopBar(true)}
+        <div className="hb-main">
+          <button style={backLink} onClick={() => goFlow("comp_dashboard")}>‹ Back to Comp Plan</button>
+          <h1 className="hb-h1" style={{ marginTop: 12 }}>Coach's Take</h1>
+          <p className="hb-sub">Coach's read on what your plan is really built to make you do.</p>
+
+          {!compPlan ? (
+            <div className="ob-card">Load a plan first and Coach will give you a read.</div>
+          ) : coachReadLoading ? (
+            <div className="ob-card" style={{ display: "flex", alignItems: "center", gap: 14, padding: 20 }}>
+              <div style={{ width: 30, height: 30, borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "var(--carrot)", animation: "azspin 0.9s linear infinite", flex: "none" }} />
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>Coach is reading your plan...</div>
+            </div>
+          ) : hasReadContent ? (
+            <>
+              {cr.thesis ? (
+                <div className="ob-card" style={tintThesis}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "var(--carrot)", marginBottom: 8 }}>Coach's read</div>
+                  <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, lineHeight: 1.35, color: "var(--ink)" }}>{cr.thesis}</div>
+                </div>
+              ) : null}
+
+              {crMoney.length > 0 ? (
+                <div className="ob-card" style={tintMoney}>
+                  <div style={secHGreen}>Where your money is</div>
+                  {crMoney.map((row, i) => (
+                    <div key={i} style={{ borderTop: i === 0 ? "none" : "1px solid var(--border)", paddingTop: i === 0 ? 0 : 12, marginTop: i === 0 ? 0 : 12 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                        <div style={{ fontWeight: 700, color: "var(--ink)" }}>{row.name}</div>
+                        {signalPill(row.signal)}
+                      </div>
+                      {row.detail ? <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.5, marginTop: 2 }}>{row.detail}</div> : null}
+                      {row.rate ? <div style={{ fontSize: 14, fontWeight: 700, color: "var(--carrot-dark)", marginTop: 2 }}>{row.rate}</div> : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {cr.pushing_toward ? (
+                <div className="ob-card" style={tintPush}>
+                  <div style={secHGold}>What this plan is pushing you toward</div>
+                  <div style={{ fontSize: 14, color: "var(--ink)", lineHeight: 1.65 }}>{cr.pushing_toward}</div>
+                </div>
+              ) : null}
+
+              {crBlind.length > 0 ? (
+                <div className="ob-card" style={tintBlind}>
+                  <div style={secHRose}>Watch your blind spots</div>
+                  {crBlind.map((b, i) => (
+                    <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: i === 0 ? 0 : 12 }}>
+                      <span style={{ flex: "none", width: 8, height: 8, borderRadius: "50%", background: "#E11D48", marginTop: 6 }} />
+                      <div>
+                        {b.title ? <div style={{ fontWeight: 700, color: "var(--ink)" }}>{b.title}</div> : null}
+                        {b.body ? <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.5, marginTop: 2 }}>{b.body}</div> : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {cr.bridge ? (
+                <div style={{ background: "var(--green-light)", border: "1.5px solid var(--green)", borderRadius: 16, padding: 18, marginBottom: 16 }}>
+                  <div style={{ fontSize: 14, color: "#1B4332", lineHeight: 1.6 }}>{cr.bridge}</div>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <div className="ob-card">Coach could not read your plan right now. Head back and open this again to retry.</div>
           )}
         </div>
       </div>
@@ -2654,32 +2761,6 @@ export default function App() {
     );
     const secH = { fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, margin: "0 0 8px" };
     const noteStyle = { fontSize: 13, color: "var(--muted)", lineHeight: 1.5, marginTop: 8 };
-    // Subtle zone tints + colored serif titles for the Coach read sections.
-    const tintThesis = { background: "var(--carrot-light)", border: "1.5px solid rgba(244,113,26,0.35)" };
-    const tintMoney = { background: "var(--green-light)", border: "1.5px solid rgba(45,106,79,0.30)" };
-    const tintPush = { background: "var(--gold-light)", border: "1.5px solid var(--gold)" };
-    const tintBlind = { background: "#FFF1F2", border: "1.5px solid #FBB6CE" };
-    const secHGreen = { ...secH, color: "var(--green)" };
-    const secHGold = { ...secH, color: "#7A5C00" };
-    const secHRose = { ...secH, color: "#9F1239" };
-
-    // ── Coach's read (live narrative) ──
-    const signalPill = (sig) => {
-      if (!sig) return null;
-      const green = sig === "highest" || sig === "uncapped" || sig === "steady";
-      return (
-        <span style={{
-          fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 100, textTransform: "capitalize", whiteSpace: "nowrap",
-          background: green ? "var(--green-light)" : "#FFE4E6",
-          color: green ? "var(--green)" : "#9F1239",
-          border: green ? "1px solid #A7D6B5" : "1px solid #FBB6CE",
-        }}>{sig}</span>
-      );
-    };
-    const cr = coachRead || {};
-    const crMoney = Array.isArray(cr.where_money_is) ? cr.where_money_is : [];
-    const crBlind = Array.isArray(cr.blind_spots) ? cr.blind_spots : [];
-    const hasReadContent = !!(cr.thesis || crMoney.length || cr.pushing_toward || crBlind.length || cr.bridge);
 
     return (
       <div className="cf-wrap">
@@ -2694,72 +2775,7 @@ export default function App() {
           <h1 className="cf-h1" style={{ marginBottom: 8 }}>Here's What Coach Found in Your Plan</h1>
           <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.55, marginBottom: 18 }}>Review the details below. You can confirm everything or flag anything that looks off.</p>
 
-          <button className="cf-cta" style={{ marginBottom: 26 }} onClick={() => goFlow("confirm")}>Continue →</button>
-
-          {/* Coach's read — live narrative, rendered only when loading or content exists */}
-          {(coachReadLoading || hasReadContent) && (
-            <div style={{ marginBottom: 26 }}>
-              {coachReadLoading ? (
-                <div className="ob-card" style={{ display: "flex", alignItems: "center", gap: 14, padding: 20, marginBottom: 0 }}>
-                  <div style={{ width: 30, height: 30, borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "var(--carrot)", animation: "azspin 0.9s linear infinite", flex: "none" }} />
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>Coach is reading your plan...</div>
-                </div>
-              ) : (
-                <>
-                  {cr.thesis ? (
-                    <div className="ob-card" style={tintThesis}>
-                      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "var(--carrot)", marginBottom: 8 }}>Coach's read</div>
-                      <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, lineHeight: 1.35, color: "var(--ink)" }}>{cr.thesis}</div>
-                    </div>
-                  ) : null}
-
-                  {crMoney.length > 0 ? (
-                    <div className="ob-card" style={tintMoney}>
-                      <div style={secHGreen}>Where your money is</div>
-                      {crMoney.map((row, i) => (
-                        <div key={i} style={{ borderTop: i === 0 ? "none" : "1px solid var(--border)", paddingTop: i === 0 ? 0 : 12, marginTop: i === 0 ? 0 : 12 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                            <div style={{ fontWeight: 700, color: "var(--ink)" }}>{row.name}</div>
-                            {signalPill(row.signal)}
-                          </div>
-                          {row.detail ? <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.5, marginTop: 2 }}>{row.detail}</div> : null}
-                          {row.rate ? <div style={{ fontSize: 14, fontWeight: 700, color: "var(--carrot-dark)", marginTop: 2 }}>{row.rate}</div> : null}
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  {cr.pushing_toward ? (
-                    <div className="ob-card" style={tintPush}>
-                      <div style={secHGold}>What this plan is pushing you toward</div>
-                      <div style={{ fontSize: 14, color: "var(--ink)", lineHeight: 1.65 }}>{cr.pushing_toward}</div>
-                    </div>
-                  ) : null}
-
-                  {crBlind.length > 0 ? (
-                    <div className="ob-card" style={tintBlind}>
-                      <div style={secHRose}>Watch your blind spots</div>
-                      {crBlind.map((b, i) => (
-                        <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: i === 0 ? 0 : 12 }}>
-                          <span style={{ flex: "none", width: 8, height: 8, borderRadius: "50%", background: "#E11D48", marginTop: 6 }} />
-                          <div>
-                            {b.title ? <div style={{ fontWeight: 700, color: "var(--ink)" }}>{b.title}</div> : null}
-                            {b.body ? <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.5, marginTop: 2 }}>{b.body}</div> : null}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  {cr.bridge ? (
-                    <div style={{ background: "var(--green-light)", border: "1.5px solid var(--green)", borderRadius: 16, padding: 18, marginBottom: 16 }}>
-                      <div style={{ fontSize: 14, color: "#1B4332", lineHeight: 1.6 }}>{cr.bridge}</div>
-                    </div>
-                  ) : null}
-                </>
-              )}
-            </div>
-          )}
+          <button className="cf-cta" style={{ marginBottom: 26 }} onClick={() => { setPlanConfirmed(true); goFlow("confirm"); }}>Continue →</button>
 
           {/* 1. The basics */}
           <div className="ob-card">
@@ -2881,7 +2897,7 @@ export default function App() {
             </div>
           </div>
 
-          <button className="cf-cta" onClick={() => goFlow("confirm")}>Continue →</button>
+          <button className="cf-cta" onClick={() => { setPlanConfirmed(true); goFlow("confirm"); }}>Continue →</button>
         </div>
       </div>
     );
@@ -3208,6 +3224,13 @@ export default function App() {
           throw new Error("ingest_failed");
         }
         setCompPlan(data.plan);
+        // New plan: clear anything tied to the previous one so nothing stale shows.
+        setCoachRead(null);
+        coachReadForRef.current = null;
+        setClarificationAnswers({});
+        setAskManagerFlags({});
+        setPlanEdits({});
+        setPlanConfirmed(false);
         setIngesting(false);
         goFlow("plan_clarification");
       } catch (err) {
