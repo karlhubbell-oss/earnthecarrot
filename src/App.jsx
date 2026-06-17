@@ -640,6 +640,15 @@ export default function App() {
   const [screen, setScreen] = useState("landing");
   const [scrolled, setScrolled] = useState(false);
 
+  // ── AUTH STATE (front-end stub, in-memory only) ──
+  const [authMode, setAuthMode] = useState("login"); // "login" | "signup"
+  const [authUser, setAuthUser] = useState("");
+  const [authPass, setAuthPass] = useState("");
+  const [authPass2, setAuthPass2] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [users, setUsers] = useState({});            // username -> password
+  const [currentUser, setCurrentUser] = useState(null);
+
   // ── ONBOARDING STATE ──
   const [suName, setSuName]   = useState("");
   const [suEmail, setSuEmail] = useState("");
@@ -768,6 +777,33 @@ export default function App() {
 
   const goToScreen = (name) => { window.history.pushState({ screen: name }, ""); setScreen(name); window.scrollTo(0, 0); };
   const goFlow = (s) => goToScreen(s);
+
+  // ── AUTH helpers (front-end stub) ──
+  const goAuth = (mode) => { setAuthMode(mode); setAuthError(""); setAuthPass(""); setAuthPass2(""); goFlow("auth"); };
+  const toggleAuthMode = () => { setAuthMode((m) => (m === "login" ? "signup" : "login")); setAuthError(""); setAuthPass(""); setAuthPass2(""); };
+  const submitAuth = () => {
+    const u = authUser.trim();
+    if (!u || !authPass) { setAuthError("Please enter a username and a password."); return; }
+    if (authMode === "signup") {
+      if (authPass !== authPass2) { setAuthError("Those passwords do not match. Please try again."); return; }
+      if (users[u]) { setAuthError("That username is already taken. Try logging in instead."); return; }
+      setUsers((prev) => ({ ...prev, [u]: authPass }));
+      setCurrentUser(u);
+      setAuthError("");
+      goFlow("home_base");
+    } else {
+      if (!users[u] || users[u] !== authPass) { setAuthError("We could not log you in. Check your username and password."); return; }
+      setCurrentUser(u);
+      setAuthError("");
+      goFlow("home_base");
+    }
+  };
+  // Shared top bar: brand only (no upload / avatar before sign in).
+  const sharedTopBar = (
+    <div style={{ display: "flex", alignItems: "center", padding: "18px 48px", borderBottom: "1px solid var(--border)", background: "rgba(255,250,244,0.92)", position: "sticky", top: 0, zIndex: 10 }}>
+      <button onClick={() => goFlow("landing")} style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 900, color: "var(--carrot)", background: "none", border: "none", cursor: "pointer" }}>🥕 Earn The Carrot</button>
+    </div>
+  );
   const startEdit = (f, v) => { setEditField(f); setEditVal(String(v)); };
   const saveComp = () => { setComp((c) => ({ ...c, [editField]: parseFloat(editVal) || 0 })); setEditField(null); };
   const saveTax = (key) => { setTaxOverrides((t) => ({ ...t, [key]: parseFloat(editVal) || 0 })); setEditField(null); };
@@ -868,6 +904,80 @@ export default function App() {
     return () => { cancelled = true; };
   }, [screen, compPlan]);
 
+  // ══ AUTH (login / signup, front-end stub) ════════════════════════════
+  if (screen === "auth") {
+    const isSignup = authMode === "signup";
+    const tabStyle = (on) => ({
+      flex: 1, padding: "11px", border: "none", borderRadius: 10, cursor: "pointer",
+      fontFamily: "'DM Sans',sans-serif", fontWeight: 700, fontSize: 15,
+      background: on ? "white" : "transparent", color: on ? "var(--carrot)" : "var(--muted)",
+      boxShadow: on ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
+    });
+    const lblStyle = { display: "block", fontSize: 14, fontWeight: 700, marginBottom: 6, marginTop: 4 };
+    const inpStyle = { width: "100%", padding: "13px 16px", border: "1.5px solid var(--border)", borderRadius: 12, fontSize: 16, fontFamily: "'DM Sans',sans-serif", background: "white", color: "var(--ink)", marginBottom: 16, boxSizing: "border-box" };
+    const onEnter = (e) => { if (e.key === "Enter") submitAuth(); };
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--cream)", fontFamily: "'DM Sans',sans-serif", color: "var(--ink)" }}>
+        <style>{S}</style>
+        {sharedTopBar}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "56px 24px", minHeight: "calc(100vh - 75px)" }}>
+          <div style={{ width: "100%", maxWidth: 460, background: "white", border: "1.5px solid var(--border)", borderRadius: 24, padding: "42px 40px", boxShadow: "0 20px 50px -24px rgba(26,18,8,0.25)" }}>
+            <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: 34, fontWeight: 900, textAlign: "center", marginBottom: 6, lineHeight: 1.15 }}>{isSignup ? "Create your account" : "Welcome back"}</h1>
+            <p style={{ textAlign: "center", color: "var(--muted)", fontSize: 15, marginBottom: 26, lineHeight: 1.5 }}>{isSignup ? "Set up your Earn The Carrot login. Username and password, that is it." : "Log in to your Earn The Carrot account."}</p>
+
+            <div style={{ display: "flex", gap: 6, background: "var(--cream)", border: "1.5px solid var(--border)", borderRadius: 14, padding: 5, marginBottom: 26 }}>
+              <button onClick={() => { if (authMode !== "login") toggleAuthMode(); }} style={tabStyle(!isSignup)}>Log in</button>
+              <button onClick={() => { if (authMode !== "signup") toggleAuthMode(); }} style={tabStyle(isSignup)}>Sign up</button>
+            </div>
+
+            <label style={lblStyle}>Username</label>
+            <input value={authUser} onChange={(e) => setAuthUser(e.target.value)} placeholder="yourname" style={inpStyle} autoComplete="username" onKeyDown={onEnter} />
+
+            <label style={lblStyle}>Password</label>
+            <input type="password" value={authPass} onChange={(e) => setAuthPass(e.target.value)} placeholder="••••••••" style={inpStyle} autoComplete={isSignup ? "new-password" : "current-password"} onKeyDown={onEnter} />
+
+            {isSignup && (
+              <>
+                <label style={lblStyle}>Confirm password</label>
+                <input type="password" value={authPass2} onChange={(e) => setAuthPass2(e.target.value)} placeholder="••••••••" style={inpStyle} autoComplete="new-password" onKeyDown={onEnter} />
+              </>
+            )}
+
+            {authError && (
+              <div style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", color: "#B91C1C", borderRadius: 12, padding: "10px 14px", fontSize: 14, lineHeight: 1.45, marginBottom: 16 }}>{authError}</div>
+            )}
+
+            <button onClick={submitAuth} style={{ width: "100%", padding: 16, borderRadius: 100, border: "none", background: "var(--carrot)", color: "white", fontSize: 17, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+              {isSignup ? "Create account" : "Log in"}
+            </button>
+
+            <div style={{ textAlign: "center", marginTop: 18, fontSize: 14, color: "var(--muted)" }}>
+              {isSignup ? "Already have an account? " : "New to Earn The Carrot? "}
+              <button onClick={toggleAuthMode} style={{ background: "none", border: "none", color: "var(--carrot)", fontWeight: 700, cursor: "pointer", fontSize: 14, fontFamily: "'DM Sans',sans-serif", padding: 0 }}>{isSignup ? "Log in" : "Sign up"}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ══ HOME BASE (placeholder, built next) ══════════════════════════════
+  if (screen === "home_base") {
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--cream)", fontFamily: "'DM Sans',sans-serif", color: "var(--ink)" }}>
+        <style>{S}</style>
+        {sharedTopBar}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "calc(100vh - 75px)", padding: 24, textAlign: "center" }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>🥕</div>
+          <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: 36, fontWeight: 900, marginBottom: 10 }}>Home base coming next</h1>
+          <p style={{ color: "var(--muted)", fontSize: 16, lineHeight: 1.5, maxWidth: 440 }}>
+            {currentUser ? `You are signed in as ${currentUser}. ` : ""}This is where your home base will live.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (screen === "landing") {
     return (
       <>
@@ -880,10 +990,16 @@ export default function App() {
             <a className="nav-link" href="#how-it-works">How It Works</a>
             <a className="nav-link" href="#coach">Meet Coach</a>
             <a className="nav-link" href="#pricing">Pricing</a>
+            <button className="nav-link" onClick={() => goAuth("login")}>Log in</button>
           </div>
-          <button className="nav-cta" onClick={() => goFlow("upload")} style={{ lineHeight: 1.2 }}>
-            Start by Uploading<br />your Comp Plan
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <button className="nav-cta" onClick={() => goAuth("signup")} style={{ lineHeight: 1.2, background: "transparent", border: "1.5px solid var(--carrot)", color: "var(--carrot)" }}>
+              Sign up
+            </button>
+            <button className="nav-cta" onClick={() => goFlow("upload")} style={{ lineHeight: 1.2 }}>
+              Start by Uploading<br />your Comp Plan
+            </button>
+          </div>
         </nav>
 
         {/* HERO */}
