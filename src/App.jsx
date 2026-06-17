@@ -1116,6 +1116,99 @@ export default function App() {
     );
   }
 
+  // ══ COMP PLAN DASHBOARD ══════════════════════════════════════════════
+  if (screen === "comp_dashboard") {
+    const hasPlan = !!compPlan;
+    const backLink = { background: "none", border: "none", color: "var(--carrot)", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0 };
+    const orangePill = { background: "var(--carrot)", color: "white", border: "none", borderRadius: 100, padding: "13px 26px", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" };
+    const FolderIcon = <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5Z" /></svg>;
+    const SummaryIcon = <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" /><path d="M14 3v5h5" /><path d="M9 13h6M9 17h4" /></svg>;
+    const TakeIcon = <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8 8 0 0 1-11.5 7.2L4 20l1.3-4.4A8 8 0 1 1 21 11.5Z" /></svg>;
+    const cards = [
+      { key: "docs", icon: FolderIcon, name: "Loaded Documents", desc: "Your comp plan, SPIFF notes, and anything else you have dropped in.", go: "comp_documents" },
+      { key: "summary", icon: SummaryIcon, name: "Your Plan Summary", desc: "Every number Coach pulled out of your plan, in plain terms.", go: "plan_summary" },
+      { key: "take", icon: TakeIcon, name: "Coach's Take", desc: "Coach's read on what this plan is really built to make you do.", go: "plan_summary" },
+    ];
+    return (
+      <div className="hb-wrap">
+        <style>{S}</style>
+        <style>{HOME_STYLES}</style>
+        {renderTopBar(true)}
+        <div className="hb-main">
+          <button style={backLink} onClick={() => goFlow("home_base")}>‹ Back to home</button>
+          <h1 className="hb-h1" style={{ marginTop: 12 }}>Your Comp Plan</h1>
+          <p className="hb-sub">Everything that defines how you get paid, in one place. Open a card to dig in.</p>
+
+          {hasPlan ? (
+            <>
+              <div className="hb-areas">
+                {cards.map((c) => (
+                  <div key={c.key} className="hb-area active" onClick={() => goFlow(c.go)}>
+                    <div className="hb-area-icon">{c.icon}</div>
+                    <div className="hb-area-name">{c.name}</div>
+                    <div className="hb-area-desc">{c.desc}</div>
+                    <span className="hb-area-status ready">Ready</span>
+                  </div>
+                ))}
+              </div>
+
+              <div onClick={() => goFlow("upload")} style={{ cursor: "pointer", border: "2px dashed #E7C9AE", background: "#FFF6EF", marginTop: 28, borderRadius: 16, padding: "20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>Got something new?</div>
+                  <div style={{ fontSize: 14, color: "var(--muted)", marginTop: 2, lineHeight: 1.5 }}>Drop in a revised plan, last year's plan, or a SPIFF email and I'll read it in.</div>
+                </div>
+                <button style={orangePill} onClick={(e) => { e.stopPropagation(); goFlow("upload"); }}>Add a document</button>
+              </div>
+            </>
+          ) : (
+            <div onClick={() => goFlow("upload")} style={{ cursor: "pointer", border: "2px dashed #E7C9AE", borderRadius: 20, background: "white", padding: "56px 32px", textAlign: "center", maxWidth: 660 }}>
+              <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 24, fontWeight: 900, marginBottom: 8 }}>Let's start here.</h2>
+              <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.6, maxWidth: 440, margin: "0 auto 22px" }}>Drop in your comp plan and I'll show you what it's really worth.</p>
+              <button style={orangePill} onClick={(e) => { e.stopPropagation(); goFlow("upload"); }}>Upload your comp plan</button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ══ COMP PLAN DOCUMENTS ══════════════════════════════════════════════
+  if (screen === "comp_documents") {
+    const backLink = { background: "none", border: "none", color: "var(--carrot)", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0 };
+    const prov = (compPlan && compPlan.provenance) || {};
+    const sf = Array.isArray(prov.source_files) ? prov.source_files : [];
+    const readyPill = { fontSize: 11, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", padding: "4px 10px", borderRadius: 100, background: "var(--green-light)", color: "var(--green)", flex: "none" };
+    const FolderIcon = <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5Z" /></svg>;
+    return (
+      <div className="hb-wrap">
+        <style>{S}</style>
+        <style>{HOME_STYLES}</style>
+        {renderTopBar(true)}
+        <div className="hb-main">
+          <button style={backLink} onClick={() => goFlow("comp_dashboard")}>‹ Back to Comp Plan</button>
+          <h1 className="hb-h1" style={{ marginTop: 12 }}>Loaded Documents</h1>
+          <p className="hb-sub">The files Coach has read for this plan. Full document history is coming soon.</p>
+          {sf.length === 0 ? (
+            <div style={{ fontSize: 15, color: "var(--muted)", fontStyle: "italic" }}>No documents on file yet. Head back and add your comp plan.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 680 }}>
+              {sf.map((name, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, background: "white", border: "1.5px solid var(--border)", borderRadius: 14, padding: "16px 18px" }}>
+                  {FolderIcon}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, wordBreak: "break-word" }}>{name}</div>
+                    <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 2 }}>Read by Coach{prov.parse_engine ? ` · ${prov.parse_engine}` : ""}</div>
+                  </div>
+                  <span style={readyPill}>Ready</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // ══ HOME BASE ════════════════════════════════════════════════════════
   if (screen === "home_base") {
     const sameDate = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -1204,7 +1297,7 @@ export default function App() {
           <div className="hb-areas-h">Your Areas</div>
           <div className="hb-areas">
             {AREAS.map((a) => (
-              <div key={a.key} className={`hb-area ${a.active ? "active" : "soon"}`} onClick={a.active ? () => goFlow("upload") : undefined}>
+              <div key={a.key} className={`hb-area ${a.active ? "active" : "soon"}`} onClick={a.active ? () => goFlow("comp_dashboard") : undefined}>
                 <div className="hb-area-icon">{a.icon}</div>
                 <div className="hb-area-name">{a.name}</div>
                 <div className="hb-area-desc">{a.desc}</div>
@@ -2588,6 +2681,7 @@ export default function App() {
           <div className="cf-step">Plan Summary</div>
         </div>
         <div className="cf-screen">
+          <button onClick={() => goFlow("comp_dashboard")} style={{ background: "none", border: "none", color: "var(--carrot)", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0, marginBottom: 14 }}>‹ Back to Comp Plan</button>
           <h1 className="cf-h1" style={{ marginBottom: 8 }}>Here's What Coach Found in Your Plan</h1>
           <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.55, marginBottom: 18 }}>Review the details below. You can confirm everything or flag anything that looks off.</p>
 
