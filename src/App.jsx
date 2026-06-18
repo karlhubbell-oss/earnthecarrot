@@ -253,7 +253,7 @@ const OB_STYLES = `
 .ob-dot.active{background:var(--carrot);width:26px;border-radius:4px;}
 .ob-dot.done{background:var(--green);}
 .ob-steplbl{font-size:18px;font-weight:700;color:var(--muted);min-width:48px;text-align:right;}
-.ob-screen{max-width:560px;margin:0 auto;padding:34px 20px 70px;animation:fadeUp 0.35s ease;}
+.ob-screen{max-width:1240px;margin:0 auto;padding:34px 40px 70px;animation:fadeUp 0.35s ease;}
 .ob-eyebrow{font-size:16px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--carrot);margin-bottom:8px;}
 .ob-h1{font-family:'Playfair Display',serif;font-size:35px;font-weight:900;color:var(--ink);margin-bottom:8px;line-height:1.15;}
 .ob-subt{font-size:18px;color:var(--muted);line-height:1.55;margin-bottom:26px;}
@@ -375,7 +375,7 @@ select.ob-inp{appearance:none;cursor:pointer;background-image:url("data:image/sv
 .cf-wrap{min-height:100vh;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;}
 .cf-top{position:sticky;top:0;z-index:50;background:rgba(255,250,244,0.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:14px 20px;}
 .cf-step{font-size:16px;font-weight:700;color:var(--muted);}
-.cf-screen{max-width:600px;margin:0 auto;padding:30px 20px 90px;animation:fadeUp 0.35s ease;}
+.cf-screen{max-width:1240px;margin:0 auto;padding:30px 40px 90px;animation:fadeUp 0.35s ease;}
 .cf-h1{font-family:'Playfair Display',serif;font-size:33px;font-weight:900;color:var(--ink);margin-bottom:24px;line-height:1.15;}
 .cf-card{background:white;border:1.5px solid var(--border);border-radius:20px;overflow:hidden;margin-bottom:20px;}
 .cf-card-hdr{padding:18px 20px;border-bottom:1px solid var(--border);background:var(--cream);}
@@ -576,7 +576,7 @@ select.ob-inp{appearance:none;cursor:pointer;background-image:url("data:image/sv
 @media(max-width:680px){.bs-cols{grid-template-columns:1fr;}.ca-plans{grid-template-columns:1fr;}.bs-strat{position:static;}}
 /* upload screen */
 .up-wrap{min-height:100vh;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;}
-.up-screen{max-width:600px;margin:0 auto;padding:30px 20px 90px;animation:fadeUp 0.35s ease;}
+.up-screen{max-width:1240px;margin:0 auto;padding:30px 40px 90px;animation:fadeUp 0.35s ease;}
 .up-h1{font-family:'Playfair Display',serif;font-size:39px;font-weight:900;color:var(--ink);line-height:1.15;margin-bottom:12px;}
 .up-sub{font-size:18px;color:var(--muted);line-height:1.6;max-width:500px;margin-bottom:26px;}
 .up-zone{border:2px dashed var(--border);border-radius:20px;min-height:200px;background:white;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;cursor:pointer;transition:all 0.2s;}
@@ -657,7 +657,7 @@ const AREAS = [
 
 const HOME_STYLES = `
 .hb-wrap{min-height:100vh;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;}
-.hb-main{max-width:1180px;margin:0 auto;padding:32px 48px 80px;}
+.hb-main{max-width:1240px;margin:0 auto;padding:32px 40px 80px;}
 .hb-h1{font-family:'Playfair Display',serif;font-size:37px;font-weight:900;margin-bottom:4px;}
 .hb-sub{font-size:18px;color:var(--muted);margin-bottom:26px;}
 .hb-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;}
@@ -1309,14 +1309,14 @@ export default function App() {
           <h1 className="hb-h1" style={{ marginTop: 12 }}>Your Comp Documents</h1>
           <p className="hb-sub">The files Coach has read for this plan. Full document history is coming soon.</p>
 
-          <div style={{ fontSize: 18, color: "#7A5C00", background: "var(--gold-light)", border: "1px solid var(--gold)", borderRadius: 12, padding: "12px 16px", marginBottom: 18, lineHeight: 1.5, maxWidth: 820 }}>For each file, confirm what Coach understood, then see what Coach thinks. If anything looks off, flag it to your manager.</div>
+          <div style={{ fontSize: 18, color: "#7A5C00", background: "var(--gold-light)", border: "1px solid var(--gold)", borderRadius: 12, padding: "12px 16px", marginBottom: 18, lineHeight: 1.5, maxWidth: 1040 }}>For each file, confirm what Coach understood, then see what Coach thinks. If anything looks off, flag it to your manager.</div>
 
           {/* Upload lives here now: drop or browse, files appear in the list below. */}
           <div
             onClick={() => compUploadRef.current && compUploadRef.current.click()}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => { e.preventDefault(); onPick(e.dataTransfer.files && e.dataTransfer.files[0]); }}
-            style={{ cursor: "pointer", border: "2px dashed #E7C9AE", borderRadius: 16, background: "white", padding: "20px 24px", marginBottom: 10, maxWidth: 900, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}
+            style={{ cursor: "pointer", border: "2px dashed #E7C9AE", borderRadius: 16, background: "white", padding: "20px 24px", marginBottom: 10, maxWidth: 1200, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}
           >
             <div>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700, marginBottom: 2 }}>Drop your comp documents here</div>
@@ -1325,9 +1325,9 @@ export default function App() {
             <button style={orangePill} onClick={(e) => { e.stopPropagation(); compUploadRef.current && compUploadRef.current.click(); }}>Browse files</button>
           </div>
           <input ref={compUploadRef} type="file" accept=".pdf" style={{ display: "none" }} onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; onPick(f); }} />
-          {ingestError && !pendingDoc && <div style={{ maxWidth: 900, background: "#FEE2E2", border: "1px solid #FCA5A5", color: "#B91C1C", borderRadius: 12, padding: "10px 14px", fontSize: 18, lineHeight: 1.45, marginBottom: 8 }}>{ingestError}</div>}
+          {ingestError && !pendingDoc && <div style={{ maxWidth: 1200, background: "#FEE2E2", border: "1px solid #FCA5A5", color: "#B91C1C", borderRadius: 12, padding: "10px 14px", fontSize: 18, lineHeight: 1.45, marginBottom: 8 }}>{ingestError}</div>}
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 900, marginTop: 12 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 1200, marginTop: 12 }}>
             {/* In-place reading row with a filling progress circle. */}
             {pendingDoc && (
               <div style={{ background: "white", border: "1.5px solid var(--border)", borderRadius: 14, padding: "18px 20px", display: "flex", alignItems: "center", gap: 14 }}>
@@ -2946,7 +2946,7 @@ export default function App() {
           <h1 className="cf-h1" style={{ marginBottom: 8 }}>Here's What Coach Found in Your Plan</h1>
           <p style={{ fontSize: 18, color: "var(--muted)", lineHeight: 1.55, marginBottom: 18 }}>Review the details below. You can confirm everything or flag anything that looks off.</p>
 
-          <button className="cf-cta" style={{ marginBottom: 26 }} onClick={() => { setPlanConfirmed(true); goFlow("comp_dashboard"); }}>Looks right →</button>
+          <button className="cf-cta" style={{ marginBottom: 26, maxWidth: 460 }} onClick={() => { setPlanConfirmed(true); goFlow("comp_dashboard"); }}>Looks right →</button>
 
           {/* 1. The basics */}
           <div className="ob-card">
@@ -3068,7 +3068,7 @@ export default function App() {
             </div>
           </div>
 
-          <button className="cf-cta" onClick={() => { setPlanConfirmed(true); goFlow("comp_dashboard"); }}>Looks right →</button>
+          <button className="cf-cta" style={{ maxWidth: 460 }} onClick={() => { setPlanConfirmed(true); goFlow("comp_dashboard"); }}>Looks right →</button>
         </div>
       </div>
     );
