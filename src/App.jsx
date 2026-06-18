@@ -716,6 +716,8 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [currentName, setCurrentName] = useState("");
   const [currentRepId, setCurrentRepId] = useState(null); // real reps.id from the database
+  const [dbPlanLoading, setDbPlanLoading] = useState(false); // loading the rep's plan from the DB
+  const planFetchedRef = useRef(null); // repId we've already loaded a plan for this session
 
   // ── HOME BASE STATE ──
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
@@ -998,6 +1000,7 @@ export default function App() {
       if (authPass !== authPass2) { setAuthError("Those passwords do not match. Please try again."); return; }
       if (users[u]) { setAuthError("That username is already taken. Try logging in instead."); return; }
       setUsers((prev) => ({ ...prev, [u]: { password: authPass, firstName: fn } }));
+      setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; setPlanConfirmed(false); planFetchedRef.current = null;
       setCurrentUser(u);
       setCurrentName(fn);
       setCurrentRepId(null);
@@ -1008,6 +1011,8 @@ export default function App() {
       if (!u || !authPass) { setAuthError("Please enter a username and a password."); return; }
       const rec = users[u];
       if (!rec || rec.password !== authPass) { setAuthError("We could not log you in. Check your username and password."); return; }
+      // Fresh session: clear any in-memory plan so it loads from the DB for this rep.
+      setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; setPlanConfirmed(false); planFetchedRef.current = null;
       setCurrentUser(u);
       setCurrentName(rec.firstName || "");
       setAuthError("");
@@ -1034,7 +1039,7 @@ export default function App() {
       })
       .catch((e) => console.error("create-rep error:", e));
   };
-  const logout = () => { setCurrentUser(null); setCurrentName(""); setCurrentRepId(null); setAvatarMenuOpen(false); goFlow("landing"); };
+  const logout = () => { setCurrentUser(null); setCurrentName(""); setCurrentRepId(null); setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; setPlanConfirmed(false); planFetchedRef.current = null; setAvatarMenuOpen(false); goFlow("landing"); };
   // Shared top bar. full=true (signed in) shows Upload + profile avatar; full=false is brand only.
   const renderTopBar = (full) => (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 48px", borderBottom: "1px solid var(--border)", background: "rgba(255,250,244,0.97)", backdropFilter: "blur(8px)", position: "fixed", top: 0, left: 0, right: 0, height: 72, boxSizing: "border-box", zIndex: 60 }}>
@@ -1200,6 +1205,28 @@ export default function App() {
     }, 200);
     return () => clearInterval(id);
   }, [coachReadLoading]);
+
+  // Load the rep's current plan from the database when they enter the comp area.
+  // Skips when a plan is already in memory (fresh upload or already loaded) so there
+  // is no double-display, and only fetches once per rep per session.
+  useEffect(() => {
+    const inCompArea = ["comp_dashboard", "comp_documents", "plan_summary", "coach_take"].indexOf(screen) >= 0;
+    if (!inCompArea || !currentRepId) return;
+    if (compPlan) { planFetchedRef.current = currentRepId; return; }
+    if (planFetchedRef.current === currentRepId) return;
+    planFetchedRef.current = currentRepId;
+    let cancelled = false;
+    setDbPlanLoading(true);
+    fetch(`/api/get-plan?repId=${encodeURIComponent(currentRepId)}`)
+      .then((r) => r.json().catch(() => null))
+      .then((d) => {
+        if (cancelled) return;
+        if (d && d.ok && d.plan) setCompPlan(d.plan);
+        setDbPlanLoading(false);
+      })
+      .catch(() => { if (!cancelled) setDbPlanLoading(false); });
+    return () => { cancelled = true; };
+  }, [screen, currentRepId, compPlan]);
 
   // Fetch Coach's read on demand when the Coach's Take view opens (once per plan).
   useEffect(() => {
@@ -1382,6 +1409,10 @@ export default function App() {
           <h1 className="hb-h1" style={{ marginTop: 12 }}>Your Comp Plan</h1>
           <p className="hb-sub">Everything that defines how you get paid, in one place. Open a card to dig in.</p>
 
+          {dbPlanLoading && !compPlan ? (
+            <div className="ob-card" style={{ padding: 20, fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>Loading your plan...</div>
+          ) : (
+          <>
           <div className="hb-areas">
             {cards.map((c) => (
               <div key={c.key} className={c.cls} onClick={c.onClick}>
@@ -1408,6 +1439,8 @@ export default function App() {
               </div>
               <button style={orangePill} onClick={(e) => { e.stopPropagation(); goFlow("comp_documents"); }}>Add a document</button>
             </div>
+          )}
+          </>
           )}
         </div>
       </div>
@@ -1534,7 +1567,10 @@ export default function App() {
               </div>
             )}
 
-            {docs.length === 0 && !pendingDoc && (
+            {docs.length === 0 && !pendingDoc && dbPlanLoading && (
+              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>Loading your plan...</div>
+            )}
+            {docs.length === 0 && !pendingDoc && !dbPlanLoading && (
               <div style={{ fontSize: 18, color: "var(--muted)", fontStyle: "italic" }}>No documents yet. Drop one in above and Coach will read it.</div>
             )}
 
