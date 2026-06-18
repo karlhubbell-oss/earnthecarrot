@@ -773,6 +773,11 @@ export default function App() {
   const [pendingDoc, setPendingDoc] = useState(null);
   const [readProgress, setReadProgress] = useState(0); // 0..100, fills while reading
   const compUploadRef = useRef(null);
+  // Gentle unconfirmed-file reminder (session-scoped, never a hard block).
+  const [reminder, setReminder] = useState(null);          // { fileName, proceed } or null
+  const [remindDontAsk, setRemindDontAsk] = useState(false);
+  const [remindSuppressed, setRemindSuppressed] = useState(false);
+  const [remindedFiles, setRemindedFiles] = useState({});  // filename -> already nudged this session
   const [comp, setComp] = useState({ base: 150000, quota: 1500000, commissionRate: 8, accelerator: 1.5 });
   const [editField, setEditField] = useState(null);
   const [editVal, setEditVal] = useState("");
@@ -902,6 +907,54 @@ export default function App() {
       setIngesting(false);
       setIngestError("Coach had trouble reading your plan. Please try again.");
     }
+  };
+
+  // Name of the current (possibly unconfirmed) plan's document.
+  const planFileName = () => {
+    const sf = compPlan && compPlan.provenance && compPlan.provenance.source_files;
+    if (Array.isArray(sf) && sf[0]) return sf[0];
+    return (compPlan && compPlan.meta && compPlan.meta.plan_name) || "your plan";
+  };
+  // Nudge (not a block) before a meaningful action when a plan is unconfirmed.
+  // Fires at most once per unconfirmed file per session, unless suppressed.
+  const maybeRemind = (proceed) => {
+    if (!compPlan || planConfirmed || remindSuppressed) { proceed(); return; }
+    const fname = planFileName();
+    if (remindedFiles[fname]) { proceed(); return; }
+    setRemindedFiles((m) => ({ ...m, [fname]: true }));
+    setReminder({ fileName: fname, proceed });
+  };
+  const dismissReminder = (runProceed) => {
+    if (remindDontAsk) setRemindSuppressed(true);
+    const r = reminder;
+    setReminder(null);
+    setRemindDontAsk(false);
+    if (runProceed && r) r.proceed();
+  };
+  const reviewFromReminder = () => {
+    if (remindDontAsk) setRemindSuppressed(true);
+    setReminder(null);
+    setRemindDontAsk(false);
+    goFlow("plan_summary");
+  };
+  const renderReminder = () => {
+    if (!reminder) return null;
+    return (
+      <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(15,10,5,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <div style={{ width: "100%", maxWidth: 460, background: "white", border: "1.5px solid var(--border)", borderRadius: 18, padding: 28, boxShadow: "0 24px 60px -20px rgba(26,18,8,0.4)" }}>
+          <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Quick check</h3>
+          <p style={{ fontSize: 16, color: "var(--ink)", lineHeight: 1.55, marginBottom: 16 }}>You haven't confirmed my read of {reminder.fileName} yet. I may have misread something. Want to review it first?</p>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 15, color: "var(--muted)", marginBottom: 18, cursor: "pointer" }}>
+            <input type="checkbox" checked={remindDontAsk} onChange={(e) => setRemindDontAsk(e.target.checked)} style={{ accentColor: "var(--carrot)", width: 16, height: 16 }} />
+            Don't ask again
+          </label>
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+            <button onClick={() => dismissReminder(true)} style={{ background: "white", color: "var(--muted)", border: "1.5px solid var(--border)", borderRadius: 100, padding: "11px 20px", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Keep going</button>
+            <button onClick={reviewFromReminder} style={{ background: "var(--carrot)", color: "white", border: "none", borderRadius: 100, padding: "11px 20px", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Review it</button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // ── AUTH helpers (front-end stub) ──
@@ -1209,7 +1262,8 @@ export default function App() {
         <style>{HOME_STYLES}</style>
         {renderTopBar(true)}
         <div className="hb-main">
-          <button style={backLink} onClick={() => goFlow("home_base")}>‹ Back to home</button>
+          <button style={backLink} onClick={() => maybeRemind(() => goFlow("home_base"))}>‹ Back to home</button>
+          {renderReminder()}
           <h1 className="hb-h1" style={{ marginTop: 12 }}>Your Comp Plan</h1>
           <p className="hb-sub">Everything that defines how you get paid, in one place. Open a card to dig in.</p>
 
@@ -1296,7 +1350,7 @@ export default function App() {
     const confirmBtnStyle = planConfirmed
       ? { background: "white", color: "var(--muted)", border: "1.5px solid var(--border)", borderRadius: 14, padding: "12px 22px", fontSize: 18, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }
       : actionPrimary;
-    const onPick = (file) => { if (file) ingestFile(file); };
+    const onPick = (file) => { if (file) maybeRemind(() => ingestFile(file)); };
     const R = 11, C = 2 * Math.PI * R;
 
     return (
@@ -1304,13 +1358,17 @@ export default function App() {
         <style>{S}</style>
         <style>{HOME_STYLES}</style>
         <style>{`@keyframes azspin{to{transform:rotate(360deg);}}@keyframes confirmpulse{0%{box-shadow:0 0 0 0 rgba(244,113,26,0.45);}70%{box-shadow:0 0 0 10px rgba(244,113,26,0);}100%{box-shadow:0 0 0 0 rgba(244,113,26,0);}}`}</style>
+        {renderReminder()}
         {renderTopBar(true)}
         <div className="hb-main">
-          <button style={backLink} onClick={() => goFlow("comp_dashboard")}>‹ Back to Comp Plan</button>
+          <button style={backLink} onClick={() => maybeRemind(() => goFlow("comp_dashboard"))}>‹ Back to Comp Plan</button>
           <h1 className="hb-h1" style={{ marginTop: 12 }}>Your Comp Documents</h1>
           <p className="hb-sub">The files Coach has read for this plan. Full document history is coming soon.</p>
 
-          <div style={{ fontSize: 18, color: "#7A5C00", background: "var(--gold-light)", border: "1px solid var(--gold)", borderRadius: 12, padding: "12px 16px", marginBottom: 18, lineHeight: 1.5, maxWidth: 1040 }}>For each file, confirm what Coach understood, then see what Coach thinks. If anything looks off, flag it to your manager.</div>
+          <div style={{ fontSize: 18, color: "#7A5C00", background: "var(--gold-light)", border: "1px solid var(--gold)", borderRadius: 12, padding: "12px 16px", marginBottom: 18, lineHeight: 1.5, maxWidth: 1040 }}>
+            For each file, confirm what Coach understood, then see what Coach thinks. If anything looks off, flag it to your manager.
+            <div style={{ marginTop: 6 }}>Not sure about something? When you <button onClick={() => goFlow("plan_summary")} style={{ background: "none", border: "none", padding: 0, color: "var(--carrot-dark)", fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontSize: "inherit", textDecoration: "underline" }}>review</button>, I can draft an email to your manager with the key questions.</div>
+          </div>
 
           {/* Upload lives here now: drop or browse, files appear in the list below. */}
           <div
