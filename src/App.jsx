@@ -1292,6 +1292,7 @@ export default function App() {
     // Confirm-status treatment, shown directly with the Confirm button.
     const needsReviewPill = { fontSize: 15, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", padding: "5px 10px", borderRadius: 100, background: "var(--gold-light)", color: "#7A5C00", border: "1px solid var(--gold)", textAlign: "center" };
     const confirmedTag = { fontSize: 15, fontWeight: 700, color: "var(--green)", textAlign: "center" };
+    const nudgeLine = { fontSize: 16, fontWeight: 700, color: "var(--carrot-dark)", lineHeight: 1.4, textAlign: "center" };
     const confirmBtnStyle = planConfirmed
       ? { background: "white", color: "var(--muted)", border: "1.5px solid var(--border)", borderRadius: 14, padding: "12px 22px", fontSize: 18, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }
       : actionPrimary;
@@ -1302,7 +1303,7 @@ export default function App() {
       <div className="hb-wrap">
         <style>{S}</style>
         <style>{HOME_STYLES}</style>
-        <style>{`@keyframes azspin{to{transform:rotate(360deg);}}`}</style>
+        <style>{`@keyframes azspin{to{transform:rotate(360deg);}}@keyframes confirmpulse{0%{box-shadow:0 0 0 0 rgba(244,113,26,0.45);}70%{box-shadow:0 0 0 10px rgba(244,113,26,0);}100%{box-shadow:0 0 0 0 rgba(244,113,26,0);}}`}</style>
         {renderTopBar(true)}
         <div className="hb-main">
           <button style={backLink} onClick={() => goFlow("comp_dashboard")}>‹ Back to Comp Plan</button>
@@ -1359,7 +1360,7 @@ export default function App() {
             )}
 
             {docs.map((doc, i) => (
-              <div key={i} style={{ background: planConfirmed ? "#F6FBF7" : "white", border: "1.5px solid var(--border)", borderRadius: 14, padding: "18px 20px" }}>
+              <div key={i} style={{ background: planConfirmed ? "white" : "#FFF8F2", border: "1.5px solid var(--border)", borderLeft: planConfirmed ? "1.5px solid var(--border)" : "4px solid var(--carrot)", borderRadius: 14, padding: "18px 20px" }}>
                 <div style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
                   <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "center", flex: "1 1 320px", minWidth: 260 }}>
                     {field("Plan year", doc.planYear)}
@@ -1370,10 +1371,17 @@ export default function App() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "stretch", flex: "0 0 440px", maxWidth: 480 }}>
                     {planConfirmed
                       ? <span style={confirmedTag}>✓ Confirmed</span>
-                      : <span style={needsReviewPill}>Needs your review</span>}
-                    <div style={{ display: "flex", gap: 12, alignItems: "stretch" }}>
-                      <button style={{ ...confirmBtnStyle, flex: 1, minWidth: 200, lineHeight: 1.25 }} onClick={() => goFlow("plan_summary")}>Confirm Coach's Understanding</button>
-                      <button style={{ ...actionSecondary, flex: 1, minWidth: 200, lineHeight: 1.25 }} onClick={() => goFlow("coach_take")}>What Coach Thinks of This File</button>
+                      : <span style={nudgeLine}>Start here. Take a look and make sure I got your plan right.</span>}
+                    <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                      <button style={{ ...confirmBtnStyle, flex: 1, minWidth: 200, lineHeight: 1.25, animation: planConfirmed ? "none" : "confirmpulse 1.4s ease-out 2" }} onClick={() => goFlow("plan_summary")}>Confirm Coach's Understanding</button>
+                      {planConfirmed ? (
+                        <button style={{ ...actionSecondary, flex: 1, minWidth: 200, lineHeight: 1.25 }} onClick={() => goFlow("coach_take")}>What Coach Thinks of This File</button>
+                      ) : (
+                        <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
+                          <button style={{ ...actionSecondary, width: "100%", lineHeight: 1.25, opacity: 0.45, cursor: "default" }} disabled>What Coach Thinks of This File</button>
+                          <span style={{ fontSize: 14, color: "var(--muted)", textAlign: "center" }}>Confirm first</span>
+                        </div>
+                      )}
                     </div>
                     {docRemoveIdx !== i && <button style={{ ...removeBtn, alignSelf: "center" }} onClick={() => setDocRemoveIdx(i)}>Remove</button>}
                   </div>
