@@ -1439,14 +1439,14 @@ export default function App() {
                       ? <span style={confirmedTag}>✓ Confirmed</span>
                       : <span style={needsReviewPill}>Needs review</span>}
                     <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                      <button style={{ ...confirmBtnStyle, flex: 1, minWidth: 200, lineHeight: 1.25, animation: planConfirmed ? "none" : "confirmpulse 1.4s ease-out 2" }} onClick={() => goFlow("plan_summary")}>Confirm Coach's Understanding</button>
+                      <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
+                        <button style={{ ...confirmBtnStyle, width: "100%", lineHeight: 1.25, animation: planConfirmed ? "none" : "confirmpulse 1.4s ease-out 2" }} onClick={() => goFlow("plan_summary")}>Confirm Coach's Understanding</button>
+                        {!planConfirmed && <span style={{ fontSize: 14, color: "var(--muted)", textAlign: "center" }}>Review first</span>}
+                      </div>
                       {planConfirmed ? (
                         <button style={{ ...actionSecondary, flex: 1, minWidth: 200, lineHeight: 1.25 }} onClick={() => goFlow("coach_take")}>What Coach Thinks of This File</button>
                       ) : (
-                        <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
-                          <button style={{ ...actionSecondary, width: "100%", lineHeight: 1.25, opacity: 0.45, cursor: "default" }} disabled>What Coach Thinks of This File</button>
-                          <span style={{ fontSize: 14, color: "var(--muted)", textAlign: "center" }}>Confirm first</span>
-                        </div>
+                        <button style={{ ...actionSecondary, flex: 1, minWidth: 200, lineHeight: 1.25, opacity: 0.45, cursor: "default" }} disabled>What Coach Thinks of This File</button>
                       )}
                     </div>
                     {docRemoveIdx !== i && <button style={{ ...removeBtn, alignSelf: "center" }} onClick={() => setDocRemoveIdx(i)}>Remove</button>}
