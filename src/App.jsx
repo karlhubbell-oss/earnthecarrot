@@ -877,6 +877,19 @@ export default function App() {
     reader.onerror = () => reject(reader.error || new Error("Could not read file"));
     reader.readAsDataURL(file);
   });
+  // Persist a parsed plan to the database. Fire-and-forget: never blocks or breaks the UI.
+  const savePlanToDb = (plan, filename) => {
+    if (!plan) return;
+    fetch("/api/save-plan", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ repId: "demo-rep", plan, filename: filename || null, originalFilename: filename || null }),
+    })
+      .then((r) => r.json().catch(() => null))
+      .then((d) => { if (!d || !d.ok) console.error("save-plan failed:", d); else console.log("save-plan ok:", d); })
+      .catch((e) => console.error("save-plan error:", e));
+  };
+
   // Comp-path ingestion: read in place on the Loaded Documents view (no overlay).
   const ingestFile = async (file) => {
     if (!file) return;
@@ -898,6 +911,7 @@ export default function App() {
       if (!res.ok || !data || !data.ok) throw new Error("ingest_failed");
       setReadProgress(100);
       setCompPlan(data.plan);
+      savePlanToDb(data.plan, file.name);
       setCoachRead(null);
       coachReadForRef.current = null;
       setClarificationAnswers({});
@@ -3602,6 +3616,7 @@ export default function App() {
           throw new Error("ingest_failed");
         }
         setCompPlan(data.plan);
+        savePlanToDb(data.plan, pdf.name);
         // New plan: clear anything tied to the previous one so nothing stale shows.
         setCoachRead(null);
         coachReadForRef.current = null;
