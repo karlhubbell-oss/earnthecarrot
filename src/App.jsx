@@ -1360,20 +1360,20 @@ export default function App() {
 
             {docs.map((doc, i) => (
               <div key={i} style={{ background: planConfirmed ? "#F6FBF7" : "white", border: "1.5px solid var(--border)", borderRadius: 14, padding: "18px 20px" }}>
-                <div style={{ display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap" }}>
-                  <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "center", flex: "1 1 380px" }}>
+                <div style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "center", flex: "1 1 320px", minWidth: 260 }}>
                     {field("Date loaded", doc.dateLoaded)}
                     {field("File name", doc.name, true)}
                     {field("Plan year", doc.planYear)}
                     {field("Description", doc.description, true)}
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start", flex: "0 0 auto" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "stretch", flex: "0 0 320px", maxWidth: 360 }}>
                     {planConfirmed
                       ? <span style={confirmedTag}>✓ Confirmed</span>
                       : <span style={needsReviewPill}>Needs your review</span>}
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                      <button style={confirmBtnStyle} onClick={() => goFlow("plan_summary")}>Confirm Coach's Understanding</button>
-                      <button style={actionSecondary} onClick={() => goFlow("coach_take")}>What Coach Thinks of This File</button>
+                    <div style={{ display: "flex", gap: 10, alignItems: "stretch" }}>
+                      <button style={{ ...confirmBtnStyle, flex: 1, minWidth: 0, lineHeight: 1.25 }} onClick={() => goFlow("plan_summary")}>Confirm Coach's Understanding</button>
+                      <button style={{ ...actionSecondary, flex: 1, minWidth: 0, lineHeight: 1.25 }} onClick={() => goFlow("coach_take")}>What Coach Thinks of This File</button>
                     </div>
                     {docRemoveIdx !== i && <button style={{ ...removeBtn, alignSelf: "center" }} onClick={() => setDocRemoveIdx(i)}>Remove</button>}
                   </div>
