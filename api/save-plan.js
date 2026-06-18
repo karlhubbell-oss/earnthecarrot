@@ -110,6 +110,16 @@ export default async function handler(req, res) {
         ? cc.tiers[0].rate
         : (cc && cc.rate != null ? cc.rate : null);
       if (compRate != null) addFact("component_rate", toNum(compRate), c.name || null, { notes: "component base rate" });
+      // Accelerable: a component with its own commission does not ride the plan accelerators.
+      addFact("component_accelerable", cc ? 0 : 1, c.name || null, { notes: cc ? "own rate, does not ride plan accelerators" : "rides plan accelerators" });
+      // A component's own full tier ladder, so its real bands are not flattened to one rate.
+      if (cc && Array.isArray(cc.tiers) && cc.tiers.length) {
+        cc.tiers.forEach((t) => {
+          if (!t) return;
+          const range = `${t.from_attainment_pct == null ? "?" : t.from_attainment_pct} to ${t.to_attainment_pct == null ? "and up" : t.to_attainment_pct}`;
+          addFact("component_tier", toNum(t.rate), c.name || null, { notes: range });
+        });
+      }
     });
 
     if (commission.rate_basis) addFact("commission_rate_basis", null, commission.rate_basis, { confidence: fc["commission.rate_basis"] || commission.rate_basis_confidence || null, notes: commission.rate_basis_evidence || null });

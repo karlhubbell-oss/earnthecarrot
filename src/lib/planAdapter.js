@@ -51,12 +51,20 @@ export function toEarningsPlan(plan) {
   // so each component takes the base rate (accelerable by default).
   let components = (Array.isArray(quota.components) ? quota.components : [])
     .filter(Boolean)
-    .map((c) => ({
-      name: c.name || "Component",
-      quota: n(c.quota_amount) || 0,
-      rate: c.rate != null ? Number(c.rate) : baseRate,
-      accelerable: true,
-    }));
+    .map((c) => {
+      const out = {
+        name: c.name || "Component",
+        quota: n(c.quota_amount) || 0,
+        rate: c.rate != null ? Number(c.rate) : baseRate,
+        accelerable: c.accelerable !== false, // default true when absent
+      };
+      // Carry the component's own tier ladder when it has one (its real bands).
+      if (Array.isArray(c.tiers) && c.tiers.length) {
+        out.bands = c.tiers.map((t) => ({ fromAttainment: (t.from_attainment_pct || 0) / 100, rate: t.rate != null ? Number(t.rate) : null }));
+        if (out.bands[0] && out.bands[0].rate != null) out.rate = out.bands[0].rate;
+      }
+      return out;
+    });
   const compQuotaSum = components.reduce((s, c) => s + (c.quota || 0), 0);
   if (rateBasis === "pct_of_revenue" && (components.length === 0 || compQuotaSum <= 0)) {
     components = [{ name: "Quota", quota: totalQuota, rate: baseRate, accelerable: true }];

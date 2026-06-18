@@ -63,7 +63,9 @@ export default async function handler(req, res) {
       provenance: { source_files: docName ? [docName] : [], parse_engine: null, parse_version: null, field_confidence: {}, needs_clarification: [] },
     };
     const fc = plan.provenance.field_confidence;
-    const compRateByName = {}; // component name -> its own commission rate
+    const compRateByName = {};   // component name -> its own commission rate
+    const compAccelByName = {};  // component name -> accelerable boolean
+    const compTiersByName = {};  // component name -> its own tier ladder
 
     for (const f of facts) {
       const vn = num(f.value_numeric);
@@ -88,6 +90,16 @@ export default async function handler(req, res) {
           break;
         }
         case "component_rate": { if (vt != null) compRateByName[vt] = vn; break; }
+        case "component_accelerable": { if (vt != null) compAccelByName[vt] = Number(f.value_numeric) === 1; break; }
+        case "component_tier": {
+          if (vt != null) {
+            const tm = f.notes && String(f.notes).match(/([\d.]+)\s*to\s*(and up|[\d.]+)/i);
+            const from = tm ? Number(tm[1]) : null;
+            const to = tm ? (/and up/i.test(tm[2]) ? null : Number(tm[2])) : null;
+            (compTiersByName[vt] = compTiersByName[vt] || []).push({ from_attainment_pct: from, to_attainment_pct: to, rate: vn });
+          }
+          break;
+        }
         case "commission_rate_basis":
           plan.commission.rate_basis = vt || null;
           plan.commission.rate_basis_evidence = f.notes || null;
@@ -120,7 +132,11 @@ export default async function handler(req, res) {
     }
 
     plan.commission.tiers.sort((a, b) => (a.from_attainment_pct || 0) - (b.from_attainment_pct || 0));
-    plan.quota.components.forEach((c) => { if (compRateByName[c.name] != null) c.rate = compRateByName[c.name]; });
+    plan.quota.components.forEach((c) => {
+      if (compRateByName[c.name] != null) c.rate = compRateByName[c.name];
+      c.accelerable = (c.name in compAccelByName) ? compAccelByName[c.name] : true;
+      if (compTiersByName[c.name]) c.tiers = compTiersByName[c.name].sort((a, b) => (a.from_attainment_pct || 0) - (b.from_attainment_pct || 0));
+    });
 
     return res.status(200).json({ ok: true, plan });
   } catch (err) {
