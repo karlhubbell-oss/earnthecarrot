@@ -375,7 +375,7 @@ select.ob-inp{appearance:none;cursor:pointer;background-image:url("data:image/sv
 .cf-wrap{min-height:100vh;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;}
 .cf-top{position:sticky;top:0;z-index:50;background:rgba(255,250,244,0.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:14px 20px;}
 .cf-step{font-size:16px;font-weight:700;color:var(--muted);}
-.cf-screen{max-width:1240px;margin:0 auto;padding:30px 40px 90px;animation:fadeUp 0.35s ease;}
+.cf-screen{max-width:1160px;margin:0 auto;padding:30px 40px 90px;animation:fadeUp 0.35s ease;}
 .cf-h1{font-family:'Playfair Display',serif;font-size:33px;font-weight:900;color:var(--ink);margin-bottom:24px;line-height:1.15;}
 .cf-card{background:white;border:1.5px solid var(--border);border-radius:20px;overflow:hidden;margin-bottom:20px;}
 .cf-card-hdr{padding:18px 20px;border-bottom:1px solid var(--border);background:var(--cream);}
@@ -658,7 +658,7 @@ const AREAS = [
 
 const HOME_STYLES = `
 .hb-wrap{min-height:100vh;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;}
-.hb-main{max-width:1240px;margin:0 auto;padding:32px 40px 80px;}
+.hb-main{max-width:1160px;margin:0 auto;padding:32px 40px 80px;}
 .hb-h1{font-family:'Playfair Display',serif;font-size:37px;font-weight:900;margin-bottom:4px;}
 .hb-sub{font-size:18px;color:var(--muted);margin-bottom:26px;}
 .hb-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;}
@@ -775,6 +775,7 @@ export default function App() {
   const [readProgress, setReadProgress] = useState(0); // 0..100, fills while reading
   const compUploadRef = useRef(null);
   // Gentle unconfirmed-file reminder (session-scoped, never a hard block).
+  const [railCollapsed, setRailCollapsed] = useState(false); // left nav rail collapsed (session)
   const [reminder, setReminder] = useState(null);          // { fileName, proceed } or null
   const [remindDontAsk, setRemindDontAsk] = useState(false);
   const [remindSuppressed, setRemindSuppressed] = useState(false);
@@ -987,7 +988,7 @@ export default function App() {
   const logout = () => { setCurrentUser(null); setCurrentName(""); setAvatarMenuOpen(false); goFlow("landing"); };
   // Shared top bar. full=true (signed in) shows Upload + profile avatar; full=false is brand only.
   const renderTopBar = (full) => (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 48px", borderBottom: "1px solid var(--border)", background: "rgba(255,250,244,0.92)", position: "sticky", top: 0, zIndex: 50 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 48px", borderBottom: "1px solid var(--border)", background: "rgba(255,250,244,0.97)", backdropFilter: "blur(8px)", position: "fixed", top: 0, left: 0, right: 0, height: 72, boxSizing: "border-box", zIndex: 60 }}>
       <button onClick={() => goFlow(full ? "home_base" : "landing")} style={{ fontFamily: "'Playfair Display',serif", fontSize: 25, fontWeight: 900, color: "var(--carrot)", background: "none", border: "none", cursor: "pointer" }}>🥕 Earn The Carrot</button>
       {full && (
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -1008,6 +1009,57 @@ export default function App() {
       )}
     </div>
   );
+
+  // ── Persistent left navigation rail (shared layout) ──
+  const TOPBAR_H = 72;
+  const railW = railCollapsed ? 64 : 234;
+  const compAreaScreens = ["comp_dashboard", "comp_documents", "plan_summary", "coach_take"];
+  const railActiveArea = compAreaScreens.indexOf(screen) >= 0 ? "comp" : null;
+  const railIcon = {
+    comp: <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z M14 3v5h5 M9 13h6 M9 17h4" />,
+    accounts: <path d="M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16 M15 9h3a2 2 0 0 1 2 2v10 M8 7h3 M8 11h3 M8 15h3" />,
+    territory: <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z M9 4v14 M15 6v14" />,
+    qbr: <path d="M3 3v18h18 M7 15l3-4 3 3 4-6" />,
+    goals: <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0 M12 12m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0 -9 0 M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />,
+    calendar: <path d="M4 5h16v15H4Z M4 9h16 M8 3v4 M16 3v4" />,
+    home: <path d="M4 11 12 4l8 7 M6 10v9h12v-9" />,
+    menu: <path d="M4 7h16 M4 12h16 M4 17h16" />,
+  };
+  const railSvg = (name) => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}>{railIcon[name]}</svg>
+  );
+  const RAIL_AREAS = [
+    { key: "comp", label: "Comp Plan", active: true },
+    { key: "accounts", label: "Account Strategies", active: false },
+    { key: "territory", label: "Territory Strategies", active: false },
+    { key: "qbr", label: "QBR", active: false },
+    { key: "goals", label: "Goals & Carrots", active: false },
+    { key: "calendar", label: "Calendar", active: false },
+  ];
+  const renderRail = () => (
+    <nav style={{ position: "fixed", top: TOPBAR_H, left: 0, bottom: 0, width: railW, background: "white", borderRight: "1px solid var(--border)", zIndex: 50, overflowY: "auto", display: "flex", flexDirection: "column", padding: "12px 10px", gap: 4, transition: "width .15s ease" }}>
+      <button onClick={() => setRailCollapsed((c) => !c)} title="Menu" aria-label="Toggle menu" style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: "none", background: "none", cursor: "pointer", color: "var(--muted)", fontFamily: "'DM Sans',sans-serif", fontSize: 16, fontWeight: 700, borderRadius: 10 }}>
+        {railSvg("menu")}{!railCollapsed && <span>Menu</span>}
+      </button>
+      <div style={{ height: 6 }} />
+      {RAIL_AREAS.map((a) => {
+        const isActive = a.active && railActiveArea === a.key;
+        return (
+          <button key={a.key} disabled={!a.active} onClick={a.active ? () => goFlow("comp_dashboard") : undefined} title={a.label}
+            style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 12px", border: "none", borderRadius: 10, cursor: a.active ? "pointer" : "default", fontFamily: "'DM Sans',sans-serif", fontSize: 16, fontWeight: 700, textAlign: "left", background: isActive ? "var(--carrot-light)" : "transparent", color: !a.active ? "var(--muted)" : (isActive ? "var(--carrot-dark)" : "var(--ink)"), opacity: a.active ? 1 : 0.7 }}>
+            {railSvg(a.key)}
+            {!railCollapsed && <span style={{ flex: 1 }}>{a.label}</span>}
+            {!railCollapsed && !a.active && <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--muted)", background: "var(--border)", borderRadius: 100, padding: "2px 8px" }}>Soon</span>}
+          </button>
+        );
+      })}
+      <div style={{ flex: 1 }} />
+      <button onClick={() => goFlow("home_base")} title="Home" style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 12px", border: "none", borderTop: "1px solid var(--border)", background: "none", cursor: "pointer", color: "var(--ink)", fontFamily: "'DM Sans',sans-serif", fontSize: 16, fontWeight: 700, borderRadius: 0 }}>
+        {railSvg("home")}{!railCollapsed && <span>Home</span>}
+      </button>
+    </nav>
+  );
+
   const startEdit = (f, v) => { setEditField(f); setEditVal(String(v)); };
   const saveComp = () => { setComp((c) => ({ ...c, [editField]: parseFloat(editVal) || 0 })); setEditField(null); };
   const saveTax = (key) => { setTaxOverrides((t) => ({ ...t, [key]: parseFloat(editVal) || 0 })); setEditField(null); };
@@ -1142,7 +1194,7 @@ export default function App() {
     ];
     const panelTint = { flex: "1 1 400px", background: "#FFF6EF", border: "1.5px solid #F0D9C6", borderRadius: 24, padding: "42px 38px" };
     return (
-      <div className="auth-root" style={{ minHeight: "100vh", background: "var(--cream)", fontFamily: "'DM Sans',sans-serif", color: "var(--ink)" }}>
+      <div className="auth-root" style={{ minHeight: "100vh", background: "var(--cream)", fontFamily: "'DM Sans',sans-serif", color: "var(--ink)", paddingTop: 72 }}>
         <style>{S}</style>
         <style>{`
           .auth-root :focus{ outline:none; }
@@ -1258,10 +1310,11 @@ export default function App() {
     const cuePill = { alignSelf: "flex-start", fontSize: 15, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--carrot)", background: "white", border: "1px solid var(--carrot)", borderRadius: 100, padding: "3px 10px", marginBottom: 12 };
     const cardBtn = { marginTop: 14, alignSelf: "flex-start", background: "var(--carrot)", color: "white", border: "none", borderRadius: 100, padding: "10px 18px", fontSize: 18, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" };
     return (
-      <div className="hb-wrap">
+      <div className="hb-wrap" style={{ paddingTop: TOPBAR_H, paddingLeft: railW }}>
         <style>{S}</style>
         <style>{HOME_STYLES}</style>
         {renderTopBar(true)}
+        {renderRail()}
         <div className="hb-main">
           <button style={backLink} onClick={() => maybeRemind(() => goFlow("home_base"))}>‹ Back to home</button>
           {renderReminder()}
@@ -1355,12 +1408,13 @@ export default function App() {
     const R = 11, C = 2 * Math.PI * R;
 
     return (
-      <div className="hb-wrap">
+      <div className="hb-wrap" style={{ paddingTop: TOPBAR_H, paddingLeft: railW }}>
         <style>{S}</style>
         <style>{HOME_STYLES}</style>
         <style>{`@keyframes azspin{to{transform:rotate(360deg);}}@keyframes confirmpulse{0%{box-shadow:0 0 0 0 rgba(244,113,26,0.45);}70%{box-shadow:0 0 0 10px rgba(244,113,26,0);}100%{box-shadow:0 0 0 0 rgba(244,113,26,0);}}`}</style>
         {renderReminder()}
         {renderTopBar(true)}
+        {renderRail()}
         <div className="hb-main">
           <button style={backLink} onClick={() => maybeRemind(() => goFlow("comp_dashboard"))}>‹ Back to Comp Plan</button>
           <h1 className="hb-h1" style={{ marginTop: 12 }}>Your Comp Documents</h1>
@@ -1493,11 +1547,12 @@ export default function App() {
       );
     };
     return (
-      <div className="hb-wrap">
+      <div className="hb-wrap" style={{ paddingTop: TOPBAR_H, paddingLeft: railW }}>
         <style>{S}</style>
         <style>{OB_STYLES}</style>
         <style>{HOME_STYLES}</style>
         {renderTopBar(true)}
+        {renderRail()}
         <div className="hb-main">
           <button style={backLink} onClick={() => goFlow("comp_dashboard")}>‹ Back to Comp Plan</button>
           <h1 className="hb-h1" style={{ marginTop: 12 }}>Coach's Take</h1>
@@ -1596,10 +1651,11 @@ export default function App() {
     const navArrow = { width: 34, height: 34, borderRadius: 9, border: "1.5px solid var(--border)", background: "white", cursor: "pointer", fontSize: 18, color: "var(--ink)", lineHeight: 1 };
 
     return (
-      <div className="hb-wrap">
+      <div className="hb-wrap" style={{ paddingTop: TOPBAR_H, paddingLeft: railW }}>
         <style>{S}</style>
         <style>{HOME_STYLES}</style>
         {renderTopBar(true)}
+        {renderRail()}
         <div className="hb-main">
           <h1 className="hb-h1">Welcome{currentName ? `, ${currentName}` : ""}</h1>
           <p className="hb-sub">Here is your plan of attack. Start with this week's setup, then dive into an area below.</p>
@@ -3063,13 +3119,11 @@ export default function App() {
     const noteStyle = { fontSize: 16, color: "var(--muted)", lineHeight: 1.5, marginTop: 8 };
 
     return (
-      <div className="cf-wrap">
+      <div className="cf-wrap" style={{ paddingTop: TOPBAR_H, paddingLeft: railW }}>
         <style>{S}</style>
         <style>{OB_STYLES}</style>
-        <div className="cf-top">
-          <button className="ob-back" onClick={() => goFlow("comp_dashboard")}>← Back</button>
-          <div className="cf-step">Plan Summary</div>
-        </div>
+        {renderTopBar(true)}
+        {renderRail()}
         <div className="cf-screen">
           <button onClick={() => goFlow("comp_dashboard")} style={{ background: "none", border: "none", color: "var(--carrot)", fontWeight: 700, fontSize: 18, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0, marginBottom: 14 }}>‹ Back to Comp Plan</button>
           <h1 className="cf-h1" style={{ marginBottom: 8 }}>Here's What Coach Found in Your Plan</h1>
