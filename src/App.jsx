@@ -715,6 +715,7 @@ export default function App() {
   const [users, setUsers] = useState({});            // username -> { password, firstName }
   const [currentUser, setCurrentUser] = useState(null);
   const [currentName, setCurrentName] = useState("");
+  const [currentRepId, setCurrentRepId] = useState(null); // real reps.id from the database
 
   // ── HOME BASE STATE ──
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
@@ -883,7 +884,7 @@ export default function App() {
     fetch("/api/save-plan", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ repId: "demo-rep", plan, filename: filename || null, originalFilename: filename || null }),
+      body: JSON.stringify({ repId: currentRepId || "demo-rep", plan, filename: filename || null, originalFilename: filename || null }),
     })
       .then((r) => r.json().catch(() => null))
       .then((d) => { if (!d || !d.ok) console.error("save-plan failed:", d); else console.log("save-plan ok:", d); })
@@ -999,8 +1000,10 @@ export default function App() {
       setUsers((prev) => ({ ...prev, [u]: { password: authPass, firstName: fn } }));
       setCurrentUser(u);
       setCurrentName(fn);
+      setCurrentRepId(null);
       setAuthError("");
       goFlow("home_base");
+      createRepInDb(fn, u); // create a real reps.id and remember it for this user
     } else {
       if (!u || !authPass) { setAuthError("Please enter a username and a password."); return; }
       const rec = users[u];
@@ -1009,9 +1012,29 @@ export default function App() {
       setCurrentName(rec.firstName || "");
       setAuthError("");
       goFlow("home_base");
+      if (rec.repId) setCurrentRepId(rec.repId);
+      else createRepInDb(rec.firstName || "", u); // backfill a rep id if missing
     }
   };
-  const logout = () => { setCurrentUser(null); setCurrentName(""); setAvatarMenuOpen(false); goFlow("landing"); };
+  // Create (or reuse) the real database rep row and store its id for this user.
+  const createRepInDb = (name, username) => {
+    fetch("/api/create-rep", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: name || null }),
+    })
+      .then((r) => r.json().catch(() => null))
+      .then((d) => {
+        if (d && d.ok && d.repId) {
+          setCurrentRepId(d.repId);
+          setUsers((prev) => ({ ...prev, [username]: { ...(prev[username] || {}), repId: d.repId } }));
+        } else {
+          console.error("create-rep failed:", d);
+        }
+      })
+      .catch((e) => console.error("create-rep error:", e));
+  };
+  const logout = () => { setCurrentUser(null); setCurrentName(""); setCurrentRepId(null); setAvatarMenuOpen(false); goFlow("landing"); };
   // Shared top bar. full=true (signed in) shows Upload + profile avatar; full=false is brand only.
   const renderTopBar = (full) => (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 48px", borderBottom: "1px solid var(--border)", background: "rgba(255,250,244,0.97)", backdropFilter: "blur(8px)", position: "fixed", top: 0, left: 0, right: 0, height: 72, boxSizing: "border-box", zIndex: 60 }}>
