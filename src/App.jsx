@@ -2826,7 +2826,7 @@ export default function App() {
         <style>{S}</style>
         <style>{OB_STYLES}</style>
         <div className="cf-top">
-          <button className="ob-back" onClick={() => goFlow("plan_clarification")}>← Back</button>
+          <button className="ob-back" onClick={() => goFlow("comp_dashboard")}>← Back</button>
           <div className="cf-step">Plan Summary</div>
         </div>
         <div className="cf-screen">
@@ -2834,7 +2834,7 @@ export default function App() {
           <h1 className="cf-h1" style={{ marginBottom: 8 }}>Here's What Coach Found in Your Plan</h1>
           <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.55, marginBottom: 18 }}>Review the details below. You can confirm everything or flag anything that looks off.</p>
 
-          <button className="cf-cta" style={{ marginBottom: 26 }} onClick={() => { setPlanConfirmed(true); goFlow("confirm"); }}>Continue →</button>
+          <button className="cf-cta" style={{ marginBottom: 26 }} onClick={() => { setPlanConfirmed(true); goFlow("comp_dashboard"); }}>Looks right →</button>
 
           {/* 1. The basics */}
           <div className="ob-card">
@@ -2956,7 +2956,7 @@ export default function App() {
             </div>
           </div>
 
-          <button className="cf-cta" onClick={() => { setPlanConfirmed(true); goFlow("confirm"); }}>Continue →</button>
+          <button className="cf-cta" onClick={() => { setPlanConfirmed(true); goFlow("comp_dashboard"); }}>Looks right →</button>
         </div>
       </div>
     );
@@ -3291,7 +3291,8 @@ export default function App() {
         setPlanEdits({});
         setPlanConfirmed(false);
         setIngesting(false);
-        goFlow("plan_clarification");
+        // Land back on the Comp Plan area with the cards now active. No step march.
+        goFlow("comp_dashboard");
       } catch (err) {
         setIngesting(false);
         setIngestError("Coach had trouble reading your plan. Please try again.");
@@ -3302,8 +3303,7 @@ export default function App() {
         <style>{S}</style>
         <style>{OB_STYLES}</style>
         <div className="cf-top">
-          <button className="ob-back" onClick={() => goFlow("landing")}>← Back</button>
-          <div className="cf-step">Step 1 of 7</div>
+          <button className="ob-back" onClick={() => goFlow("comp_dashboard")}>← Back</button>
         </div>
         <div className="up-screen">
           <h1 className="up-h1">Upload Your Files for Coach to Review</h1>
