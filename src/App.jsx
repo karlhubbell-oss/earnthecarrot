@@ -1362,9 +1362,9 @@ export default function App() {
               <div key={i} style={{ background: planConfirmed ? "#F6FBF7" : "white", border: "1.5px solid var(--border)", borderRadius: 14, padding: "18px 20px" }}>
                 <div style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
                   <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "center", flex: "1 1 320px", minWidth: 260 }}>
+                    {field("Plan year", doc.planYear)}
                     {field("Date loaded", doc.dateLoaded)}
                     {field("File name", doc.name, true)}
-                    {field("Plan year", doc.planYear)}
                     {field("Description", doc.description, true)}
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "stretch", flex: "0 0 440px", maxWidth: 480 }}>
