@@ -104,6 +104,12 @@ export default async function handler(req, res) {
     (Array.isArray(quota.components) ? quota.components : []).forEach((c) => {
       if (!c) return;
       addFact("component_quota", toNum(c.quota_amount), c.name || null, { notes: c.weight_pct != null ? `weight ${c.weight_pct}%` : null });
+      // Persist a component's own commission rate when it differs from the plan.
+      const cc = c.commission || null;
+      const compRate = cc && Array.isArray(cc.tiers) && cc.tiers.length && cc.tiers[0].rate != null
+        ? cc.tiers[0].rate
+        : (cc && cc.rate != null ? cc.rate : null);
+      if (compRate != null) addFact("component_rate", toNum(compRate), c.name || null, { notes: "component base rate" });
     });
 
     if (commission.rate_basis) addFact("commission_rate_basis", null, commission.rate_basis, { confidence: fc["commission.rate_basis"] || commission.rate_basis_confidence || null, notes: commission.rate_basis_evidence || null });

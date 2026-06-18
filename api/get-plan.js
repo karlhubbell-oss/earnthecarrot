@@ -63,6 +63,7 @@ export default async function handler(req, res) {
       provenance: { source_files: docName ? [docName] : [], parse_engine: null, parse_version: null, field_confidence: {}, needs_clarification: [] },
     };
     const fc = plan.provenance.field_confidence;
+    const compRateByName = {}; // component name -> its own commission rate
 
     for (const f of facts) {
       const vn = num(f.value_numeric);
@@ -83,9 +84,10 @@ export default async function handler(req, res) {
         }
         case "component_quota": {
           const wm = f.notes && String(f.notes).match(/weight\s*([\d.]+)/i);
-          plan.quota.components.push({ name: vt || "", weight_pct: wm ? Number(wm[1]) : null, quota_amount: vn, commission: null });
+          plan.quota.components.push({ name: vt || "", weight_pct: wm ? Number(wm[1]) : null, quota_amount: vn, rate: null, commission: null });
           break;
         }
+        case "component_rate": { if (vt != null) compRateByName[vt] = vn; break; }
         case "commission_rate_basis":
           plan.commission.rate_basis = vt || null;
           plan.commission.rate_basis_evidence = f.notes || null;
@@ -118,6 +120,7 @@ export default async function handler(req, res) {
     }
 
     plan.commission.tiers.sort((a, b) => (a.from_attainment_pct || 0) - (b.from_attainment_pct || 0));
+    plan.quota.components.forEach((c) => { if (compRateByName[c.name] != null) c.rate = compRateByName[c.name]; });
 
     return res.status(200).json({ ok: true, plan });
   } catch (err) {
