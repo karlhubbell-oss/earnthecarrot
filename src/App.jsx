@@ -527,6 +527,7 @@ select.ob-inp{appearance:none;cursor:pointer;background-image:url("data:image/sv
 .cib-add{background:var(--carrot);color:white;border:none;border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:18px;}
 .cib-cancel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;font-family:'DM Sans',sans-serif;}
 @keyframes azspin{to{transform:rotate(360deg);}}
+@keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(244,113,26,0.5);}50%{box-shadow:0 0 0 6px rgba(244,113,26,0);}}
 /* create account screen */
 .ca-wrap{min-height:100vh;background:var(--dark);color:white;font-family:'DM Sans',sans-serif;}
 .ca-screen{max-width:760px;margin:0 auto;padding:30px 20px 90px;animation:fadeUp 0.35s ease;}
@@ -2873,11 +2874,35 @@ export default function App() {
       setEditPath(path);
       setEditDraft(mode === "money" ? formatThousands(startVal) : (startVal === null || startVal === undefined ? "" : String(startVal)));
     };
-    const cancelPlanEdit = () => { setEditPath(null); setEditDraft(""); };
+    const stopDictation = () => { try { recognitionRef.current && recognitionRef.current.stop(); } catch {} recognitionRef.current = null; setListeningKey(null); };
+    const cancelPlanEdit = () => { stopDictation(); setEditPath(null); setEditDraft(""); };
     const commitPlanEdit = (path, mode) => {
+      stopDictation();
       const v = mode === "money" ? parseMoney(editDraft) : editDraft;
       setPlanEdits((prev) => ({ ...prev, [path]: v }));
       setEditPath(null); setEditDraft("");
+    };
+    // Voice dictation for the inline edit field (same Web Speech API as elsewhere).
+    const SpeechRecognition = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    const speechSupported = !!SpeechRecognition;
+    const toggleEditDictation = (mode) => {
+      if (!speechSupported || !editPath) return;
+      if (listeningKey === editPath) { try { recognitionRef.current && recognitionRef.current.stop(); } catch {} return; }
+      if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch {} recognitionRef.current = null; }
+      let rec;
+      try { rec = new SpeechRecognition(); } catch { setListeningKey(null); return; }
+      rec.lang = "en-US"; rec.continuous = true; rec.interimResults = true;
+      const base = editDraft || "";
+      rec.onresult = (e) => {
+        let t = ""; for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+        const combined = base ? base.replace(/\s*$/, "") + " " + t : t;
+        setEditDraft(mode === "money" ? formatThousands(combined) : combined);
+      };
+      rec.onerror = () => { if (recognitionRef.current === rec) recognitionRef.current = null; setListeningKey((c) => (c === editPath ? null : c)); };
+      rec.onend = () => { if (recognitionRef.current === rec) recognitionRef.current = null; setListeningKey((c) => (c === editPath ? null : c)); };
+      recognitionRef.current = rec;
+      setListeningKey(editPath);
+      try { rec.start(); } catch { recognitionRef.current = null; setListeningKey(null); }
     };
     const pencilBtn = (path, startVal, mode) => (
       <button type="button" onClick={() => beginPlanEdit(path, startVal, mode)} aria-label="Edit value" title="Edit"
@@ -2885,15 +2910,24 @@ export default function App() {
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--carrot)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
       </button>
     );
-    const editBox = (path, mode) => (
-      <span className="cf-edit" style={{ display: "inline-flex", width: "100%", marginTop: 0 }}>
-        <input className="cf-einp" type="text" inputMode={mode === "money" ? "decimal" : "text"} autoFocus value={editDraft}
-          onChange={(e) => setEditDraft(mode === "money" ? formatThousands(e.target.value) : e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") commitPlanEdit(path, mode); else if (e.key === "Escape") cancelPlanEdit(); }} />
-        <button type="button" className="cf-save" onClick={() => commitPlanEdit(path, mode)}>✓</button>
-        <button type="button" className="cf-cancel" onClick={cancelPlanEdit}>✕</button>
-      </span>
-    );
+    const editBox = (path, mode) => {
+      const listening = listeningKey === path;
+      return (
+        <span className="cf-edit" style={{ display: "inline-flex", width: "100%", marginTop: 0, alignItems: "stretch" }}>
+          <input className="cf-einp" type="text" inputMode={mode === "money" ? "decimal" : "text"} autoFocus value={editDraft}
+            onChange={(e) => setEditDraft(mode === "money" ? formatThousands(e.target.value) : e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") commitPlanEdit(path, mode); else if (e.key === "Escape") cancelPlanEdit(); }} />
+          {speechSupported && (
+            <button type="button" onClick={() => toggleEditDictation(mode)} aria-label={listening ? "Stop dictation" : "Dictate your answer"} title="Dictate"
+              style={{ flex: "none", width: 44, borderRadius: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", border: listening ? "1.5px solid var(--carrot)" : "1.5px solid var(--border)", background: listening ? "var(--carrot)" : "white", animation: listening ? "micpulse 1.2s ease-in-out infinite" : "none" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={listening ? "white" : "var(--carrot)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0" /><path d="M12 18v3" /></svg>
+            </button>
+          )}
+          <button type="button" className="cf-save" onClick={() => commitPlanEdit(path, mode)}>✓</button>
+          <button type="button" className="cf-cancel" onClick={cancelPlanEdit}>✕</button>
+        </span>
+      );
+    };
     // Editable ob-stat row. type: "money" | "percent" | "text".
     const eRow = (label, original, path, type) => {
       const mode = type === "money" ? "money" : "text";
@@ -2958,6 +2992,27 @@ export default function App() {
       ? `${isMissing(pay.pay_mix.base_pct) ? "?" : pay.pay_mix.base_pct}% base / ${isMissing(pay.pay_mix.variable_pct) ? "?" : pay.pay_mix.variable_pct}% variable`
       : null;
 
+    // Money-consistency: surface conflicts after edits, never silently resolve or block.
+    const toNum = (v) => (typeof v === "number" ? v : (isMissing(v) ? null : (isNaN(parseFloat(String(v).replace(/[^\d.]/g, ""))) ? null : parseFloat(String(v).replace(/[^\d.]/g, "")))));
+    const baseAmt = toNum(effectivePlanValue("pay.base_salary", pay.base_salary && pay.base_salary.amount));
+    const oteAmt = toNum(effectivePlanValue("pay.ote", pay.ote && pay.ote.amount));
+    const tvAmt = toNum(effectivePlanValue("pay.target_variable", pay.target_variable && pay.target_variable.amount));
+    const moneyWarnings = [];
+    if (baseAmt != null && tvAmt != null && oteAmt != null && Math.abs(baseAmt + tvAmt - oteAmt) > 1) {
+      moneyWarnings.push(`Heads up, your base (${fmt(baseAmt)}) plus target variable (${fmt(tvAmt)}) comes to ${fmt(baseAmt + tvAmt)}, but your OTE says ${fmt(oteAmt)}. Want to line these up?`);
+    }
+    const mixEff = effectivePlanValue("pay.pay_mix", payMix);
+    if (mixEff && baseAmt != null && oteAmt && oteAmt > 0) {
+      const mixNums = String(mixEff).match(/[\d.]+/g);
+      if (mixNums && mixNums.length >= 1) {
+        const statedBasePct = parseFloat(mixNums[0]);
+        const expectedBasePct = (baseAmt / oteAmt) * 100;
+        if (!isNaN(statedBasePct) && Math.abs(statedBasePct - expectedBasePct) > 1) {
+          moneyWarnings.push(`Heads up, your pay mix says ${statedBasePct}% base, but your base (${fmt(baseAmt)}) against OTE (${fmt(oteAmt)}) works out to about ${Math.round(expectedBasePct)}%. Want to line these up?`);
+        }
+      }
+    }
+
     const basisText = {
       pct_of_revenue: "Pays a percentage of the revenue you book.",
       pct_of_variable: "Pays a percentage of your target variable, based on the percent of quota you attain.",
@@ -3020,7 +3075,7 @@ export default function App() {
           <h1 className="cf-h1" style={{ marginBottom: 8 }}>Here's What Coach Found in Your Plan</h1>
           <p style={{ fontSize: 18, color: "var(--muted)", lineHeight: 1.55, marginBottom: 18 }}>Review the details below. You can confirm everything or flag anything that looks off.</p>
 
-          <button className="cf-cta" style={{ marginBottom: 26, maxWidth: 460 }} onClick={() => { setPlanConfirmed(true); goFlow("comp_dashboard"); }}>Looks right →</button>
+          <button className="cf-cta" style={{ marginBottom: 26, maxWidth: 460 }} onClick={() => { setPlanConfirmed(true); goFlow("comp_documents"); }}>Looks right →</button>
 
           {/* 1. The basics */}
           <div className="ob-card">
@@ -3038,6 +3093,9 @@ export default function App() {
             {eRow("On-target earnings", pay.ote && pay.ote.amount, "pay.ote", "money")}
             {eRow("Target variable", pay.target_variable && pay.target_variable.amount, "pay.target_variable", "money")}
             {eRow("Pay mix", payMix, "pay.pay_mix", "text")}
+            {moneyWarnings.map((w, wi) => (
+              <div key={wi} style={{ marginTop: 12, background: "var(--gold-light)", border: "1px solid var(--gold)", color: "#7A5C00", borderRadius: 12, padding: "12px 14px", fontSize: 16, lineHeight: 1.5 }}>{w}</div>
+            ))}
           </div>
 
           {/* 3. Your quota */}
@@ -3142,7 +3200,7 @@ export default function App() {
             </div>
           </div>
 
-          <button className="cf-cta" style={{ maxWidth: 460 }} onClick={() => { setPlanConfirmed(true); goFlow("comp_dashboard"); }}>Looks right →</button>
+          <button className="cf-cta" style={{ maxWidth: 460 }} onClick={() => { setPlanConfirmed(true); goFlow("comp_documents"); }}>Looks right →</button>
         </div>
       </div>
     );
