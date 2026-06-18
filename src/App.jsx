@@ -773,6 +773,7 @@ export default function App() {
   // The document currently being read in place on the Loaded Documents view.
   const [pendingDoc, setPendingDoc] = useState(null);
   const [readProgress, setReadProgress] = useState(0); // 0..100, fills while reading
+  const [coachProgress, setCoachProgress] = useState(0); // 0..100, fills while Coach reads
   const compUploadRef = useRef(null);
   // Gentle unconfirmed-file reminder (session-scoped, never a hard block).
   const [railCollapsed, setRailCollapsed] = useState(false); // left nav rail collapsed (session)
@@ -909,6 +910,17 @@ export default function App() {
       setIngesting(false);
       setIngestError("Coach had trouble reading your plan. Please try again.");
     }
+  };
+
+  // Filling progress circle, shared by the document-reading and Coach-reading states.
+  const fillCircle = (progress, size = 28) => {
+    const sw = 3, r = (size - sw) / 2 - 1, c = 2 * Math.PI * r, mid = size / 2;
+    return (
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flex: "none" }}>
+        <circle cx={mid} cy={mid} r={r} fill="none" stroke="var(--border)" strokeWidth={sw} />
+        <circle cx={mid} cy={mid} r={r} fill="none" stroke="var(--carrot)" strokeWidth={sw} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - progress / 100)} transform={`rotate(-90 ${mid} ${mid})`} style={{ transition: "stroke-dashoffset 0.2s linear" }} />
+      </svg>
+    );
   };
 
   // Name of the current (possibly unconfirmed) plan's document.
@@ -1143,6 +1155,15 @@ export default function App() {
     return () => clearInterval(id);
   }, [pendingDoc, ingestError]);
 
+  // Fill the Coach's read progress circle from 0 toward ~90% over about 30 seconds.
+  useEffect(() => {
+    if (!coachReadLoading) return;
+    const id = setInterval(() => {
+      setCoachProgress((p) => (p >= 90 ? 90 : p + 90 / (30000 / 200)));
+    }, 200);
+    return () => clearInterval(id);
+  }, [coachReadLoading]);
+
   // Fetch Coach's read on demand when the Coach's Take view opens (once per plan).
   useEffect(() => {
     if (screen !== "coach_take" || !compPlan) return;
@@ -1150,6 +1171,7 @@ export default function App() {
     coachReadForRef.current = compPlan;
     let cancelled = false;
     setCoachRead(null);
+    setCoachProgress(0);
     setCoachReadLoading(true);
     fetch("/api/coach-read", {
       method: "POST",
@@ -1161,12 +1183,14 @@ export default function App() {
         if (cancelled) return;
         if (data && data.ok && data.read) { setCoachRead(data.read); }
         else { setCoachRead(null); coachReadForRef.current = null; } // allow retry on reopen
+        setCoachProgress(100);
         setCoachReadLoading(false);
       })
       .catch(() => {
         if (cancelled) return;
         setCoachRead(null);
         coachReadForRef.current = null; // allow retry on reopen
+        setCoachProgress(100);
         setCoachReadLoading(false);
       });
     return () => { cancelled = true; };
@@ -1463,10 +1487,7 @@ export default function App() {
                   </>
                 ) : (
                   <>
-                    <svg width="28" height="28" viewBox="0 0 28 28" style={{ flex: "none" }}>
-                      <circle cx="14" cy="14" r={R} fill="none" stroke="var(--border)" strokeWidth="3" />
-                      <circle cx="14" cy="14" r={R} fill="none" stroke="var(--carrot)" strokeWidth="3" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - readProgress / 100)} transform="rotate(-90 14 14)" style={{ transition: "stroke-dashoffset 0.2s linear" }} />
-                    </svg>
+                    {fillCircle(readProgress)}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700, wordBreak: "break-word" }}>{pendingDoc.name}</div>
                       <div style={{ fontSize: 16, color: "var(--muted)", marginTop: 2 }}>Coach is reading this... {Math.round(readProgress)}%</div>
@@ -1562,8 +1583,8 @@ export default function App() {
             <div className="ob-card">Load a plan first and Coach will give you a read.</div>
           ) : coachReadLoading ? (
             <div className="ob-card" style={{ display: "flex", alignItems: "center", gap: 14, padding: 20 }}>
-              <div style={{ width: 30, height: 30, borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "var(--carrot)", animation: "azspin 0.9s linear infinite", flex: "none" }} />
-              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>Coach is reading your plan...</div>
+              {fillCircle(coachProgress)}
+              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>Coach is reading your plan... {Math.round(coachProgress)}%</div>
             </div>
           ) : hasReadContent ? (
             <>
@@ -3144,8 +3165,8 @@ export default function App() {
           <div className="ob-card">
             <div style={secH}>Your pay</div>
             {eRow("Base salary", pay.base_salary && pay.base_salary.amount, "pay.base_salary", "money")}
-            {eRow("On-target earnings", pay.ote && pay.ote.amount, "pay.ote", "money")}
             {eRow("Target variable", pay.target_variable && pay.target_variable.amount, "pay.target_variable", "money")}
+            {eRow("On-target earnings", pay.ote && pay.ote.amount, "pay.ote", "money")}
             {eRow("Pay mix", payMix, "pay.pay_mix", "text")}
             {moneyWarnings.map((w, wi) => (
               <div key={wi} style={{ marginTop: 12, background: "var(--gold-light)", border: "1px solid var(--gold)", color: "#7A5C00", borderRadius: 12, padding: "12px 14px", fontSize: 16, lineHeight: 1.5 }}>{w}</div>
