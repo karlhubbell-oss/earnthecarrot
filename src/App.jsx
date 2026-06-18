@@ -1255,8 +1255,8 @@ export default function App() {
     const removeBtn = { background: "none", border: "none", color: "var(--muted)", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: "4px 6px", textDecoration: "underline", flex: "none" };
     const keepBtn = { background: "white", border: "1.5px solid var(--border)", color: "var(--muted)", borderRadius: 100, padding: "8px 16px", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" };
     const confirmRemoveBtn = { background: "#FEE2E2", border: "1px solid #FCA5A5", color: "#B91C1C", borderRadius: 100, padding: "8px 16px", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" };
-    const actionPrimary = { background: "var(--carrot)", color: "white", border: "none", borderRadius: 100, padding: "10px 18px", fontSize: 18, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" };
-    const actionSecondary = { background: "white", color: "var(--carrot)", border: "1.5px solid var(--carrot)", borderRadius: 100, padding: "10px 18px", fontSize: 18, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" };
+    const actionPrimary = { background: "var(--carrot)", color: "white", border: "none", borderRadius: 14, padding: "12px 22px", fontSize: 18, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" };
+    const actionSecondary = { background: "white", color: "var(--carrot)", border: "1.5px solid var(--carrot)", borderRadius: 14, padding: "12px 22px", fontSize: 18, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" };
     // Removing a document clears the current plan and all state learned from it.
     const removePlan = () => {
       setCompPlan(null);
@@ -1293,7 +1293,7 @@ export default function App() {
     const needsReviewPill = { fontSize: 15, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", padding: "5px 10px", borderRadius: 100, background: "var(--gold-light)", color: "#7A5C00", border: "1px solid var(--gold)", textAlign: "center" };
     const confirmedTag = { fontSize: 15, fontWeight: 700, color: "var(--green)", textAlign: "center" };
     const confirmBtnStyle = planConfirmed
-      ? { background: "white", color: "var(--muted)", border: "1.5px solid var(--border)", borderRadius: 100, padding: "10px 18px", fontSize: 18, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }
+      ? { background: "white", color: "var(--muted)", border: "1.5px solid var(--border)", borderRadius: 14, padding: "12px 22px", fontSize: 18, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }
       : actionPrimary;
     const onPick = (file) => { if (file) ingestFile(file); };
     const R = 11, C = 2 * Math.PI * R;
@@ -1367,13 +1367,13 @@ export default function App() {
                     {field("Plan year", doc.planYear)}
                     {field("Description", doc.description, true)}
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "stretch", flex: "0 0 320px", maxWidth: 360 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "stretch", flex: "0 0 440px", maxWidth: 480 }}>
                     {planConfirmed
                       ? <span style={confirmedTag}>✓ Confirmed</span>
                       : <span style={needsReviewPill}>Needs your review</span>}
-                    <div style={{ display: "flex", gap: 10, alignItems: "stretch" }}>
-                      <button style={{ ...confirmBtnStyle, flex: 1, minWidth: 0, lineHeight: 1.25 }} onClick={() => goFlow("plan_summary")}>Confirm Coach's Understanding</button>
-                      <button style={{ ...actionSecondary, flex: 1, minWidth: 0, lineHeight: 1.25 }} onClick={() => goFlow("coach_take")}>What Coach Thinks of This File</button>
+                    <div style={{ display: "flex", gap: 12, alignItems: "stretch" }}>
+                      <button style={{ ...confirmBtnStyle, flex: 1, minWidth: 200, lineHeight: 1.25 }} onClick={() => goFlow("plan_summary")}>Confirm Coach's Understanding</button>
+                      <button style={{ ...actionSecondary, flex: 1, minWidth: 200, lineHeight: 1.25 }} onClick={() => goFlow("coach_take")}>What Coach Thinks of This File</button>
                     </div>
                     {docRemoveIdx !== i && <button style={{ ...removeBtn, alignSelf: "center" }} onClick={() => setDocRemoveIdx(i)}>Remove</button>}
                   </div>
