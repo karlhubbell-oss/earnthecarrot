@@ -1306,7 +1306,7 @@ export default function App() {
         {renderTopBar(true)}
         <div className="hb-main">
           <button style={backLink} onClick={() => goFlow("comp_dashboard")}>‹ Back to Comp Plan</button>
-          <h1 className="hb-h1" style={{ marginTop: 12 }}>Loaded Documents</h1>
+          <h1 className="hb-h1" style={{ marginTop: 12 }}>Your Comp Documents</h1>
           <p className="hb-sub">The files Coach has read for this plan. Full document history is coming soon.</p>
 
           <div style={{ fontSize: 14, color: "#7A5C00", background: "var(--gold-light)", border: "1px solid var(--gold)", borderRadius: 12, padding: "12px 16px", marginBottom: 18, lineHeight: 1.5, maxWidth: 820 }}>For each file, confirm what Coach understood, then see what Coach thinks. If anything looks off, flag it to your manager.</div>
@@ -1367,12 +1367,14 @@ export default function App() {
                     {field("Plan year", doc.planYear)}
                     {field("Description", doc.description, true)}
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "stretch", flex: "0 0 auto", minWidth: 240 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start", flex: "0 0 auto" }}>
                     {planConfirmed
                       ? <span style={confirmedTag}>✓ Confirmed</span>
                       : <span style={needsReviewPill}>Needs your review</span>}
-                    <button style={confirmBtnStyle} onClick={() => goFlow("plan_summary")}>Confirm Coach's Understanding</button>
-                    <button style={actionSecondary} onClick={() => goFlow("coach_take")}>What Coach Thinks of This File</button>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <button style={confirmBtnStyle} onClick={() => goFlow("plan_summary")}>Confirm Coach's Understanding</button>
+                      <button style={actionSecondary} onClick={() => goFlow("coach_take")}>What Coach Thinks of This File</button>
+                    </div>
                     {docRemoveIdx !== i && <button style={{ ...removeBtn, alignSelf: "center" }} onClick={() => setDocRemoveIdx(i)}>Remove</button>}
                   </div>
                 </div>
