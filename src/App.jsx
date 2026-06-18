@@ -771,6 +771,7 @@ export default function App() {
   const [docRemoveIdx, setDocRemoveIdx] = useState(null);
   // The document currently being read in place on the Loaded Documents view.
   const [pendingDoc, setPendingDoc] = useState(null);
+  const [readProgress, setReadProgress] = useState(0); // 0..100, fills while reading
   const compUploadRef = useRef(null);
   const [comp, setComp] = useState({ base: 150000, quota: 1500000, commissionRate: 8, accelerator: 1.5 });
   const [editField, setEditField] = useState(null);
@@ -874,6 +875,7 @@ export default function App() {
     const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
     if (!isPdf) { setIngestError("Please add a PDF of your comp plan so Coach can read it."); return; }
     setIngestError("");
+    setReadProgress(0);
     setPendingDoc({ name: file.name });
     setIngesting(true);
     goFlow("comp_documents");
@@ -886,6 +888,7 @@ export default function App() {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data || !data.ok) throw new Error("ingest_failed");
+      setReadProgress(100);
       setCompPlan(data.plan);
       setCoachRead(null);
       coachReadForRef.current = null;
@@ -934,7 +937,7 @@ export default function App() {
       <button onClick={() => goFlow(full ? "home_base" : "landing")} style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 900, color: "var(--carrot)", background: "none", border: "none", cursor: "pointer" }}>🥕 Earn The Carrot</button>
       {full && (
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <button onClick={() => goFlow("comp_upload")} style={{ background: "var(--carrot)", color: "white", border: "none", borderRadius: 100, padding: "10px 22px", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>↑ Upload</button>
+          <button onClick={() => goFlow("comp_documents")} style={{ background: "var(--carrot)", color: "white", border: "none", borderRadius: 100, padding: "10px 22px", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>↑ Upload</button>
           <div style={{ position: "relative" }}>
             <button onClick={() => setAvatarMenuOpen((o) => !o)} aria-label="Account menu" style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "var(--dark2)", color: "white", fontSize: 16, fontWeight: 800, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>{(currentName || currentUser || "?").charAt(0).toUpperCase()}</button>
             {avatarMenuOpen && (
@@ -1023,6 +1026,16 @@ export default function App() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  // While a document is being read, fill the progress circle from 0 toward ~90%
+  // over about 30 seconds (a typical read). It completes to 100% when ingestion returns.
+  useEffect(() => {
+    if (!pendingDoc || ingestError) return;
+    const id = setInterval(() => {
+      setReadProgress((p) => (p >= 90 ? 90 : p + 90 / (30000 / 200)));
+    }, 200);
+    return () => clearInterval(id);
+  }, [pendingDoc, ingestError]);
 
   // Fetch Coach's read on demand when the Coach's Take view opens (once per plan).
   useEffect(() => {
@@ -1167,38 +1180,6 @@ export default function App() {
     );
   }
 
-  // ══ COMP PLAN UPLOAD (clean, on-brand) ═══════════════════════════════
-  if (screen === "comp_upload") {
-    const backLink = { background: "none", border: "none", color: "var(--carrot)", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0 };
-    const onPick = (file) => { if (file) ingestFile(file); };
-    return (
-      <div className="hb-wrap">
-        <style>{S}</style>
-        <style>{HOME_STYLES}</style>
-        {renderTopBar(true)}
-        <div className="hb-main">
-          <button style={backLink} onClick={() => goFlow("comp_dashboard")}>‹ Back to Comp Plan</button>
-          <h1 className="hb-h1" style={{ marginTop: 12 }}>Add your comp plan</h1>
-          <p className="hb-sub">Drop it in and I'll read every line, then show you what it's really worth.</p>
-
-          <div
-            onClick={() => compUploadRef.current && compUploadRef.current.click()}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { e.preventDefault(); onPick(e.dataTransfer.files && e.dataTransfer.files[0]); }}
-            style={{ cursor: "pointer", border: "2px dashed #E7C9AE", borderRadius: 20, background: "white", padding: "56px 32px", textAlign: "center", maxWidth: 680 }}
-          >
-            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 900, marginBottom: 8 }}>Drop your comp plan here</div>
-            <div style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.6, marginBottom: 6 }}>Coach reads it in about a minute. PDF works best.</div>
-            <div style={{ fontSize: 14, color: "var(--carrot)", fontWeight: 700 }}>or click to browse</div>
-          </div>
-          <input ref={compUploadRef} type="file" accept=".pdf" style={{ display: "none" }} onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; onPick(f); }} />
-
-          {ingestError && <div style={{ marginTop: 16, maxWidth: 680, background: "#FEE2E2", border: "1px solid #FCA5A5", color: "#B91C1C", borderRadius: 12, padding: "10px 14px", fontSize: 14, lineHeight: 1.45 }}>{ingestError}</div>}
-        </div>
-      </div>
-    );
-  }
-
   // ══ COMP PLAN DASHBOARD ══════════════════════════════════════════════
   if (screen === "comp_dashboard") {
     const hasPlan = !!compPlan;
@@ -1216,7 +1197,7 @@ export default function App() {
             : { key: "take", icon: TakeIcon, name: "Coach's Take", desc: "Coach's read on what your plan is really built to do.", cls: "hb-area soon", hint: "Review your plan first" },
         ]
       : [
-          { key: "docs", icon: FolderIcon, name: "Comp Plan Documents", desc: "Drop in your comp plan and I'll show you what it's really worth.", cls: "hb-area hot", onClick: () => goFlow("comp_upload"), cue: "Start here", button: "Upload your comp plan" },
+          { key: "docs", icon: FolderIcon, name: "Comp Plan Documents", desc: "Drop in your comp plan and I'll show you what it's really worth.", cls: "hb-area hot", onClick: () => goFlow("comp_documents"), cue: "Start here", button: "Upload your comp plan" },
           { key: "summary", icon: SummaryIcon, name: "Your Plan Summary", desc: "The numbers Coach pulls out, ready to review and edit.", cls: "hb-area soon", hint: "Once your plan is loaded" },
           { key: "take", icon: TakeIcon, name: "Coach's Take", desc: "Coach's read on what your plan is really built to do.", cls: "hb-area soon", hint: "Once your plan is loaded" },
         ];
@@ -1240,7 +1221,7 @@ export default function App() {
                 <div className="hb-area-name">{c.name}</div>
                 <div className="hb-area-desc">{c.desc}</div>
                 {c.button
-                  ? <button style={cardBtn} onClick={(e) => { e.stopPropagation(); goFlow("comp_upload"); }}>{c.button}</button>
+                  ? <button style={cardBtn} onClick={(e) => { e.stopPropagation(); goFlow("comp_documents"); }}>{c.button}</button>
                   : c.badge === "ready"
                     ? <span className="hb-area-status ready">Ready</span>
                     : c.hint
@@ -1251,12 +1232,12 @@ export default function App() {
           </div>
 
           {hasPlan && (
-            <div onClick={() => goFlow("comp_upload")} style={{ cursor: "pointer", border: "2px dashed #E7C9AE", background: "#FFF6EF", marginTop: 28, borderRadius: 16, padding: "20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+            <div onClick={() => goFlow("comp_documents")} style={{ cursor: "pointer", border: "2px dashed #E7C9AE", background: "#FFF6EF", marginTop: 28, borderRadius: 16, padding: "20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 15 }}>Got something new?</div>
                 <div style={{ fontSize: 14, color: "var(--muted)", marginTop: 2, lineHeight: 1.5 }}>Drop in a revised plan, last year's plan, or a SPIFF email and I'll read it in.</div>
               </div>
-              <button style={orangePill} onClick={(e) => { e.stopPropagation(); goFlow("comp_upload"); }}>Add a document</button>
+              <button style={orangePill} onClick={(e) => { e.stopPropagation(); goFlow("comp_documents"); }}>Add a document</button>
             </div>
           )}
         </div>
@@ -1308,13 +1289,14 @@ export default function App() {
       </div>
     );
 
-    // Confirm-status treatment for finished rows.
-    const statusPillStyle = planConfirmed
-      ? { fontSize: 11, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", padding: "4px 10px", borderRadius: 100, background: "var(--green-light)", color: "var(--green)", border: "1px solid #A7D6B5", flex: "none", whiteSpace: "nowrap" }
-      : { fontSize: 11, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", padding: "4px 10px", borderRadius: 100, background: "var(--gold-light)", color: "#7A5C00", border: "1px solid var(--gold)", flex: "none", whiteSpace: "nowrap" };
+    // Confirm-status treatment, shown directly with the Confirm button.
+    const needsReviewPill = { fontSize: 11, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", padding: "5px 10px", borderRadius: 100, background: "var(--gold-light)", color: "#7A5C00", border: "1px solid var(--gold)", textAlign: "center" };
+    const confirmedTag = { fontSize: 12, fontWeight: 700, color: "var(--green)", textAlign: "center" };
     const confirmBtnStyle = planConfirmed
       ? { background: "white", color: "var(--muted)", border: "1.5px solid var(--border)", borderRadius: 100, padding: "10px 18px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }
       : actionPrimary;
+    const onPick = (file) => { if (file) ingestFile(file); };
+    const R = 11, C = 2 * Math.PI * R;
 
     return (
       <div className="hb-wrap">
@@ -1329,63 +1311,83 @@ export default function App() {
 
           <div style={{ fontSize: 14, color: "#7A5C00", background: "var(--gold-light)", border: "1px solid var(--gold)", borderRadius: 12, padding: "12px 16px", marginBottom: 18, lineHeight: 1.5, maxWidth: 820 }}>For each file, confirm what Coach understood, then see what Coach thinks. If anything looks off, flag it to your manager.</div>
 
-          <button style={{ ...orangePill, marginBottom: 22 }} onClick={() => goFlow("comp_upload")}>Add a document</button>
+          {/* Upload lives here now: drop or browse, files appear in the list below. */}
+          <div
+            onClick={() => compUploadRef.current && compUploadRef.current.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.preventDefault(); onPick(e.dataTransfer.files && e.dataTransfer.files[0]); }}
+            style={{ cursor: "pointer", border: "2px dashed #E7C9AE", borderRadius: 16, background: "white", padding: "20px 24px", marginBottom: 10, maxWidth: 900, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}
+          >
+            <div>
+              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700, marginBottom: 2 }}>Drop your comp documents here</div>
+              <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.5 }}>Your comp plan, a revised plan, last year's plan, or a SPIFF email. PDF works best.</div>
+            </div>
+            <button style={orangePill} onClick={(e) => { e.stopPropagation(); compUploadRef.current && compUploadRef.current.click(); }}>Browse files</button>
+          </div>
+          <input ref={compUploadRef} type="file" accept=".pdf" style={{ display: "none" }} onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; onPick(f); }} />
+          {ingestError && !pendingDoc && <div style={{ maxWidth: 900, background: "#FEE2E2", border: "1px solid #FCA5A5", color: "#B91C1C", borderRadius: 12, padding: "10px 14px", fontSize: 14, lineHeight: 1.45, marginBottom: 8 }}>{ingestError}</div>}
 
-          {docs.length === 0 && !pendingDoc ? (
-            <div style={{ fontSize: 15, color: "var(--muted)", fontStyle: "italic" }}>No documents on file yet. Drop in your comp plan and Coach will read it.</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 900 }}>
-              {/* In-place reading row: appears immediately, resolves when ingestion finishes. */}
-              {pendingDoc && (
-                <div style={{ background: "white", border: "1.5px solid var(--border)", borderRadius: 14, padding: "18px 20px", display: "flex", alignItems: "center", gap: 14 }}>
-                  {ingestError ? (
-                    <>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, wordBreak: "break-word" }}>{pendingDoc.name}</div>
-                        <div style={{ fontSize: 13, color: "#B91C1C", marginTop: 2 }}>Coach had trouble reading this. Please try again.</div>
-                      </div>
-                      <button style={removeBtn} onClick={() => { setPendingDoc(null); setIngestError(""); }}>Dismiss</button>
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ width: 24, height: 24, borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "var(--carrot)", animation: "azspin 0.9s linear infinite", flex: "none" }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, wordBreak: "break-word" }}>{pendingDoc.name}</div>
-                        <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 2 }}>Coach is reading this...</div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 900, marginTop: 12 }}>
+            {/* In-place reading row with a filling progress circle. */}
+            {pendingDoc && (
+              <div style={{ background: "white", border: "1.5px solid var(--border)", borderRadius: 14, padding: "18px 20px", display: "flex", alignItems: "center", gap: 14 }}>
+                {ingestError ? (
+                  <>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, wordBreak: "break-word" }}>{pendingDoc.name}</div>
+                      <div style={{ fontSize: 13, color: "#B91C1C", marginTop: 2 }}>Coach had trouble reading this. Please try again.</div>
+                    </div>
+                    <button style={removeBtn} onClick={() => { setPendingDoc(null); setIngestError(""); }}>Dismiss</button>
+                  </>
+                ) : (
+                  <>
+                    <svg width="28" height="28" viewBox="0 0 28 28" style={{ flex: "none" }}>
+                      <circle cx="14" cy="14" r={R} fill="none" stroke="var(--border)" strokeWidth="3" />
+                      <circle cx="14" cy="14" r={R} fill="none" stroke="var(--carrot)" strokeWidth="3" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - readProgress / 100)} transform="rotate(-90 14 14)" style={{ transition: "stroke-dashoffset 0.2s linear" }} />
+                    </svg>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, wordBreak: "break-word" }}>{pendingDoc.name}</div>
+                      <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 2 }}>Coach is reading this... {Math.round(readProgress)}%</div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
-              {docs.map((doc, i) => (
-                <div key={i} style={{ background: planConfirmed ? "#F6FBF7" : "white", border: "1.5px solid var(--border)", borderRadius: 14, padding: "18px 20px" }}>
-                  <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "center" }}>
+            {docs.length === 0 && !pendingDoc && (
+              <div style={{ fontSize: 15, color: "var(--muted)", fontStyle: "italic" }}>No documents yet. Drop one in above and Coach will read it.</div>
+            )}
+
+            {docs.map((doc, i) => (
+              <div key={i} style={{ background: planConfirmed ? "#F6FBF7" : "white", border: "1.5px solid var(--border)", borderRadius: 14, padding: "18px 20px" }}>
+                <div style={{ display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "center", flex: "1 1 380px" }}>
                     {field("Date loaded", doc.dateLoaded)}
                     {field("File name", doc.name, true)}
                     {field("Plan year", doc.planYear)}
                     {field("Description", doc.description, true)}
-                    <span style={{ ...statusPillStyle, marginLeft: "auto" }}>{planConfirmed ? "✓ Confirmed" : "Needs your review"}</span>
                   </div>
-                  <div style={{ marginTop: 16, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "stretch", flex: "0 0 auto", minWidth: 240 }}>
+                    {planConfirmed
+                      ? <span style={confirmedTag}>✓ Confirmed</span>
+                      : <span style={needsReviewPill}>Needs your review</span>}
                     <button style={confirmBtnStyle} onClick={() => goFlow("plan_summary")}>Confirm Coach's Understanding</button>
                     <button style={actionSecondary} onClick={() => goFlow("coach_take")}>What Coach Thinks of This File</button>
-                    <div style={{ flex: "1 1 0", minWidth: 8 }} />
-                    {docRemoveIdx !== i && <button style={removeBtn} onClick={() => setDocRemoveIdx(i)}>Remove</button>}
+                    {docRemoveIdx !== i && <button style={{ ...removeBtn, alignSelf: "center" }} onClick={() => setDocRemoveIdx(i)}>Remove</button>}
                   </div>
-                  {docRemoveIdx === i && (
-                    <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                      <div style={{ fontSize: 14, color: "var(--ink)", lineHeight: 1.5 }}>Remove this document? Coach will forget what it learned from it.</div>
-                      <div style={{ display: "flex", gap: 8, flex: "none" }}>
-                        <button style={keepBtn} onClick={() => setDocRemoveIdx(null)}>Keep it</button>
-                        <button style={confirmRemoveBtn} onClick={removePlan}>Remove</button>
-                      </div>
-                    </div>
-                  )}
                 </div>
-              ))}
-            </div>
-          )}
+                {docRemoveIdx === i && (
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 14, color: "var(--ink)", lineHeight: 1.5 }}>Remove this document? Coach will forget what it learned from it.</div>
+                    <div style={{ display: "flex", gap: 8, flex: "none" }}>
+                      <button style={keepBtn} onClick={() => setDocRemoveIdx(null)}>Keep it</button>
+                      <button style={confirmRemoveBtn} onClick={removePlan}>Remove</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
