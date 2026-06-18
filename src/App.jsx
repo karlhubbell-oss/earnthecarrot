@@ -1365,10 +1365,18 @@ export default function App() {
           <h1 className="hb-h1" style={{ marginTop: 12 }}>Your Comp Documents</h1>
           <p className="hb-sub">The files Coach has read for this plan. Full document history is coming soon.</p>
 
-          <div style={{ fontSize: 18, color: "#7A5C00", background: "var(--gold-light)", border: "1px solid var(--gold)", borderRadius: 12, padding: "12px 16px", marginBottom: 18, lineHeight: 1.5, maxWidth: 1040 }}>
-            For each file, confirm what Coach understood, then see what Coach thinks. If anything looks off, flag it to your manager.
-            <div style={{ marginTop: 6 }}>Not sure about something? When you <button onClick={() => goFlow("plan_summary")} style={{ background: "none", border: "none", padding: 0, color: "var(--carrot-dark)", fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontSize: "inherit", textDecoration: "underline" }}>review</button>, I can draft an email to your manager with the key questions.</div>
+          <div style={{ background: "white", border: "1.5px solid var(--border)", borderRadius: 14, padding: "16px 20px", marginBottom: 12, maxWidth: 1040 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--muted)", marginBottom: 12 }}>How this works</div>
+            <div style={{ display: "flex", gap: 28, flexWrap: "wrap" }}>
+              {[["1", "Load your file"], ["2", "Confirm Coach's understanding"], ["3", "Review Coach's thoughts"]].map(([n, label]) => (
+                <div key={n} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ width: 26, height: 26, borderRadius: "50%", background: "var(--carrot-light)", color: "var(--carrot-dark)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 15, flex: "none" }}>{n}</span>
+                  <span style={{ fontSize: 16, color: "var(--ink)", fontWeight: 600 }}>{label}</span>
+                </div>
+              ))}
+            </div>
           </div>
+          <div style={{ fontSize: 16, color: "var(--muted)", marginBottom: 18, lineHeight: 1.5, maxWidth: 1040 }}>Not sure about something? When you <button onClick={() => goFlow("plan_summary")} style={{ background: "none", border: "none", padding: 0, color: "var(--carrot-dark)", fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontSize: "inherit", textDecoration: "underline" }}>review</button>, I can draft an email to your manager with the key questions.</div>
 
           {/* Upload lives here now: drop or browse, files appear in the list below. */}
           <div
@@ -1418,7 +1426,7 @@ export default function App() {
             )}
 
             {docs.map((doc, i) => (
-              <div key={i} style={{ background: planConfirmed ? "white" : "#FFF8F2", border: "1.5px solid var(--border)", borderLeft: planConfirmed ? "1.5px solid var(--border)" : "4px solid var(--carrot)", borderRadius: 14, padding: "18px 20px" }}>
+              <div key={i} style={{ background: "white", border: "1.5px solid var(--border)", borderRadius: 14, padding: "18px 20px" }}>
                 <div style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
                   <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "center", flex: "1 1 320px", minWidth: 260 }}>
                     {field("Plan year", doc.planYear)}
@@ -1429,7 +1437,7 @@ export default function App() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "stretch", flex: "0 0 440px", maxWidth: 480 }}>
                     {planConfirmed
                       ? <span style={confirmedTag}>✓ Confirmed</span>
-                      : <span style={nudgeLine}>Start here. Take a look and make sure I got your plan right.</span>}
+                      : <span style={needsReviewPill}>Needs review</span>}
                     <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                       <button style={{ ...confirmBtnStyle, flex: 1, minWidth: 200, lineHeight: 1.25, animation: planConfirmed ? "none" : "confirmpulse 1.4s ease-out 2" }} onClick={() => goFlow("plan_summary")}>Confirm Coach's Understanding</button>
                       {planConfirmed ? (
