@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Area, AreaChart, Label } from "recharts";
 import SeeWhatMoreIsWorth from "./SeeWhatMoreIsWorth";
+import PayoutCurveScreen from "./PayoutCurve";
 
 const S = `
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
@@ -1067,7 +1068,7 @@ export default function App() {
   // ── Persistent left navigation rail (shared layout) ──
   const TOPBAR_H = 72;
   const railW = railCollapsed ? 64 : 234;
-  const compAreaScreens = ["comp_dashboard", "comp_documents", "plan_summary", "coach_take"];
+  const compAreaScreens = ["comp_dashboard", "comp_documents", "plan_summary", "coach_take", "payout_curve"];
   const railActiveArea = compAreaScreens.indexOf(screen) >= 0 ? "comp" : null;
   const railIcon = {
     comp: <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z M14 3v5h5 M9 13h6 M9 17h4" />,
@@ -1210,7 +1211,7 @@ export default function App() {
   // Skips when a plan is already in memory (fresh upload or already loaded) so there
   // is no double-display, and only fetches once per rep per session.
   useEffect(() => {
-    const inCompArea = ["comp_dashboard", "comp_documents", "plan_summary", "coach_take"].indexOf(screen) >= 0;
+    const inCompArea = ["comp_dashboard", "comp_documents", "plan_summary", "coach_take", "payout_curve"].indexOf(screen) >= 0;
     if (!inCompArea || !currentRepId) return;
     if (compPlan) { planFetchedRef.current = currentRepId; return; }
     if (planFetchedRef.current === currentRepId) return;
@@ -1382,6 +1383,7 @@ export default function App() {
     const FolderIcon = <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5Z" /></svg>;
     const SummaryIcon = <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" /><path d="M14 3v5h5" /><path d="M9 13h6M9 17h4" /></svg>;
     const TakeIcon = <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8 8 0 0 1-11.5 7.2L4 20l1.3-4.4A8 8 0 1 1 21 11.5Z" /></svg>;
+    const CurveIcon = <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M6 15c4 0 5-8 9-8 3 0 3 4 6 4" /></svg>;
     const cards = hasPlan
       ? [
           { key: "docs", icon: FolderIcon, name: "Comp Plan Documents", desc: "Your comp plan, SPIFF notes, and anything you've dropped in.", cls: "hb-area active", onClick: () => goFlow("comp_documents"), badge: "ready" },
@@ -1389,6 +1391,7 @@ export default function App() {
           planConfirmed
             ? { key: "take", icon: TakeIcon, name: "Coach's Take", desc: "Coach's read on what this plan is really built to make you do.", cls: "hb-area active", onClick: () => goFlow("coach_take"), badge: "ready" }
             : { key: "take", icon: TakeIcon, name: "Coach's Take", desc: "Coach's read on what your plan is really built to do.", cls: "hb-area soon", hint: "Review your plan first" },
+          { key: "curve", icon: CurveIcon, name: "Payout Curve", desc: "See what your plan pays at every level of attainment.", cls: "hb-area active", onClick: () => goFlow("payout_curve"), badge: "ready" },
         ]
       : [
           { key: "docs", icon: FolderIcon, name: "Comp Plan Documents", desc: "Drop in your comp plan and I'll show you what it's really worth.", cls: "hb-area hot", onClick: () => goFlow("comp_documents"), cue: "Start here", button: "Upload your comp plan" },
@@ -1716,6 +1719,19 @@ export default function App() {
             <div className="ob-card">Coach could not read your plan right now. Head back and open this again to retry.</div>
           )}
         </div>
+      </div>
+    );
+  }
+
+  // ══ PAYOUT CURVE ═════════════════════════════════════════════════════
+  if (screen === "payout_curve") {
+    return (
+      <div className="hb-wrap" style={{ paddingTop: TOPBAR_H, paddingLeft: railW }}>
+        <style>{S}</style>
+        <style>{HOME_STYLES}</style>
+        {renderTopBar(true)}
+        {renderRail()}
+        <PayoutCurveScreen plan={compPlan} onBack={() => goFlow("comp_dashboard")} />
       </div>
     );
   }
