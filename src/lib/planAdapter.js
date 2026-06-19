@@ -27,48 +27,82 @@ export function toEarningsPlan(plan) {
   // rate basis: get-plan uses "pct_of_variable"; earnings wants "pct_of_target_variable".
   const rateBasis = commission.rate_basis === "pct_of_variable" ? "pct_of_target_variable" : "pct_of_revenue";
 
-  // Parsed tiers, ascending by attainment, with absolute per-band rates.
+  // Parsed plan-level tiers, ascending by attainment.
   const parsedTiers = (Array.isArray(commission.tiers) ? commission.tiers : [])
     .filter((t) => t && t.from_attainment_pct != null)
     .sort((a, b) => (a.from_attainment_pct || 0) - (b.from_attainment_pct || 0));
+  // Do the plan-level tiers carry real per-band rates (a single accelerator
+  // schedule, e.g. Ridgeline), or only thresholds and labels? A multi-component
+  // plan stores its accelerator inside each component's own ladder, leaving the
+  // plan-level rates null. In that case the multipliers must come from the
+  // components, not from these null rates.
+  const planTiersHaveRates = parsedTiers.some((t) => t.rate != null && Number(t.rate) > 0);
 
   // Base rate: the first band's rate when present; otherwise the rate implied by
   // targetVariable / quota (which makes commission at 100% equal target variable).
   let baseRate = parsedTiers.length && parsedTiers[0].rate != null ? Number(parsedTiers[0].rate) : null;
   if (!baseRate || baseRate <= 0) baseRate = totalQuota > 0 ? targetVariable / totalQuota : 0;
 
-  // Tiers -> { fromAttainment (0..1+), multiplier (band rate relative to base) }.
-  // No synthetic 0% band: when the first paying band starts above 0 (with a floor),
-  // revenue below it correctly earns nothing.
-  const tiers = parsedTiers.length
-    ? parsedTiers.map((t) => ({
-        fromAttainment: (t.from_attainment_pct || 0) / 100,
-        multiplier: baseRate > 0 && t.rate != null ? Number(t.rate) / baseRate : 1,
-      }))
-    : [{ fromAttainment: 0, multiplier: 1 }];
-
-  // Components: get-plan stores quota per component but not a per-component rate,
-  // so each component takes the base rate (accelerable by default).
+  const EPS = 1e-9;
+  // Components. Each may carry its own band ladder. From those bands we read both
+  // the component's base rate and whether it actually accelerates (its rate rises
+  // above its own base in a higher band).
   let components = (Array.isArray(quota.components) ? quota.components : [])
     .filter(Boolean)
     .map((c) => {
-      const out = {
+      const bands = (Array.isArray(c.tiers) && c.tiers.length)
+        ? c.tiers
+            .map((t) => ({ fromAttainment: (t.from_attainment_pct || 0) / 100, rate: t.rate != null ? Number(t.rate) : null }))
+            .sort((a, b) => a.fromAttainment - b.fromAttainment)
+        : null;
+      const compBase = bands && bands[0] && bands[0].rate != null
+        ? bands[0].rate
+        : (c.rate != null ? Number(c.rate) : baseRate);
+      const bandMults = bands
+        ? bands.map((b) => ({ fromAttainment: b.fromAttainment, multiplier: compBase > 0 && b.rate != null ? b.rate / compBase : 1 }))
+        : null;
+      const bandAccelerates = bandMults ? bandMults.some((m) => Math.abs(m.multiplier - 1) > EPS) : null;
+      return {
         name: c.name || "Component",
         quota: n(c.quota_amount) || 0,
-        rate: c.rate != null ? Number(c.rate) : baseRate,
-        accelerable: c.accelerable !== false, // default true when absent
+        rate: compBase,
+        // When the plan-level tiers hold the real rates, trust the stored
+        // accelerable flag. When they do not (the accelerator lives per component),
+        // that flag is unreliable, so read acceleration straight from the bands.
+        accelerable: planTiersHaveRates
+          ? (c.accelerable !== false)
+          : (bandAccelerates != null ? bandAccelerates : (c.accelerable !== false)),
+        _bandMults: bandMults,
       };
-      // Carry the component's own tier ladder when it has one (its real bands).
-      if (Array.isArray(c.tiers) && c.tiers.length) {
-        out.bands = c.tiers.map((t) => ({ fromAttainment: (t.from_attainment_pct || 0) / 100, rate: t.rate != null ? Number(t.rate) : null }));
-        if (out.bands[0] && out.bands[0].rate != null) out.rate = out.bands[0].rate;
-      }
-      return out;
     });
   const compQuotaSum = components.reduce((s, c) => s + (c.quota || 0), 0);
   if (rateBasis === "pct_of_revenue" && (components.length === 0 || compQuotaSum <= 0)) {
-    components = [{ name: "Quota", quota: totalQuota, rate: baseRate, accelerable: true }];
+    components = [{ name: "Quota", quota: totalQuota, rate: baseRate, accelerable: true, _bandMults: null }];
   }
+
+  // Plan-level multiplier schedule the engine applies to accelerable components.
+  // Prefer the plan-level tiers when they carry rates; otherwise synthesize the
+  // schedule from the accelerating components' own ladders (in a well-formed plan
+  // they share one schedule, e.g. New Logo and Expansion both 1.5x then 2x).
+  let tiers;
+  if (planTiersHaveRates) {
+    tiers = parsedTiers.map((t) => ({
+      fromAttainment: (t.from_attainment_pct || 0) / 100,
+      multiplier: baseRate > 0 && t.rate != null ? Number(t.rate) / baseRate : 1,
+    }));
+  } else {
+    const accel = components
+      .filter((c) => c._bandMults && c._bandMults.some((m) => Math.abs(m.multiplier - 1) > EPS))
+      .sort((a, b) => b._bandMults.length - a._bandMults.length);
+    if (accel.length) {
+      tiers = accel[0]._bandMults.map((m) => ({ fromAttainment: m.fromAttainment, multiplier: m.multiplier }));
+    } else if (parsedTiers.length) {
+      tiers = parsedTiers.map((t) => ({ fromAttainment: (t.from_attainment_pct || 0) / 100, multiplier: 1 }));
+    } else {
+      tiers = [{ fromAttainment: 0, multiplier: 1 }];
+    }
+  }
+  components.forEach((c) => { delete c._bandMults; });
 
   const floorPct = commission.floor && commission.floor.type && commission.floor.type !== "none" ? commission.floor.attainment_pct : null;
   const floor = floorPct != null ? { attainment: Number(floorPct) / 100 } : null;
