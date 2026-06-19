@@ -72,8 +72,16 @@ export default function PayoutCurve({ plan, attainment = null, onBack }) {
   const capA = ep.cap && ep.cap.attainment != null ? ep.cap.attainment : null;
   const topRaw = rawTiers.length ? rawTiers[rawTiers.length - 1] : null;
   const topEndsPct = topRaw && topRaw.to_attainment_pct != null ? topRaw.to_attainment_pct : null;
-  const topA = capA != null ? capA : (topEndsPct != null ? topEndsPct / 100 : (ep.tiers[ep.tiers.length - 1].fromAttainment + 0.5));
-  const maxA = topA;
+  // Does the plan actually have more than one band, or is it a single flat rate?
+  const hasTiers = (ep.tiers || []).length > 1;
+  const lastFromA = ep.tiers && ep.tiers.length ? ep.tiers[ep.tiers.length - 1].fromAttainment : 0;
+  // Range: respect a real cap. Otherwise always show through at least 150% so the
+  // view reaches past plan, and past the last band start for tiered plans. A flat
+  // single-rate plan has no upper band, so the old "last band start + 0.5" yielded
+  // 50% and truncated the curve; the 1.5 floor fixes that without capping tiered plans.
+  const maxA = capA != null
+    ? capA
+    : Math.max(1.5, topEndsPct != null ? topEndsPct / 100 : lastFromA + 0.5);
   const maxPct = Math.round(maxA * 100);
 
   const sm = summaryMetrics(ep);
@@ -81,7 +89,7 @@ export default function PayoutCurve({ plan, attainment = null, onBack }) {
   const showConflict = !rec.consistent;
 
   const at100 = computeEarnings(ep, 1.0);
-  const atTop = computeEarnings(ep, topA);
+  const atTop = computeEarnings(ep, maxA);
   const computedTotal100 = at100.totalEarnings;
   const effRate = ep.totalQuota > 0 ? at100.commission / ep.totalQuota : 0;
 
@@ -100,7 +108,7 @@ export default function PayoutCurve({ plan, attainment = null, onBack }) {
   }
   markers.push({ a: 100, label: "On plan", tone: COL.total });
   if (capA != null) markers.push({ a: Math.round(capA * 100), label: "Cap, no commission above", tone: COL.mut, cap: true });
-  else if (topEndsPct != null) markers.push({ a: topEndsPct, label: "Top tier ends, rates above need confirming", tone: COL.mut });
+  else if (topEndsPct != null && hasTiers) markers.push({ a: topEndsPct, label: "Top tier ends, rates above need confirming", tone: COL.mut });
 
   const ticks = Array.from(new Set([0, ...markers.map((m) => m.a), maxPct])).sort((x, y) => x - y);
 
@@ -122,8 +130,8 @@ export default function PayoutCurve({ plan, attainment = null, onBack }) {
   // When the only component is the synthesized "Quota", showing it above the
   // "$X quota" value just repeats the word, so drop that line in that case.
   const planLabel = componentNames === "Quota" ? null : (componentNames || "Your plan");
-  const topLabel = capA != null ? `At the cap (${Math.round(capA * 100)}%)` : `At the top tier (${maxPct}%)`;
-  const topSub = capA != null ? "capped here, no commission earned above" : "highest defined point, rates above need confirming";
+  const topLabel = capA != null ? `At the cap (${Math.round(capA * 100)}%)` : hasTiers ? `At the top tier (${maxPct}%)` : `At ${maxPct}% of quota`;
+  const topSub = capA != null ? "capped here, no commission earned above" : hasTiers ? "highest defined point, rates above need confirming" : "at the top of this view";
 
   const cards = [
     { label: "Your number at 100%", value: fmt(at100.totalEarnings), sub: `${fmt(at100.commission)} commission on ${fmt(ep.baseSalary)} base` },
@@ -237,7 +245,7 @@ export default function PayoutCurve({ plan, attainment = null, onBack }) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginTop: 16 }}>
             <Stat label="Total earnings here" value={fmt(here.totalEarnings)} tone={COL.total} note={hasHere ? (pct !== herePct ? `${pct > herePct ? "+" : ""}${fmt(here.totalEarnings - hereToday.totalEarnings)} vs today` : "right where you are now") : null} />
             <Stat label="Commission here" value={fmt(here.commission)} tone={COL.comm} note={here.belowFloor ? "below the floor, no commission yet" : null} />
-            <Stat label="The next 10 points are worth" value={"+" + fmt(next)} tone={COL.text} note={pct < 100 ? "climbs as you cross each accelerator" : "up in the accelerator bands, every point counts more"} />
+            <Stat label="The next 10 points are worth" value={"+" + fmt(next)} tone={COL.text} note={!hasTiers ? "every point pays the same flat rate" : pct < 100 ? "climbs as you cross each accelerator" : "up in the accelerator bands, every point counts more"} />
           </div>
         </div>
 
