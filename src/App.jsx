@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Area, AreaChart, Label } from "recharts";
 import SeeWhatMoreIsWorth from "./SeeWhatMoreIsWorth";
 import PayoutCurveScreen from "./PayoutCurve";
-import { useUser, useStackApp } from "@stackframe/react";
+import { authClient } from "./lib/auth";
 
 const S = `
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
@@ -721,9 +721,9 @@ export default function App() {
   const [dbPlanLoading, setDbPlanLoading] = useState(false); // loading the rep's plan from the DB
   const planFetchedRef = useRef(null); // repId we've already loaded a plan for this session
 
-  // Neon Auth (Stack). useUser persists across reloads via the cookie token store.
-  const stackUser = useUser();
-  const stackApp = useStackApp();
+  // Neon Auth (Better Auth). The session persists across reloads via cookie.
+  const { data: sessionData, isPending: sessionPending } = authClient.useSession();
+  const sessionUser = sessionData && sessionData.user ? sessionData.user : null;
   const ensureRepRef = useRef(null); // auth user id we've already resolved a rep for
 
   // ── HOME BASE STATE ──
@@ -1017,8 +1017,8 @@ export default function App() {
   // ── AUTH helpers (front-end stub) ──
   const goAuth = (mode) => { setAuthMode(mode); setAuthError(""); setAuthFirst(""); setAuthPass(""); setAuthPass2(""); goFlow("auth"); };
   const toggleAuthMode = () => { setAuthMode((m) => (m === "login" ? "signup" : "login")); setAuthError(""); setAuthFirst(""); setAuthPass(""); setAuthPass2(""); };
-  // Sign up / log in through Neon Auth. Stack owns password hashing, rules, and
-  // the session. The effect below resolves the signed-in identity to a rep.
+  // Sign up / log in through Neon Auth (Better Auth). It owns password hashing,
+  // rules, and the session. The effect below resolves the identity to a rep.
   const submitAuth = async () => {
     const email = authUser.trim();
     const fn = authFirst.trim();
@@ -1027,33 +1027,31 @@ export default function App() {
       if (!email || !authPass) { setAuthError("Please enter your email and a password."); return; }
       if (authPass !== authPass2) { setAuthError("Those passwords do not match. Please try again."); return; }
       setAuthError("");
-      let result;
+      let error;
       try {
-        result = await stackApp.signUpWithCredential({ email, password: authPass, noVerificationCallback: true, noRedirect: true });
+        ({ error } = await authClient.signUp.email({ email, password: authPass, name: fn }));
       } catch (e) { setAuthError("We could not create your account right now. Please try again."); return; }
-      if (result && result.status === "error") {
-        const blob = JSON.stringify(result.error || "") + " " + String(result.error || "");
-        if (/already.?exist|AlreadyExists/i.test(blob)) setAuthError("That email already has an account. Try logging in instead.");
-        else if (/password|requirement/i.test(blob)) setAuthError("That password does not meet the requirements. Please choose a longer, stronger one.");
+      if (error) {
+        const blob = (error.code || "") + " " + (error.message || "") + " " + String(error.status || "");
+        if (/exist|already/i.test(blob)) setAuthError("That email already has an account. Try logging in instead.");
+        else if (/password|weak|short|requirement|length/i.test(blob)) setAuthError("That password does not meet the requirements. Please choose a longer, stronger one.");
         else setAuthError("We could not create your account. Please try again.");
         return;
       }
-      // Save the first name as the display name; not fatal if it does not stick.
-      try { const u = await stackApp.getUser(); if (u) await u.update({ displayName: fn }); } catch (e) {}
       const dest = postAuthDest; setPostAuthDest(null); goFlow(dest || "home_base");
     } else {
       if (!email || !authPass) { setAuthError("Please enter your email and password."); return; }
       setAuthError("");
-      let result;
+      let error;
       try {
-        result = await stackApp.signInWithCredential({ email, password: authPass, noRedirect: true });
+        ({ error } = await authClient.signIn.email({ email, password: authPass }));
       } catch (e) { setAuthError("We could not log you in right now. Please try again."); return; }
-      if (result && result.status === "error") { setAuthError("We could not log you in. Check your email and password."); return; }
+      if (error) { setAuthError("We could not log you in. Check your email and password."); return; }
       const dest = postAuthDest; setPostAuthDest(null); goFlow(dest || "home_base");
     }
   };
   const logout = async () => {
-    try { if (stackUser) await stackUser.signOut(); } catch (e) {}
+    try { await authClient.signOut(); } catch (e) {}
     ensureRepRef.current = null;
     setCurrentUser(null); setCurrentName(""); setCurrentRepId(null); setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; setPlanConfirmed(false); planFetchedRef.current = null; setAvatarMenuOpen(false); goFlow("landing");
   };
@@ -1070,7 +1068,7 @@ export default function App() {
               <>
                 <div onClick={() => setAvatarMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
                 <div style={{ position: "absolute", right: 0, top: 48, background: "white", border: "1.5px solid var(--border)", borderRadius: 12, boxShadow: "0 12px 30px -12px rgba(0,0,0,0.3)", minWidth: 170, zIndex: 60, overflow: "hidden" }}>
-                  <div style={{ padding: "10px 14px", fontSize: 16, color: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Signed in as <b style={{ color: "var(--ink)" }}>{currentName || (stackUser && stackUser.primaryEmail) || "your account"}</b></div>
+                  <div style={{ padding: "10px 14px", fontSize: 16, color: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Signed in as <b style={{ color: "var(--ink)" }}>{currentName || (sessionUser && sessionUser.email) || "your account"}</b></div>
                   <button onClick={logout} style={{ display: "block", width: "100%", textAlign: "left", padding: "11px 14px", background: "none", border: "none", cursor: "pointer", fontSize: 18, fontWeight: 600, color: "var(--ink)", fontFamily: "'DM Sans',sans-serif" }}>Log out</button>
                 </div>
               </>
@@ -1227,28 +1225,29 @@ export default function App() {
   // reload (the session persists), so currentRepId is derived from the identity
   // rather than held only in memory. Clears everything on logout / no session.
   useEffect(() => {
-    if (!stackUser) {
+    if (sessionPending) return; // session still loading; do not treat as logged out
+    if (!sessionUser) {
       ensureRepRef.current = null;
       setCurrentUser(null); setCurrentName(""); setCurrentRepId(null);
       setCompPlan(null); setCoachRead(null); coachReadForRef.current = null;
       setPlanConfirmed(false); planFetchedRef.current = null;
       return;
     }
-    setCurrentUser(stackUser.id);
-    setCurrentName(stackUser.displayName || "");
-    if (ensureRepRef.current === stackUser.id) return; // already resolved this identity
-    ensureRepRef.current = stackUser.id;
+    setCurrentUser(sessionUser.id);
+    setCurrentName(sessionUser.name || "");
+    if (ensureRepRef.current === sessionUser.id) return; // already resolved this identity
+    ensureRepRef.current = sessionUser.id;
     let cancelled = false;
     fetch("/api/ensure-rep", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ authUserId: stackUser.id, email: stackUser.primaryEmail || null, name: stackUser.displayName || null }),
+      body: JSON.stringify({ authUserId: sessionUser.id, email: sessionUser.email || null, name: sessionUser.name || null }),
     })
       .then((r) => r.json().catch(() => null))
       .then((d) => { if (!cancelled) { if (d && d.ok && d.repId) setCurrentRepId(d.repId); else console.error("ensure-rep failed:", d); } })
       .catch((e) => { if (!cancelled) console.error("ensure-rep error:", e); });
     return () => { cancelled = true; };
-  }, [stackUser]);
+  }, [sessionUser, sessionPending]);
 
   // Load the rep's current plan from the database when they enter the comp area.
   // Skips when a plan is already in memory (fresh upload or already loaded) so there
