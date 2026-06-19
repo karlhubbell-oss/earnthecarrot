@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Area, AreaChart, Label } from "recharts";
 import SeeWhatMoreIsWorth from "./SeeWhatMoreIsWorth";
 import PayoutCurveScreen from "./PayoutCurve";
+import { useUser, useStackApp } from "@stackframe/react";
 
 const S = `
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
@@ -713,13 +714,17 @@ export default function App() {
   const [authPass, setAuthPass] = useState("");
   const [authPass2, setAuthPass2] = useState("");
   const [authError, setAuthError] = useState("");
-  const [users, setUsers] = useState({});            // username -> { password, firstName }
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null); // Neon Auth user id (login flag)
   const [currentName, setCurrentName] = useState("");
   const [currentRepId, setCurrentRepId] = useState(null); // real reps.id from the database
   const [postAuthDest, setPostAuthDest] = useState(null); // where to land after sign in (e.g. upload)
   const [dbPlanLoading, setDbPlanLoading] = useState(false); // loading the rep's plan from the DB
   const planFetchedRef = useRef(null); // repId we've already loaded a plan for this session
+
+  // Neon Auth (Stack). useUser persists across reloads via the cookie token store.
+  const stackUser = useUser();
+  const stackApp = useStackApp();
+  const ensureRepRef = useRef(null); // auth user id we've already resolved a rep for
 
   // ── HOME BASE STATE ──
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
@@ -1012,55 +1017,46 @@ export default function App() {
   // ── AUTH helpers (front-end stub) ──
   const goAuth = (mode) => { setAuthMode(mode); setAuthError(""); setAuthFirst(""); setAuthPass(""); setAuthPass2(""); goFlow("auth"); };
   const toggleAuthMode = () => { setAuthMode((m) => (m === "login" ? "signup" : "login")); setAuthError(""); setAuthFirst(""); setAuthPass(""); setAuthPass2(""); };
-  const submitAuth = () => {
-    const u = authUser.trim();
+  // Sign up / log in through Neon Auth. Stack owns password hashing, rules, and
+  // the session. The effect below resolves the signed-in identity to a rep.
+  const submitAuth = async () => {
+    const email = authUser.trim();
     const fn = authFirst.trim();
     if (authMode === "signup") {
       if (!fn) { setAuthError("Please enter your first name."); return; }
-      if (!u || !authPass) { setAuthError("Please enter a username and a password."); return; }
+      if (!email || !authPass) { setAuthError("Please enter your email and a password."); return; }
       if (authPass !== authPass2) { setAuthError("Those passwords do not match. Please try again."); return; }
-      if (users[u]) { setAuthError("That username is already taken. Try logging in instead."); return; }
-      setUsers((prev) => ({ ...prev, [u]: { password: authPass, firstName: fn } }));
-      setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; setPlanConfirmed(false); planFetchedRef.current = null;
-      setCurrentUser(u);
-      setCurrentName(fn);
-      setCurrentRepId(null);
       setAuthError("");
-      { const dest = postAuthDest; setPostAuthDest(null); goFlow(dest || "home_base"); }
-      createRepInDb(fn, u); // create a real reps.id and remember it for this user
+      let result;
+      try {
+        result = await stackApp.signUpWithCredential({ email, password: authPass, noVerificationCallback: true, noRedirect: true });
+      } catch (e) { setAuthError("We could not create your account right now. Please try again."); return; }
+      if (result && result.status === "error") {
+        const blob = JSON.stringify(result.error || "") + " " + String(result.error || "");
+        if (/already.?exist|AlreadyExists/i.test(blob)) setAuthError("That email already has an account. Try logging in instead.");
+        else if (/password|requirement/i.test(blob)) setAuthError("That password does not meet the requirements. Please choose a longer, stronger one.");
+        else setAuthError("We could not create your account. Please try again.");
+        return;
+      }
+      // Save the first name as the display name; not fatal if it does not stick.
+      try { const u = await stackApp.getUser(); if (u) await u.update({ displayName: fn }); } catch (e) {}
+      const dest = postAuthDest; setPostAuthDest(null); goFlow(dest || "home_base");
     } else {
-      if (!u || !authPass) { setAuthError("Please enter a username and a password."); return; }
-      const rec = users[u];
-      if (!rec || rec.password !== authPass) { setAuthError("We could not log you in. Check your username and password."); return; }
-      // Fresh session: clear any in-memory plan so it loads from the DB for this rep.
-      setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; setPlanConfirmed(false); planFetchedRef.current = null;
-      setCurrentUser(u);
-      setCurrentName(rec.firstName || "");
+      if (!email || !authPass) { setAuthError("Please enter your email and password."); return; }
       setAuthError("");
-      { const dest = postAuthDest; setPostAuthDest(null); goFlow(dest || "home_base"); }
-      if (rec.repId) setCurrentRepId(rec.repId);
-      else createRepInDb(rec.firstName || "", u); // backfill a rep id if missing
+      let result;
+      try {
+        result = await stackApp.signInWithCredential({ email, password: authPass, noRedirect: true });
+      } catch (e) { setAuthError("We could not log you in right now. Please try again."); return; }
+      if (result && result.status === "error") { setAuthError("We could not log you in. Check your email and password."); return; }
+      const dest = postAuthDest; setPostAuthDest(null); goFlow(dest || "home_base");
     }
   };
-  // Create (or reuse) the real database rep row and store its id for this user.
-  const createRepInDb = (name, username) => {
-    fetch("/api/create-rep", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: name || null }),
-    })
-      .then((r) => r.json().catch(() => null))
-      .then((d) => {
-        if (d && d.ok && d.repId) {
-          setCurrentRepId(d.repId);
-          setUsers((prev) => ({ ...prev, [username]: { ...(prev[username] || {}), repId: d.repId } }));
-        } else {
-          console.error("create-rep failed:", d);
-        }
-      })
-      .catch((e) => console.error("create-rep error:", e));
+  const logout = async () => {
+    try { if (stackUser) await stackUser.signOut(); } catch (e) {}
+    ensureRepRef.current = null;
+    setCurrentUser(null); setCurrentName(""); setCurrentRepId(null); setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; setPlanConfirmed(false); planFetchedRef.current = null; setAvatarMenuOpen(false); goFlow("landing");
   };
-  const logout = () => { setCurrentUser(null); setCurrentName(""); setCurrentRepId(null); setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; setPlanConfirmed(false); planFetchedRef.current = null; setAvatarMenuOpen(false); goFlow("landing"); };
   // Shared top bar. full=true (signed in) shows Upload + profile avatar; full=false is brand only.
   const renderTopBar = (full) => (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 48px", borderBottom: "1px solid var(--border)", background: "rgba(255,250,244,0.97)", backdropFilter: "blur(8px)", position: "fixed", top: 0, left: 0, right: 0, height: 72, boxSizing: "border-box", zIndex: 60 }}>
@@ -1074,7 +1070,7 @@ export default function App() {
               <>
                 <div onClick={() => setAvatarMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
                 <div style={{ position: "absolute", right: 0, top: 48, background: "white", border: "1.5px solid var(--border)", borderRadius: 12, boxShadow: "0 12px 30px -12px rgba(0,0,0,0.3)", minWidth: 170, zIndex: 60, overflow: "hidden" }}>
-                  <div style={{ padding: "10px 14px", fontSize: 16, color: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Signed in as <b style={{ color: "var(--ink)" }}>{currentUser}</b></div>
+                  <div style={{ padding: "10px 14px", fontSize: 16, color: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Signed in as <b style={{ color: "var(--ink)" }}>{currentName || (stackUser && stackUser.primaryEmail) || "your account"}</b></div>
                   <button onClick={logout} style={{ display: "block", width: "100%", textAlign: "left", padding: "11px 14px", background: "none", border: "none", cursor: "pointer", fontSize: 18, fontWeight: 600, color: "var(--ink)", fontFamily: "'DM Sans',sans-serif" }}>Log out</button>
                 </div>
               </>
@@ -1227,6 +1223,33 @@ export default function App() {
     return () => clearInterval(id);
   }, [coachReadLoading]);
 
+  // Resolve the Neon Auth identity to exactly one rep. Runs on login and on every
+  // reload (the session persists), so currentRepId is derived from the identity
+  // rather than held only in memory. Clears everything on logout / no session.
+  useEffect(() => {
+    if (!stackUser) {
+      ensureRepRef.current = null;
+      setCurrentUser(null); setCurrentName(""); setCurrentRepId(null);
+      setCompPlan(null); setCoachRead(null); coachReadForRef.current = null;
+      setPlanConfirmed(false); planFetchedRef.current = null;
+      return;
+    }
+    setCurrentUser(stackUser.id);
+    setCurrentName(stackUser.displayName || "");
+    if (ensureRepRef.current === stackUser.id) return; // already resolved this identity
+    ensureRepRef.current = stackUser.id;
+    let cancelled = false;
+    fetch("/api/ensure-rep", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ authUserId: stackUser.id, email: stackUser.primaryEmail || null, name: stackUser.displayName || null }),
+    })
+      .then((r) => r.json().catch(() => null))
+      .then((d) => { if (!cancelled) { if (d && d.ok && d.repId) setCurrentRepId(d.repId); else console.error("ensure-rep failed:", d); } })
+      .catch((e) => { if (!cancelled) console.error("ensure-rep error:", e); });
+    return () => { cancelled = true; };
+  }, [stackUser]);
+
   // Load the rep's current plan from the database when they enter the comp area.
   // Skips when a plan is already in memory (fresh upload or already loaded) so there
   // is no double-display, and only fetches once per rep per session.
@@ -1296,7 +1319,7 @@ export default function App() {
     const circle = (cur) => ({ width: 34, height: 34, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 18, flex: "none", background: cur ? "var(--carrot)" : "white", color: cur ? "white" : "var(--muted)", border: cur ? "none" : "1.5px solid var(--border)" });
     const greenCoach = <span style={{ color: "var(--green)", fontWeight: 700 }}>Coach</span>;
     const steps = [
-      { n: 1, title: "Create your account", body: "A name and a password. That's all we need to begin.", current: true },
+      { n: 1, title: "Create your account", body: "A name, your email, and a password. That's all we need to begin.", current: true },
       { n: 2, title: "Load your plan and meet Coach", body: <>Drop in your comp plan. {greenCoach} reads every line and shows you what it's really worth.</> },
       { n: 3, title: "Build your strategy", body: "Coach helps you turn your number into a real plan of attack, account by account." },
       { n: 4, title: "Keep going all season", body: "Come back to stay on track, update your plan, and walk into every QBR ready." },
@@ -1331,8 +1354,8 @@ export default function App() {
                 </>
               )}
 
-              <label style={lblStyle}>Username</label>
-              <input value={authUser} onChange={(e) => setAuthUser(e.target.value)} placeholder="yourname" style={inpStyle} autoComplete="username" onKeyDown={onEnter} />
+              <label style={lblStyle}>Email</label>
+              <input type="email" value={authUser} onChange={(e) => setAuthUser(e.target.value)} placeholder="you@company.com" style={inpStyle} autoComplete="email" onKeyDown={onEnter} />
 
               <label style={lblStyle}>Password</label>
               <input type="password" value={authPass} onChange={(e) => setAuthPass(e.target.value)} placeholder="••••••••" style={inpStyle} autoComplete={isSignup ? "new-password" : "current-password"} onKeyDown={onEnter} />
