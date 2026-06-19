@@ -717,6 +717,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [currentName, setCurrentName] = useState("");
   const [currentRepId, setCurrentRepId] = useState(null); // real reps.id from the database
+  const [postAuthDest, setPostAuthDest] = useState(null); // where to land after sign in (e.g. upload)
   const [dbPlanLoading, setDbPlanLoading] = useState(false); // loading the rep's plan from the DB
   const planFetchedRef = useRef(null); // repId we've already loaded a plan for this session
 
@@ -738,8 +739,6 @@ export default function App() {
   const [suPass, setSuPass]   = useState("");
   const [planFile, setPlanFile] = useState(null);
   const [planFiles, setPlanFiles] = useState([]);
-  const [uploadedFiles, setUploadedFiles] = useState([]);
-  const fileInputRef = useRef(null);
   // Parsed comp plan returned by /api/ingest. Shared top-level state so
   // downstream screens (confirm, summary, etc.) can read it later.
   const [compPlan, setCompPlan] = useState(null);
@@ -873,6 +872,13 @@ export default function App() {
 
   const goToScreen = (name) => { window.history.pushState({ screen: name }, ""); setScreen(name); window.scrollTo(0, 0); };
   const goFlow = (s) => goToScreen(s);
+  // One canonical upload entry: the Comp Documents screen. Uploading saves under a
+  // real rep, so anyone not signed in is sent to sign in first and lands here after.
+  const goUpload = () => {
+    if (currentUser) { goFlow("comp_documents"); return; }
+    setPostAuthDest("comp_documents");
+    goAuth("signup");
+  };
 
   // Read a file as base64, stripping the data URL prefix.
   const fileToBase64 = (file) => new Promise((resolve, reject) => {
@@ -884,10 +890,11 @@ export default function App() {
   // Persist a parsed plan to the database. Fire-and-forget: never blocks or breaks the UI.
   const savePlanToDb = (plan, filename) => {
     if (!plan) return;
+    if (!currentRepId) { console.error("save-plan skipped: no rep id yet"); return; }
     fetch("/api/save-plan", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ repId: currentRepId || "demo-rep", plan, filename: filename || null, originalFilename: filename || null }),
+      body: JSON.stringify({ repId: currentRepId, plan, filename: filename || null, originalFilename: filename || null }),
     })
       .then((r) => r.json().catch(() => null))
       .then((d) => { if (!d || !d.ok) console.error("save-plan failed:", d); else console.log("save-plan ok:", d); })
@@ -899,6 +906,8 @@ export default function App() {
     if (!file) return;
     const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
     if (!isPdf) { setIngestError("Please add a PDF of your comp plan so Coach can read it."); return; }
+    // Uploading saves under a real rep, so make sure they are signed in first.
+    if (!currentUser) { setPostAuthDest("comp_documents"); goAuth("signup"); return; }
     setIngestError("");
     setReadProgress(0);
     setPendingDoc({ name: file.name });
@@ -911,8 +920,18 @@ export default function App() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ pdfBase64, filename: file.name }),
       });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data || !data.ok) throw new Error("ingest_failed");
+      let data = null;
+      try { data = await res.json(); } catch (e) { data = null; }
+      if (!res.ok || !data || !data.ok) {
+        // A 422 means the model could not read this as a comp plan, so retrying the
+        // same file will not help. Anything else is a server or timeout problem.
+        setIngestError(res.status === 422
+          ? "Coach could not read this as a comp plan. Please make sure it is your compensation plan saved as a PDF, then try a different file."
+          : "Coach had trouble reading your plan and that one is on us. Please give it another try in a moment.");
+        setReadProgress(0);
+        setIngesting(false);
+        return; // keep the file row so the message shows with a way to dismiss
+      }
       setReadProgress(100);
       setCompPlan(data.plan);
       savePlanToDb(data.plan, file.name);
@@ -925,8 +944,9 @@ export default function App() {
       setIngesting(false);
       setPendingDoc(null);
     } catch (err) {
+      setReadProgress(0);
       setIngesting(false);
-      setIngestError("Coach had trouble reading your plan. Please try again.");
+      setIngestError("Coach could not reach the server to read your plan. Please check your connection and try again.");
     }
   };
 
@@ -1006,7 +1026,7 @@ export default function App() {
       setCurrentName(fn);
       setCurrentRepId(null);
       setAuthError("");
-      goFlow("home_base");
+      { const dest = postAuthDest; setPostAuthDest(null); goFlow(dest || "home_base"); }
       createRepInDb(fn, u); // create a real reps.id and remember it for this user
     } else {
       if (!u || !authPass) { setAuthError("Please enter a username and a password."); return; }
@@ -1017,7 +1037,7 @@ export default function App() {
       setCurrentUser(u);
       setCurrentName(rec.firstName || "");
       setAuthError("");
-      goFlow("home_base");
+      { const dest = postAuthDest; setPostAuthDest(null); goFlow(dest || "home_base"); }
       if (rec.repId) setCurrentRepId(rec.repId);
       else createRepInDb(rec.firstName || "", u); // backfill a rep id if missing
     }
@@ -1554,7 +1574,7 @@ export default function App() {
                   <>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700, wordBreak: "break-word" }}>{pendingDoc.name}</div>
-                      <div style={{ fontSize: 16, color: "#B91C1C", marginTop: 2 }}>Coach had trouble reading this. Please try again.</div>
+                      <div style={{ fontSize: 16, color: "#B91C1C", marginTop: 2 }}>{ingestError || "Coach had trouble reading this. Please try again."}</div>
                     </div>
                     <button style={removeBtn} onClick={() => { setPendingDoc(null); setIngestError(""); }}>Dismiss</button>
                   </>
@@ -1856,7 +1876,7 @@ export default function App() {
             <button className="nav-cta" onClick={() => goAuth("signup")} style={{ lineHeight: 1.2, background: "transparent", border: "1.5px solid var(--carrot)", color: "var(--carrot)" }}>
               Sign up
             </button>
-            <button className="nav-cta" onClick={() => goFlow("upload")} style={{ lineHeight: 1.2 }}>
+            <button className="nav-cta" onClick={() => goUpload()} style={{ lineHeight: 1.2 }}>
               Start by Uploading<br />your Comp Plan
             </button>
           </div>
@@ -1876,7 +1896,7 @@ export default function App() {
           <p className="hero-sub">
             Coach helps salespeople understand how they get paid, build a personalized success plan, and stay focused on the actions that drive results.
           </p>
-          <button className="hero-cta" onClick={() => goFlow("upload")} style={{ lineHeight: 1.2 }}>
+          <button className="hero-cta" onClick={() => goUpload()} style={{ lineHeight: 1.2 }}>
             Start by Uploading<br />your Comp Plan
           </button>
           <div className="hero-hint">
@@ -2599,7 +2619,7 @@ export default function App() {
               <div className="closing-line">Build a plan to exceed quota.</div>
               <div className="closing-line">Earn your carrot.</div>
             </div>
-            <button className="closing-cta" onClick={() => goFlow("upload")} style={{ lineHeight: 1.2 }}>
+            <button className="closing-cta" onClick={() => goUpload()} style={{ lineHeight: 1.2 }}>
               Start by Uploading<br />your Comp Plan
             </button>
           </div>
@@ -2732,14 +2752,14 @@ export default function App() {
           <style>{S}</style>
           <style>{OB_STYLES}</style>
           <div className="cf-top">
-            <button className="ob-back" onClick={() => goFlow("upload")}>← Back</button>
+            <button className="ob-back" onClick={() => goFlow("comp_documents")}>← Back</button>
             <div className="cf-step">Step 2 of 7</div>
           </div>
           <div className="cf-screen">
             <h1 className="cf-h1" style={{ marginBottom: 8 }}>Let's Make Sure Coach Got This Right</h1>
             <p style={{ fontSize: 18, color: "var(--muted)", lineHeight: 1.55, marginBottom: 24 }}>Coach read your files. Confirm a few details so your numbers are exactly right.</p>
             <div className="cf-info">Coach does not have a plan to review yet. Head back and upload your comp plan so Coach can read it.</div>
-            <button className="cf-cta" onClick={() => goFlow("upload")}>Back to upload →</button>
+            <button className="cf-cta" onClick={() => goFlow("comp_documents")}>Back to your documents →</button>
           </div>
         </div>
       );
@@ -2808,7 +2828,7 @@ export default function App() {
         <style>{S}</style>
         <style>{OB_STYLES}</style>
         <div className="cf-top">
-          <button className="ob-back" onClick={() => goFlow("upload")}>← Back</button>
+          <button className="ob-back" onClick={() => goFlow("comp_documents")}>← Back</button>
           <div className="cf-step">Step 2 of 7</div>
         </div>
         <div className="cf-screen">
@@ -2983,14 +3003,14 @@ export default function App() {
           <style>{S}</style>
           <style>{OB_STYLES}</style>
           <div className="cf-top">
-            <button className="ob-back" onClick={() => goFlow("upload")}>← Back</button>
+            <button className="ob-back" onClick={() => goFlow("comp_documents")}>← Back</button>
             <div className="cf-step">Plan Summary</div>
           </div>
           <div className="cf-screen">
             <h1 className="cf-h1" style={{ marginBottom: 8 }}>Here's What Coach Found in Your Plan</h1>
             <p style={{ fontSize: 18, color: "var(--muted)", lineHeight: 1.55, marginBottom: 24 }}>Review the details below. You can confirm everything or flag anything that looks off.</p>
             <div className="cf-info">Coach does not have a plan to review yet. Head back and upload your comp plan so Coach can read it.</div>
-            <button className="cf-cta" onClick={() => goFlow("upload")}>Back to upload →</button>
+            <button className="cf-cta" onClick={() => goFlow("comp_documents")}>Back to your documents →</button>
           </div>
         </div>
       );
@@ -3644,167 +3664,6 @@ export default function App() {
             </div>
           )}
         </div>
-      </div>
-    );
-  }
-
-  // ══ UPLOAD (files for Coach to review) ═══════════════════════════════
-  if (screen === "upload") {
-    const fmtSize = (b) => (b < 1024 * 1024 ? Math.round(b / 1024) + " KB" : (b / 1024 / 1024).toFixed(1) + " MB");
-    const addFiles = (fileList) => setUploadedFiles((prev) => [...prev, ...Array.from(fileList || [])].slice(0, 10));
-    const removeFile = (i) => setUploadedFiles((prev) => prev.filter((_, j) => j !== i));
-
-    // Read a file as base64, stripping the "data:application/pdf;base64," prefix.
-    const readPdfBase64 = (file) =>
-      new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = String(reader.result || "");
-          const comma = result.indexOf(",");
-          resolve(comma >= 0 ? result.slice(comma + 1) : result);
-        };
-        reader.onerror = () => reject(reader.error || new Error("Could not read file"));
-        reader.readAsDataURL(file);
-      });
-
-    // Send the rep's comp plan PDF to the live ingestion endpoint, store the
-    // parsed plan in shared state, then advance exactly as the flow already does.
-    const reviewPlan = async () => {
-      const pdf = uploadedFiles.find(
-        (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
-      );
-      if (!pdf) {
-        setIngestError("Please add a PDF of your comp plan so Coach can read it.");
-        return;
-      }
-      setIngestError(null);
-      setIngesting(true);
-      try {
-        const pdfBase64 = await readPdfBase64(pdf);
-        const res = await fetch("/api/ingest", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ pdfBase64, filename: pdf.name }),
-        });
-        const data = await res.json().catch(() => null);
-        if (!res.ok || !data || !data.ok) {
-          throw new Error("ingest_failed");
-        }
-        setCompPlan(data.plan);
-        savePlanToDb(data.plan, pdf.name);
-        // New plan: clear anything tied to the previous one so nothing stale shows.
-        setCoachRead(null);
-        coachReadForRef.current = null;
-        setClarificationAnswers({});
-        setAskManagerFlags({});
-        setPlanEdits({});
-        setPlanConfirmed(false);
-        setIngesting(false);
-        // Land back on the Comp Plan area with the cards now active. No step march.
-        goFlow("comp_dashboard");
-      } catch (err) {
-        setIngesting(false);
-        setIngestError("Coach had trouble reading your plan. Please try again.");
-      }
-    };
-    return (
-      <div className="up-wrap">
-        <style>{S}</style>
-        <style>{OB_STYLES}</style>
-        <div className="cf-top">
-          <button className="ob-back" onClick={() => goFlow("comp_dashboard")}>← Back</button>
-        </div>
-        <div className="up-screen">
-          <h1 className="up-h1">Upload Your Files for Coach to Review</h1>
-          <p className="up-sub">Drop in anything related to your compensation. Coach will figure out what each file is and use everything to build your earnings picture.</p>
-
-          <div
-            onClick={() => fileInputRef.current && fileInputRef.current.click()}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              const dropped = Array.from(e.dataTransfer.files);
-              setUploadedFiles((prev) => [...prev, ...dropped]);
-            }}
-            style={{
-              border: "2px dashed #EDE0CC",
-              borderRadius: 20,
-              padding: "48px 32px",
-              textAlign: "center",
-              cursor: "pointer",
-              background: "white",
-              marginBottom: 16,
-            }}
-          >
-            <div style={{ fontSize: 51, marginBottom: 12 }}>📄</div>
-            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Drop your files here</div>
-            <div style={{ fontSize: 18, color: "#7A6A55", marginBottom: 8 }}>Comp plans, prior year plans, SPIFF emails, quota changes</div>
-            <div style={{ fontSize: 16, color: "#7A6A55" }}>PDF, Word, or text files · Up to 10 files · 20MB each</div>
-            <div style={{ fontSize: 16, color: "#F4711A", marginTop: 8, fontWeight: 600 }}>or click to browse</div>
-          </div>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.doc,.docx,.txt,.eml"
-            multiple
-            style={{ display: "none" }}
-            onChange={(e) => {
-              const selected = Array.from(e.target.files);
-              setUploadedFiles((prev) => [...prev, ...selected]);
-              e.target.value = "";
-            }}
-          />
-
-          {uploadedFiles.length > 0 && (
-            <div className="up-list">
-              {uploadedFiles.map((f, i) => (
-                <div className="up-file" key={i}>
-                  <span className="up-file-ico">📄</span>
-                  <span className="up-file-name">{f.name}</span>
-                  <span className="up-file-size">{fmtSize(f.size)}</span>
-                  <button className="up-file-x" onClick={() => removeFile(i)}>×</button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="up-priv"><span>🔒</span><span>Your files are private. Coach uses them only to build your personal earnings model and never shares them with anyone.</span></div>
-
-          <div className="up-next">
-            <div className="up-next-t">What Happens Next</div>
-            <div className="up-next-line"><span className="up-next-num">1</span><span>Coach reads your files and identifies your compensation structure</span></div>
-            <div className="up-next-line"><span className="up-next-num">2</span><span>You confirm what Coach found and add your state and 401k details</span></div>
-            <div className="up-next-line"><span className="up-next-num">3</span><span>Coach shows you your full earnings analysis and real take-home numbers</span></div>
-          </div>
-
-          {ingestError && (
-            <div className="up-priv" style={{ background: "#FEE2E2", borderColor: "#FCA5A5", color: "#B91C1C", marginTop: 12 }}>
-              <span>⚠️</span><span>{ingestError}</span>
-            </div>
-          )}
-
-          <button className="up-cta" disabled={uploadedFiles.length === 0 || ingesting} onClick={reviewPlan}>
-            {ingesting ? "Reading your plan..." : "Review My Plan →"}
-          </button>
-        </div>
-
-        {ingesting && (
-          <div
-            style={{
-              position: "fixed", inset: 0, zIndex: 200,
-              background: "rgba(15,10,5,0.82)", backdropFilter: "blur(4px)",
-              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-              padding: 24, textAlign: "center",
-            }}
-          >
-            <div style={{ width: 54, height: 54, borderRadius: "50%", border: "4px solid rgba(255,255,255,0.18)", borderTopColor: "#F4711A", animation: "azspin 0.9s linear infinite" }} />
-            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 29, fontWeight: 900, color: "white", marginTop: 22 }}>Reading your plan...</div>
-            <div style={{ fontSize: 18, color: "rgba(255,255,255,0.7)", marginTop: 10, maxWidth: 360, lineHeight: 1.5 }}>
-              Coach is reading every line of your comp plan. This can take up to a minute. Please keep this tab open.
-            </div>
-          </div>
-        )}
       </div>
     );
   }
