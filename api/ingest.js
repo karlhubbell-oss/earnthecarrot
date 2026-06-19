@@ -75,11 +75,53 @@ Rules:
 
 3. Confidence. For the money critical fields (base_salary, ote, target_variable, total_quota, tiers, floor, cap, rate_basis), add an entry to provenance.field_confidence mapping the field path to high, medium, or low.
 
-4. Tiers and floor are DIFFERENT things, never merge them. Capture every tier band's from_attainment_pct and to_attainment_pct EXACTLY as the plan states them. If the plan's lowest band starts at 0% (for example "Tier 1: 0% to 70% of quota at 9%"), set that band's from_attainment_pct to 0, not to the floor. A floor is a gate, not a starting line: it only means no commission is paid until that attainment is reached, but the rate still applies from the first dollar (0%) once the gate is cleared. Model the floor SEPARATELY as commission.floor with type "threshold" and its own attainment percent, and NEVER use the floor's attainment as any tier's from_attainment_pct. Example, given "Tier 1: 0% to 70% at 9%" plus "no commission below 40%": tiers[0] is { from_attainment_pct: 0, to_attainment_pct: 70, rate: 0.09 } and floor is { type: "threshold", attainment_pct: 40 } as two independent facts. Model a hard ceiling as commission.cap with type "hard" and the attainment percent above which nothing pays. Capture accelerators and super accelerators as their own tiers.
+4. Tiers and floor are DIFFERENT things, never merge them. Capture every tier band's from_attainment_pct and to_attainment_pct EXACTLY as the plan states them. If the plan's lowest band starts at 0% (for example "Tier 1: 0% to 70% of quota at 9%"), set that band's from_attainment_pct to 0, not to the floor. A floor is a gate, not a starting line: it only means no commission is paid until that attainment is reached, but the rate still applies from the first dollar (0%) once the gate is cleared. Model the floor SEPARATELY as commission.floor with type "threshold" and its own attainment percent, and NEVER use the floor's attainment as any tier's from_attainment_pct. Example, given "Tier 1: 0% to 70% at 9%" plus "no commission below 40%": tiers[0] is { from_attainment_pct: 0, to_attainment_pct: 70, rate: 0.09 } and floor is { type: "threshold", attainment_pct: 40 } as two independent facts. Capture accelerators and super accelerators as their own tiers.
+
+A decelerator is NOT a cap. A decelerating top tier is a band whose rate is LOWER than the band below it, for example 14% up to 150% then 8% above 150%. The rep keeps earning above that point, just at the reduced rate. Store it as a normal tier with its own lower rate, the same as any other band (for example { from_attainment_pct: 150, to_attainment_pct: null, rate: 0.08 }). NEVER convert a decelerator into a cap, and NEVER end the tiers at the point where the rate drops.
+
+commission.cap with type "hard" is ONLY for a true ceiling: the plan must explicitly state that NO commission is earned above some attainment, that earnings stop or are frozen past that point. Only then set cap.type to "hard" with that attainment percent. If the plan does not say earnings stop, leave cap as { type: "none", attainment_pct: null }. Do not infer a cap from a decelerator, from a rate drop, or from a stated dollar ceiling on a component.
+
+A stated dollar ceiling on the variable or on a component (for example "variable commission is capped at $281,250") is a payout ceiling, not an attainment cap. Record it in spiffs is wrong; instead record it as its own clarifying-aware fact: keep cap.type "none", and add an entry to provenance.needs_clarification noting the dollar ceiling and asking how it interacts with attainment, with the exact source_quote. Never translate a dollar ceiling into a cap.attainment_pct.
 
 5. Calculation style. Set commission.calculation to "marginal" if higher rates apply only to the dollars within each band, or "retroactive" if reaching a tier lifts the rate on the whole amount. If the plan does not say, set it to null and add a clarifying question.
 
 6. Provenance. Put the provided filename into provenance.source_files.`;
+
+// Find and parse the first balanced top-level JSON object in a string, ignoring
+// any leading reasoning text or trailing commentary. Brace counting is
+// string-aware so braces inside JSON string values do not throw off the depth.
+// Returns the parsed object, or null if no valid JSON object is found.
+function extractFirstJsonObject(text) {
+  if (!text) return null;
+  for (let start = text.indexOf("{"); start !== -1; start = text.indexOf("{", start + 1)) {
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let i = start; i < text.length; i++) {
+      const ch = text[i];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === "\\") escaped = true;
+        else if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') inString = true;
+      else if (ch === "{") depth++;
+      else if (ch === "}") {
+        depth--;
+        if (depth === 0) {
+          const candidate = text.slice(start, i + 1);
+          try {
+            return JSON.parse(candidate);
+          } catch {
+            break; // unbalanced/invalid from this start; try the next "{"
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
 
 export default async function handler(req, res) {
   try {
@@ -131,15 +173,14 @@ export default async function handler(req, res) {
     if (data.error) return res.status(500).json({ ok: false, error: data.error });
 
     const rawText = (data.content || []).map((b) => b.text || "").join("");
-    const cleaned = rawText.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
 
-    let plan;
-    try {
-      plan = JSON.parse(cleaned);
-    } catch (parseErr) {
-      return res.status(500).json({
+    const plan = extractFirstJsonObject(rawText);
+    if (!plan) {
+      console.error("ingest: no parseable JSON object found in model output. Raw model output follows:\n" + rawText);
+      return res.status(422).json({
         ok: false,
-        error: "Failed to parse model output as JSON: " + String(parseErr),
+        error:
+          "The model did not return a usable JSON object for this plan. No balanced JSON object could be parsed from its response. The raw output was logged for review.",
         raw: rawText,
       });
     }
