@@ -96,7 +96,7 @@ export default function PayoutCurve({ plan, attainment = null, onBack }) {
   for (const t of rawTiers) {
     const fromPct = t.from_attainment_pct;
     if (fromPct == null || fromPct <= 0 || fromPct === 100) continue; // base band and 100% handled elsewhere
-    markers.push({ a: fromPct, label: t.rate != null ? Math.round(t.rate * 1000) / 10 + "%" : "", tone: COL.comm });
+    markers.push({ a: fromPct, label: t.rate != null ? Math.round(t.rate * 1000) / 10 + "% tier" : "", tone: COL.comm });
   }
   markers.push({ a: 100, label: "On plan", tone: COL.total });
   if (capA != null) markers.push({ a: Math.round(capA * 100), label: "Cap, no commission above", tone: COL.mut, cap: true });
@@ -119,6 +119,9 @@ export default function PayoutCurve({ plan, attainment = null, onBack }) {
   }, [ep, pct, maxA]);
 
   const componentNames = (ep.components || []).map((c) => c.name).join(" / ");
+  // When the only component is the synthesized "Quota", showing it above the
+  // "$X quota" value just repeats the word, so drop that line in that case.
+  const planLabel = componentNames === "Quota" ? null : (componentNames || "Your plan");
   const topLabel = capA != null ? `At the cap (${Math.round(capA * 100)}%)` : `At the top tier (${maxPct}%)`;
   const topSub = capA != null ? "capped here, no commission earned above" : "highest defined point, rates above need confirming";
 
@@ -141,7 +144,7 @@ export default function PayoutCurve({ plan, attainment = null, onBack }) {
             <h1 style={{ fontSize: "clamp(26px, 3.4vw, 38px)", fontWeight: 700, margin: "4px 0 0", letterSpacing: -0.5 }}>What your plan pays, all the way up</h1>
           </div>
           <div style={{ color: COL.mut, fontSize: 13, textAlign: "right" }}>
-            {componentNames || "Your plan"}<br />{fmt(ep.totalQuota).replace(",000,000", ".0M").replace(",000", "k")} quota
+            {planLabel && <>{planLabel}<br /></>}{fmt(ep.totalQuota).replace(",000,000", ".0M").replace(",000", "k")} quota
           </div>
         </div>
 
