@@ -1660,7 +1660,7 @@ export default function App() {
           ) : coachReadLoading ? (
             <div className="ob-card" style={{ display: "flex", alignItems: "center", gap: 14, padding: 20 }}>
               {fillCircle(coachProgress)}
-              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>Coach is reading your plan... {Math.round(coachProgress)}%</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>Coach is working through what your plan means for you... {Math.round(coachProgress)}%</div>
             </div>
           ) : hasReadContent ? (
             <>
