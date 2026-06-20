@@ -44,9 +44,11 @@ export function toEarningsPlan(plan) {
   if (!baseRate || baseRate <= 0) baseRate = totalQuota > 0 ? targetVariable / totalQuota : 0;
 
   const EPS = 1e-9;
-  // Components. Each may carry its own band ladder. From those bands we read both
-  // the component's base rate and whether it actually accelerates (its rate rises
-  // above its own base in a higher band).
+  // Components. Each may carry its own band ladder. The per-component bands are
+  // AUTHORITATIVE: a component's own ladder decides its base rate and whether it
+  // accelerates (its rate rising above its own base in a higher band), regardless
+  // of what the plan-level tiers happen to carry. This is what keeps multi-component
+  // accelerators from being dropped when the plan-level tiers also carry rates.
   let components = (Array.isArray(quota.components) ? quota.components : [])
     .filter(Boolean)
     .map((c) => {
@@ -66,43 +68,46 @@ export function toEarningsPlan(plan) {
         name: c.name || "Component",
         quota: n(c.quota_amount) || 0,
         rate: compBase,
-        // When the plan-level tiers hold the real rates, trust the stored
-        // accelerable flag. When they do not (the accelerator lives per component),
-        // that flag is unreliable, so read acceleration straight from the bands.
-        accelerable: planTiersHaveRates
-          ? (c.accelerable !== false)
-          : (bandAccelerates != null ? bandAccelerates : (c.accelerable !== false)),
+        // Bands win when present: accelerable iff this component's own ladder rises.
+        // Only a component with no ladder of its own falls back to the stored flag
+        // (it then rides the plan-level schedule, e.g. a single-component plan). The
+        // stored flag is unreliable on multi-component plans, so we do not trust it
+        // when the component carries bands.
+        accelerable: bandMults != null ? !!bandAccelerates : (c.accelerable !== false),
         _bandMults: bandMults,
+        _bandAccelerates: bandAccelerates,
       };
     });
   const compQuotaSum = components.reduce((s, c) => s + (c.quota || 0), 0);
   if (rateBasis === "pct_of_revenue" && (components.length === 0 || compQuotaSum <= 0)) {
-    components = [{ name: "Quota", quota: totalQuota, rate: baseRate, accelerable: true, _bandMults: null }];
+    components = [{ name: "Quota", quota: totalQuota, rate: baseRate, accelerable: true, _bandMults: null, _bandAccelerates: null }];
   }
 
   // Plan-level multiplier schedule the engine applies to accelerable components.
-  // Prefer the plan-level tiers when they carry rates; otherwise synthesize the
-  // schedule from the accelerating components' own ladders (in a well-formed plan
-  // they share one schedule, e.g. New Logo and Expansion both 1.5x then 2x).
+  // Priority, independent of whether the plan-level tiers carry rates:
+  //  1. If any component's OWN ladder accelerates, use that schedule (authoritative;
+  //     in a well-formed plan the accelerating components share one schedule, e.g.
+  //     New Logo and Expansion both 1.5x then 2x).
+  //  2. Else if the plan-level tiers carry real rates, use them (a single plan-level
+  //     accelerator/decelerator, e.g. Ridgeline).
+  //  3. Else flat.
   let tiers;
-  if (planTiersHaveRates) {
+  const accel = components
+    .filter((c) => c._bandMults && c._bandAccelerates)
+    .sort((a, b) => b._bandMults.length - a._bandMults.length);
+  if (accel.length) {
+    tiers = accel[0]._bandMults.map((m) => ({ fromAttainment: m.fromAttainment, multiplier: m.multiplier }));
+  } else if (planTiersHaveRates) {
     tiers = parsedTiers.map((t) => ({
       fromAttainment: (t.from_attainment_pct || 0) / 100,
       multiplier: baseRate > 0 && t.rate != null ? Number(t.rate) / baseRate : 1,
     }));
+  } else if (parsedTiers.length) {
+    tiers = parsedTiers.map((t) => ({ fromAttainment: (t.from_attainment_pct || 0) / 100, multiplier: 1 }));
   } else {
-    const accel = components
-      .filter((c) => c._bandMults && c._bandMults.some((m) => Math.abs(m.multiplier - 1) > EPS))
-      .sort((a, b) => b._bandMults.length - a._bandMults.length);
-    if (accel.length) {
-      tiers = accel[0]._bandMults.map((m) => ({ fromAttainment: m.fromAttainment, multiplier: m.multiplier }));
-    } else if (parsedTiers.length) {
-      tiers = parsedTiers.map((t) => ({ fromAttainment: (t.from_attainment_pct || 0) / 100, multiplier: 1 }));
-    } else {
-      tiers = [{ fromAttainment: 0, multiplier: 1 }];
-    }
+    tiers = [{ fromAttainment: 0, multiplier: 1 }];
   }
-  components.forEach((c) => { delete c._bandMults; });
+  components.forEach((c) => { delete c._bandMults; delete c._bandAccelerates; });
 
   const floorPct = commission.floor && commission.floor.type && commission.floor.type !== "none" ? commission.floor.attainment_pct : null;
   const floor = floorPct != null ? { attainment: Number(floorPct) / 100 } : null;
