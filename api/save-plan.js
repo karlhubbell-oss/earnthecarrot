@@ -1,8 +1,9 @@
 import { neon } from "@neondatabase/serverless";
 import { randomUUID } from "node:crypto";
+import { verifyIdentity, resolveRepId } from "../lib/serverAuth.js";
 
-// Standalone write step: persist a parsed comp plan into the five tables.
-// Not wired into ingest or the UI. Append-only facts; one atomic transaction.
+// Persist a parsed comp plan into the five tables. Append-only facts; one atomic
+// transaction. The rep is derived from the verified token, not a client repId.
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const pad = (n) => String(n).padStart(2, "0");
@@ -30,7 +31,10 @@ export default async function handler(req, res) {
     if (!plan || typeof plan !== "object") {
       return res.status(400).json({ ok: false, error: "Missing parsed plan in request body." });
     }
-    const repId = body.repId || "demo-rep";
+    const identity = await verifyIdentity(req);
+    if (!identity) return res.status(401).json({ ok: false, error: "Not authenticated." });
+    const sql = neon(process.env.DATABASE_URL);
+    const repId = await resolveRepId(sql, identity, { email: body.repEmail, name: (plan.meta && plan.meta.rep_name) || null });
 
     const meta = plan.meta || {};
     const pay = plan.pay || {};
@@ -149,7 +153,6 @@ export default async function handler(req, res) {
     if (other.clawback_terms) addFact("clawback", null, other.clawback_terms);
 
     // ── Build the transaction (FK-safe order) ──
-    const sql = neon(process.env.DATABASE_URL);
     const queries = [];
 
     queries.push(sql`
@@ -163,6 +166,9 @@ export default async function handler(req, res) {
     queries.push(sql`
       INSERT INTO uploaded_documents (id, rep_id, document_type, filename, original_filename, uploaded_at, processed_at, raw_content)
       VALUES (${docId}, ${repId}, 'compensation_plan', ${filename}, ${originalFilename}, now(), now(), ${rawContent})`);
+
+    // Exactly one current plan per rep: retire any prior current plans first.
+    queries.push(sql`UPDATE compensation_plans SET is_current = false WHERE rep_id = ${repId} AND is_current = true`);
 
     queries.push(sql`
       INSERT INTO compensation_plans (id, rep_id, name, effective_from, effective_to, received_at, source_document_id, is_current)

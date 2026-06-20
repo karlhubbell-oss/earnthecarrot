@@ -778,6 +778,8 @@ export default function App() {
   const [planConfirmed, setPlanConfirmed] = useState(false);
   // Which loaded-document row is awaiting remove confirmation (index), or null.
   const [docRemoveIdx, setDocRemoveIdx] = useState(null);
+  const [archiving, setArchiving] = useState(false);
+  const [archiveError, setArchiveError] = useState("");
   // The document currently being read in place on the Loaded Documents view.
   const [pendingDoc, setPendingDoc] = useState(null);
   const [readProgress, setReadProgress] = useState(0); // 0..100, fills while reading
@@ -892,18 +894,39 @@ export default function App() {
     reader.onerror = () => reject(reader.error || new Error("Could not read file"));
     reader.readAsDataURL(file);
   });
-  // Persist a parsed plan to the database. Fire-and-forget: never blocks or breaks the UI.
-  const savePlanToDb = (plan, filename) => {
+  // Authorization header carrying the Neon Auth session JWT, so the server can
+  // verify the caller and derive their rep. Empty when no token is available.
+  const authHeaders = async () => {
+    try {
+      const r = await authClient.getAccessToken();
+      const t = r && r.data ? (r.data.token || r.data.accessToken || null) : null;
+      return t ? { Authorization: `Bearer ${t}` } : {};
+    } catch (e) {
+      return {};
+    }
+  };
+  // Persist a parsed plan to the database. The server derives the rep from the
+  // verified token, so no repId is sent. Fire-and-forget: never blocks the UI.
+  const savePlanToDb = async (plan, filename) => {
     if (!plan) return;
-    if (!currentRepId) { console.error("save-plan skipped: no rep id yet"); return; }
-    fetch("/api/save-plan", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ repId: currentRepId, plan, filename: filename || null, originalFilename: filename || null }),
-    })
-      .then((r) => r.json().catch(() => null))
-      .then((d) => { if (!d || !d.ok) console.error("save-plan failed:", d); else console.log("save-plan ok:", d); })
-      .catch((e) => console.error("save-plan error:", e));
+    try {
+      const headers = { "content-type": "application/json", ...(await authHeaders()) };
+      const r = await fetch("/api/save-plan", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ plan, filename: filename || null, originalFilename: filename || null }),
+      });
+      const d = await r.json().catch(() => null);
+      if (d && d.ok) {
+        // Stamp the new plan's id so it can be archived before a get-plan reload.
+        if (d.planId) setCompPlan((prev) => (prev ? { ...prev, meta: { ...(prev.meta || {}), plan_id: d.planId } } : prev));
+        console.log("save-plan ok:", d);
+      } else {
+        console.error("save-plan failed:", d);
+      }
+    } catch (e) {
+      console.error("save-plan error:", e);
+    }
   };
 
   // Comp-path ingestion: read in place on the Loaded Documents view (no overlay).
@@ -1238,14 +1261,20 @@ export default function App() {
     if (ensureRepRef.current === sessionUser.id) return; // already resolved this identity
     ensureRepRef.current = sessionUser.id;
     let cancelled = false;
-    fetch("/api/ensure-rep", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ authUserId: sessionUser.id, email: sessionUser.email || null, name: sessionUser.name || null }),
-    })
-      .then((r) => r.json().catch(() => null))
-      .then((d) => { if (!cancelled) { if (d && d.ok && d.repId) setCurrentRepId(d.repId); else console.error("ensure-rep failed:", d); } })
-      .catch((e) => { if (!cancelled) console.error("ensure-rep error:", e); });
+    (async () => {
+      try {
+        const headers = { "content-type": "application/json", ...(await authHeaders()) };
+        const r = await fetch("/api/ensure-rep", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ email: sessionUser.email || null, name: sessionUser.name || null }),
+        });
+        const d = await r.json().catch(() => null);
+        if (!cancelled) { if (d && d.ok && d.repId) setCurrentRepId(d.repId); else console.error("ensure-rep failed:", d); }
+      } catch (e) {
+        if (!cancelled) console.error("ensure-rep error:", e);
+      }
+    })();
     return () => { cancelled = true; };
   }, [sessionUser, sessionPending]);
 
@@ -1260,14 +1289,18 @@ export default function App() {
     planFetchedRef.current = currentRepId;
     let cancelled = false;
     setDbPlanLoading(true);
-    fetch(`/api/get-plan?repId=${encodeURIComponent(currentRepId)}`)
-      .then((r) => r.json().catch(() => null))
-      .then((d) => {
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const r = await fetch("/api/get-plan", { headers });
+        const d = await r.json().catch(() => null);
         if (cancelled) return;
         if (d && d.ok && d.plan) setCompPlan(d.plan);
         setDbPlanLoading(false);
-      })
-      .catch(() => { if (!cancelled) setDbPlanLoading(false); });
+      } catch (e) {
+        if (!cancelled) setDbPlanLoading(false);
+      }
+    })();
     return () => { cancelled = true; };
   }, [screen, currentRepId, compPlan]);
 
@@ -1505,16 +1538,34 @@ export default function App() {
     const actionPrimary = { background: "var(--carrot)", color: "white", border: "none", borderRadius: 14, padding: "12px 22px", fontSize: 18, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" };
     const actionSecondary = { background: "white", color: "var(--carrot)", border: "1.5px solid var(--carrot)", borderRadius: 14, padding: "12px 22px", fontSize: 18, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" };
     // Removing a document clears the current plan and all state learned from it.
-    const removePlan = () => {
-      setCompPlan(null);
-      setCoachRead(null);
-      coachReadForRef.current = null;
-      setClarificationAnswers({});
-      setAskManagerFlags({});
-      setPlanEdits({});
-      setPlanConfirmed(false);
-      setDocRemoveIdx(null);
-      goFlow("comp_dashboard");
+    // Archive (soft-delete) the current plan in the database, then clear local
+    // state only on success. The append-only facts ledger is never deleted.
+    const removePlan = async () => {
+      const planId = compPlan && compPlan.meta && compPlan.meta.plan_id;
+      setArchiveError("");
+      setArchiving(true);
+      try {
+        if (planId) {
+          const headers = { "content-type": "application/json", ...(await authHeaders()) };
+          const r = await fetch("/api/archive-plan", { method: "POST", headers, body: JSON.stringify({ planId }) });
+          const d = await r.json().catch(() => null);
+          if (!d || !d.ok) { setArchiveError("We could not remove this just now. Please try again."); setArchiving(false); return; }
+        }
+        setCompPlan(null);
+        setCoachRead(null);
+        coachReadForRef.current = null;
+        setClarificationAnswers({});
+        setAskManagerFlags({});
+        setPlanEdits({});
+        setPlanConfirmed(false);
+        planFetchedRef.current = null; // force a fresh read so the archived plan stays gone
+        setDocRemoveIdx(null);
+        setArchiving(false);
+        goFlow("comp_dashboard");
+      } catch (e) {
+        setArchiveError("We could not remove this just now. Please try again.");
+        setArchiving(false);
+      }
     };
 
     // Derive the structured fields for the current plan's document(s).
@@ -1647,11 +1698,15 @@ export default function App() {
                   </div>
                 </div>
                 {docRemoveIdx === i && (
-                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                    <div style={{ fontSize: 18, color: "var(--ink)", lineHeight: 1.5 }}>Remove this document? Coach will forget what it learned from it.</div>
-                    <div style={{ display: "flex", gap: 8, flex: "none" }}>
-                      <button style={keepBtn} onClick={() => setDocRemoveIdx(null)}>Keep it</button>
-                      <button style={confirmRemoveBtn} onClick={removePlan}>Remove</button>
+                  <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(15,10,5,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+                    <div style={{ width: "100%", maxWidth: 480, background: "white", border: "1.5px solid var(--border)", borderRadius: 18, padding: 28, boxShadow: "0 24px 60px -20px rgba(26,18,8,0.4)" }}>
+                      <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Are you sure?</h3>
+                      <p style={{ fontSize: 16, color: "var(--ink)", lineHeight: 1.55, marginBottom: 16 }}>We recommend keeping your plans loaded so your history and earnings stay accurate. Removing this is unusual. Coach will forget what it learned from this file, and it will stop showing in your payout curve.</p>
+                      {archiveError && <div style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", color: "#B91C1C", borderRadius: 12, padding: "10px 14px", fontSize: 15, lineHeight: 1.45, marginBottom: 14 }}>{archiveError}</div>}
+                      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                        <button style={{ ...keepBtn, opacity: archiving ? 0.6 : 1 }} disabled={archiving} onClick={() => { setDocRemoveIdx(null); setArchiveError(""); }}>Keep it loaded</button>
+                        <button style={{ ...confirmRemoveBtn, opacity: archiving ? 0.6 : 1 }} disabled={archiving} onClick={removePlan}>{archiving ? "Removing..." : "Remove anyway"}</button>
+                      </div>
                     </div>
                   </div>
                 )}

@@ -1,25 +1,27 @@
 import { neon } from "@neondatabase/serverless";
+import { verifyIdentity, resolveRepId } from "../lib/serverAuth.js";
 
 // Read a rep's CURRENT plan from the database and reshape stored facts back into
 // the plan object the screens expect (inverse of api/save-plan). Read-only.
+// The rep is derived from the verified token, never a client-supplied repId.
 export default async function handler(req, res) {
   try {
     if (!process.env.DATABASE_URL) {
       return res.status(500).json({ ok: false, error: "DATABASE_URL is not configured." });
     }
-    const repId = (req.query && req.query.repId) || (req.body && req.body.repId);
-    if (!repId) {
-      return res.status(400).json({ ok: false, error: "Missing repId." });
-    }
+    const identity = await verifyIdentity(req);
+    if (!identity) return res.status(401).json({ ok: false, error: "Not authenticated." });
     const sql = neon(process.env.DATABASE_URL);
+    const repId = await resolveRepId(sql, identity);
 
     // Current plan: prefer is_current, then in-force-today, then most recent.
-    let plans = await sql`SELECT * FROM compensation_plans WHERE rep_id = ${repId} AND is_current = true ORDER BY received_at DESC NULLS LAST LIMIT 1`;
+    // Archived plans are excluded everywhere.
+    let plans = await sql`SELECT * FROM compensation_plans WHERE rep_id = ${repId} AND archived_at IS NULL AND is_current = true ORDER BY received_at DESC NULLS LAST LIMIT 1`;
     if (!plans.length) {
-      plans = await sql`SELECT * FROM compensation_plans WHERE rep_id = ${repId} AND effective_from <= CURRENT_DATE AND (effective_to IS NULL OR effective_to >= CURRENT_DATE) ORDER BY received_at DESC NULLS LAST LIMIT 1`;
+      plans = await sql`SELECT * FROM compensation_plans WHERE rep_id = ${repId} AND archived_at IS NULL AND effective_from <= CURRENT_DATE AND (effective_to IS NULL OR effective_to >= CURRENT_DATE) ORDER BY received_at DESC NULLS LAST LIMIT 1`;
     }
     if (!plans.length) {
-      plans = await sql`SELECT * FROM compensation_plans WHERE rep_id = ${repId} ORDER BY received_at DESC NULLS LAST LIMIT 1`;
+      plans = await sql`SELECT * FROM compensation_plans WHERE rep_id = ${repId} AND archived_at IS NULL ORDER BY received_at DESC NULLS LAST LIMIT 1`;
     }
     if (!plans.length) {
       return res.status(200).json({ ok: true, plan: null });
@@ -47,6 +49,7 @@ export default async function handler(req, res) {
         rep_role: rep.role || null,
         company: rep.company || null,
         plan_name: planRow.name || null,
+        plan_id: planRow.id,
         plan_period: { type: periods.length ? (periods[0].period_type || null) : null, start_date: dstr(planRow.effective_from), end_date: dstr(planRow.effective_to) },
         currency: "USD",
       },
