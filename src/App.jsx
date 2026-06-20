@@ -1295,21 +1295,7 @@ export default function App() {
         const r = await fetch("/api/get-plan", { headers });
         const d = await r.json().catch(() => null);
         if (cancelled) return;
-        if (d && d.ok && d.plan) {
-          // TEMP DEBUG: exact stored shape the curve adapter operates on. Remove after diagnosis.
-          try {
-            const dp = d.plan;
-            console.log("[[ETC-DEBUG get-plan stored shape]]\n" + JSON.stringify({
-              plan_id: dp.meta && dp.meta.plan_id,
-              rate_basis: dp.commission && dp.commission.rate_basis,
-              commission_tiers: (dp.commission && dp.commission.tiers) || [],
-              components: ((dp.quota && dp.quota.components) || []).map((c) => ({
-                name: c.name, quota_amount: c.quota_amount, rate: c.rate, accelerable: c.accelerable, tiers: c.tiers || null,
-              })),
-            }, null, 2));
-          } catch (e) {}
-          setCompPlan(d.plan);
-        }
+        if (d && d.ok && d.plan) setCompPlan(d.plan);
         setDbPlanLoading(false);
       } catch (e) {
         if (!cancelled) setDbPlanLoading(false);

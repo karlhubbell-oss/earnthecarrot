@@ -144,6 +144,26 @@ export default function PayoutCurve({ plan, attainment = null, onBack }) {
     <div style={{ background: COL.bg, minHeight: "calc(100vh - 72px)", color: COL.text, fontFamily: "ui-sans-serif, -apple-system, Segoe UI, Roboto, sans-serif", padding: "28px clamp(16px, 4vw, 48px)" }}>
       <div style={{ maxWidth: 1080, margin: "0 auto" }}>
 
+        {/* TEMP DEBUG: stored plan shape on the page for screenshotting. Remove after diagnosis. */}
+        {(() => {
+          try {
+            const dbg = {
+              plan_id: plan && plan.meta && plan.meta.plan_id,
+              rate_basis: plan && plan.commission && plan.commission.rate_basis,
+              commission_tiers: (plan && plan.commission && plan.commission.tiers) || [],
+              components: ((plan && plan.quota && plan.quota.components) || []).map((c) => ({
+                name: c.name, quota_amount: c.quota_amount, rate: c.rate, accelerable: c.accelerable, tiers: c.tiers || null,
+              })),
+            };
+            return (
+              <div style={{ background: "#FEF3C7", color: "#111827", border: "2px solid #B45309", borderRadius: 10, padding: "12px 14px", marginBottom: 16, maxHeight: 460, overflow: "auto" }}>
+                <div style={{ fontWeight: 800, marginBottom: 6, fontFamily: "ui-sans-serif, sans-serif", fontSize: 14 }}>DEBUG: stored plan shape (temporary). Screenshot this whole box.</div>
+                <pre style={{ margin: 0, fontFamily: "ui-monospace, Menlo, Consolas, monospace", fontSize: 12, lineHeight: 1.45, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{JSON.stringify(dbg, null, 2)}</pre>
+              </div>
+            );
+          } catch (e) { return null; }
+        })()}
+
         {onBack && <button onClick={onBack} style={{ background: "none", border: "none", color: COL.mut, cursor: "pointer", fontSize: 14, padding: 0, marginBottom: 14 }}>‹ Back to Comp Plan</button>}
 
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
