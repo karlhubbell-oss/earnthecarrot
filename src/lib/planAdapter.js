@@ -52,14 +52,24 @@ export function toEarningsPlan(plan) {
   let components = (Array.isArray(quota.components) ? quota.components : [])
     .filter(Boolean)
     .map((c) => {
-      const bands = (Array.isArray(c.tiers) && c.tiers.length)
+      // Per-component bands arrive two ways: a get-plan reconstruction puts them at
+      // c.tiers, while a fresh ingest object (and what the plan-summary / Coach
+      // screens read) puts them at c.commission.tiers. Read either, so the curve
+      // sees the same per-component rates and ladders those screens already use.
+      const rawBands = (Array.isArray(c.tiers) && c.tiers.length)
         ? c.tiers
+        : (c.commission && Array.isArray(c.commission.tiers) && c.commission.tiers.length)
+          ? c.commission.tiers
+          : null;
+      const bands = rawBands
+        ? rawBands
             .map((t) => ({ fromAttainment: (t.from_attainment_pct || 0) / 100, rate: t.rate != null ? Number(t.rate) : null }))
             .sort((a, b) => a.fromAttainment - b.fromAttainment)
         : null;
-      const compBase = bands && bands[0] && bands[0].rate != null
-        ? bands[0].rate
-        : (c.rate != null ? Number(c.rate) : baseRate);
+      const fallbackRate = c.rate != null
+        ? Number(c.rate)
+        : (c.commission && c.commission.rate != null ? Number(c.commission.rate) : baseRate);
+      const compBase = bands && bands[0] && bands[0].rate != null ? bands[0].rate : fallbackRate;
       const bandMults = bands
         ? bands.map((b) => ({ fromAttainment: b.fromAttainment, multiplier: compBase > 0 && b.rate != null ? b.rate / compBase : 1 }))
         : null;
