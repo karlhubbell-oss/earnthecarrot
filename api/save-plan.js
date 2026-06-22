@@ -156,9 +156,10 @@ export default async function handler(req, res) {
     const queries = [];
 
     queries.push(sql`
-      INSERT INTO reps (id, email, name, company, role)
-      VALUES (${repId}, ${body.repEmail || null}, ${meta.rep_name || null}, ${meta.company || null}, ${meta.rep_role || null})
+      INSERT INTO reps (id, auth_user_id, email, name, company, role)
+      VALUES (${repId}, ${identity.authUserId}, ${body.repEmail || null}, ${meta.rep_name || null}, ${meta.company || null}, ${meta.rep_role || null})
       ON CONFLICT (id) DO UPDATE SET
+        auth_user_id = COALESCE(reps.auth_user_id, EXCLUDED.auth_user_id),
         name = COALESCE(EXCLUDED.name, reps.name),
         company = COALESCE(EXCLUDED.company, reps.company),
         role = COALESCE(EXCLUDED.role, reps.role)`);
