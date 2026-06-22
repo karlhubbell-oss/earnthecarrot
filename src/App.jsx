@@ -1750,13 +1750,14 @@ export default function App() {
       );
     };
     return (
-      <div className="hb-wrap" style={{ paddingTop: TOPBAR_H, paddingLeft: railW }}>
+      <div className="hb-wrap" style={{ paddingTop: TOPBAR_H }}>
         <style>{S}</style>
         <style>{OB_STYLES}</style>
         <style>{HOME_STYLES}</style>
         {renderTopBar(true)}
         {renderRail()}
-        <div className="hb-main">
+        {/* Center in the viewport with a max readable width; never underlap the fixed rail. */}
+        <div className="hb-main" style={{ maxWidth: 1160, marginLeft: `max(${railW}px, calc((100vw - 1160px) / 2))`, marginRight: "auto" }}>
           <button style={backLink} onClick={() => goFlow("comp_dashboard")}>‹ Back to Comp Plan</button>
           <h1 className="hb-h1" style={{ marginTop: 12 }}>Coach's Take</h1>
           <p className="hb-sub">Good, your plan is locked in. Here's what I'm seeing and where I think we can go to work.</p>
@@ -1815,13 +1816,13 @@ export default function App() {
                   ))}
                 </div>
               ) : null}
+              </div>
 
               {cr.bridge ? (
-                <div style={{ background: "var(--green-light)", border: "1.5px solid var(--green)", borderRadius: 16, padding: 18, marginBottom: 16 }}>
+                <div style={{ background: "var(--green-light)", border: "1.5px solid var(--green)", borderRadius: 16, padding: 18, marginTop: 16 }}>
                   <div style={{ fontSize: 18, color: "#1B4332", lineHeight: 1.6 }}>{cr.bridge}</div>
                 </div>
               ) : null}
-              </div>
             </>
           ) : (
             <div className="ob-card">Coach could not read your plan right now. Head back and open this again to retry.</div>
@@ -3337,12 +3338,13 @@ export default function App() {
     const clarFile = (compPlan.provenance && Array.isArray(compPlan.provenance.source_files) && compPlan.provenance.source_files[0]) || meta.plan_name || "your plan";
 
     return (
-      <div className="cf-wrap" style={{ paddingTop: TOPBAR_H, paddingLeft: railW }}>
+      <div className="cf-wrap" style={{ paddingTop: TOPBAR_H }}>
         <style>{S}</style>
         <style>{OB_STYLES}</style>
         {renderTopBar(true)}
         {renderRail()}
-        <div className="cf-screen" style={{ maxWidth: 1180 }}>
+        {/* Center in the viewport with a max readable width; never underlap the fixed rail. */}
+        <div className="cf-screen" style={{ maxWidth: 1160, marginLeft: `max(${railW}px, calc((100vw - 1160px) / 2))`, marginRight: "auto" }}>
           <button onClick={() => goFlow("comp_dashboard")} style={{ background: "none", border: "none", color: "var(--carrot)", fontWeight: 700, fontSize: 18, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0, marginBottom: 14 }}>‹ Back to Comp Plan</button>
           <h1 className="cf-h1" style={{ marginBottom: 8 }}>Here's what we found in your plan</h1>
           <p style={{ fontSize: 18, color: "var(--muted)", lineHeight: 1.55, marginBottom: 22 }}>Give it a look and make sure we got everything right. When you confirm, Coach will take it from there.</p>
