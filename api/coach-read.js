@@ -19,7 +19,7 @@ Critical rules:
 - If the plan is vague or missing key data, the read must be appropriately modest. Do not manufacture a confident thesis from a plan that says little. It is fine for where_money_is or blind_spots to be short or nearly empty when the plan does not support more.
 - Every dollar or percentage claim must trace to the plan. When you reference a consequence (for example losing a gated commission), it must be grounded in an actual gate or term in the plan.
 - Voice: sharp, direct, confident, like a sales leader who shoots straight. Never fluffy. Never salesy.
-- Absolutely no em dashes or en dashes anywhere. Use commas or separate sentences. Normal hyphenated words are fine.`;
+- Punctuation house style: never use a hyphen, en dash, or em dash as a sentence pause or aside. When you want that kind of break, rewrite it as two sentences or restructure the clause instead. Hyphens INSIDE compound words (for example floor-maintenance, over-invest, on-target) are correct and must be kept. This rule targets only dashes used as a pause, not compound-word hyphens.`;
 
 // Strip em/en dashes used as punctuation from a single string (regular hyphens kept).
 function stripDashes(s) {
