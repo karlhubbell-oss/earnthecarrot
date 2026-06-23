@@ -777,6 +777,7 @@ export default function App() {
   const [coachReadLoading, setCoachReadLoading] = useState(false);
   const coachReadForRef = useRef(null); // plan_id the current coachRead was generated/cached for
   const coachReqRef = useRef(0);        // request token so a superseded coach-read cannot clobber a newer one
+  const coachTakeCacheRef = useRef({}); // plan_id -> take; synchronous cache so a cold-boot seed serves without depending on coachRead state timing
   // True once the rep has confirmed the plan summary; gates Coach's Take.
   const [planConfirmed, setPlanConfirmed] = useState(false);
   const [saveError, setSaveError] = useState(false);     // upload-time persistence failed
@@ -1144,7 +1145,7 @@ export default function App() {
   const logout = async () => {
     try { await authClient.signOut(); } catch (e) {}
     ensureRepRef.current = null;
-    setCurrentUser(null); setCurrentName(""); setCurrentRepId(null); setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; setPlanConfirmed(false); planFetchedRef.current = null; setAvatarMenuOpen(false); goFlow("landing");
+    setCurrentUser(null); setCurrentName(""); setCurrentRepId(null); setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; coachTakeCacheRef.current = {}; setPlanConfirmed(false); planFetchedRef.current = null; setAvatarMenuOpen(false); goFlow("landing");
   };
   // Shared top bar. full=true (signed in) shows Upload + profile avatar; full=false is brand only.
   const renderTopBar = (full) => (
@@ -1320,7 +1321,7 @@ export default function App() {
     if (!sessionUser) {
       ensureRepRef.current = null;
       setCurrentUser(null); setCurrentName(""); setCurrentRepId(null);
-      setCompPlan(null); setCoachRead(null); coachReadForRef.current = null;
+      setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; coachTakeCacheRef.current = {};
       setPlanConfirmed(false); planFetchedRef.current = null;
       return;
     }
@@ -1368,7 +1369,12 @@ export default function App() {
           setCompPlan(d.plan);    // restore the rep's current plan
           setPlanConfirmed(true); // a saved current plan is the rep's confirmed plan
           // Seed the cached Coach's Take so the view opens instantly with no regen.
-          if (d.coachTake) { setCoachRead(d.coachTake); coachReadForRef.current = d.plan.meta && d.plan.meta.plan_id; }
+          // Write the synchronous cache too, so runCoachRead serves it on cold boot.
+          if (d.coachTake && d.plan.meta && d.plan.meta.plan_id) {
+            coachTakeCacheRef.current[d.plan.meta.plan_id] = d.coachTake;
+            setCoachRead(d.coachTake);
+            coachReadForRef.current = d.plan.meta.plan_id;
+          }
         }
       } catch (e) {
         // Non-fatal: the rep can still navigate, and the comp-area effect will fetch.
@@ -1404,7 +1410,12 @@ export default function App() {
         if (d && d.ok && d.plan) {
           setCompPlan(d.plan);
           // Seed the cached Coach's Take so the view opens instantly with no regen.
-          if (d.coachTake) { setCoachRead(d.coachTake); coachReadForRef.current = d.plan.meta && d.plan.meta.plan_id; }
+          // Write the synchronous cache too, so runCoachRead serves it on cold boot.
+          if (d.coachTake && d.plan.meta && d.plan.meta.plan_id) {
+            coachTakeCacheRef.current[d.plan.meta.plan_id] = d.coachTake;
+            setCoachRead(d.coachTake);
+            coachReadForRef.current = d.plan.meta.plan_id;
+          }
         }
         setDbPlanLoading(false);
       } catch (e) {
@@ -1429,6 +1440,16 @@ export default function App() {
   const runCoachRead = async (plan, force) => {
     if (!plan) return;
     const planId = (plan.meta && plan.meta.plan_id) || null;
+    // Synchronous cache hit (covers a take seeded from get-plan on cold boot/refresh):
+    // serve the stored take and never call coach-read. This does not depend on the
+    // coachRead state having committed yet, which is what made a refresh regenerate.
+    if (!force && planId && coachTakeCacheRef.current[planId]) {
+      coachReadForRef.current = planId;
+      setCoachRead(coachTakeCacheRef.current[planId]);
+      setCoachProgress(100);
+      setCoachReadLoading(false);
+      return;
+    }
     if (!force && coachReadForRef.current === planId && coachRead) return; // already in hand
     coachReadForRef.current = planId;
     const reqId = ++coachReqRef.current;
@@ -1447,6 +1468,7 @@ export default function App() {
         setCoachRead(data.read);
         // Persist onto this plan version so reopening shows it instantly. Best-effort.
         if (planId) {
+          coachTakeCacheRef.current[planId] = data.read; // remember for this session (survives nav)
           try {
             const headers = { "content-type": "application/json", ...(await authHeaders()) };
             fetch("/api/save-coach-take", { method: "POST", headers, body: JSON.stringify({ planId, take: data.read }) });
