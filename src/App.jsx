@@ -725,6 +725,7 @@ export default function App() {
   const { data: sessionData, isPending: sessionPending } = authClient.useSession();
   const sessionUser = sessionData && sessionData.user ? sessionData.user : null;
   const ensureRepRef = useRef(null); // auth user id we've already resolved a rep for
+  const bootedRef = useRef(false);   // ran the on-load rehydrate for this session yet
 
   // ── HOME BASE STATE ──
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
@@ -1277,6 +1278,42 @@ export default function App() {
       }
     })();
     return () => { cancelled = true; };
+  }, [sessionUser, sessionPending]);
+
+  // Rehydrate on load: a returning rep's confirmed plan lives in the database, but
+  // the client boots from empty in-memory state, so without this a reload shows
+  // nothing and dumps the rep back to the landing page. Once per session, fetch the
+  // rep-resolved current plan; if one exists, restore it and mark it confirmed, then
+  // land on the home base hub (which populates from compPlan/planConfirmed). A rep
+  // with no plan also lands on home base, which is the existing new-rep onboarding
+  // hub (upload CTA). Coach's Take and the payout curve are intentionally NOT cached
+  // here; they refetch/regenerate when the rep opens them, exactly as before.
+  useEffect(() => {
+    if (sessionPending) return;
+    if (!sessionUser) { bootedRef.current = false; return; } // logged out: re-boot on next login
+    if (bootedRef.current) return;
+    bootedRef.current = true; // run once per session (guards against StrictMode double-invoke)
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const r = await fetch("/api/get-plan", { headers });
+        const d = await r.json().catch(() => null);
+        if (d && d.ok && d.plan) {
+          setCompPlan(d.plan);    // restore the rep's current plan
+          setPlanConfirmed(true); // a saved current plan is the rep's confirmed plan
+        }
+      } catch (e) {
+        // Non-fatal: the rep can still navigate, and the comp-area effect will fetch.
+      }
+      // Move a fresh load off the marketing landing page onto the home base hub.
+      // `screen` is read once at boot (it is "landing" on a fresh load); the bootedRef
+      // guard keeps this to a single run, so the closed-over value is intentional.
+      if (screen === "landing") {
+        window.history.replaceState({ screen: "home_base" }, ""); // so Back is not a logged-in landing
+        setScreen("home_base");
+        window.scrollTo(0, 0);
+      }
+    })();
   }, [sessionUser, sessionPending]);
 
   // Load the rep's current plan from the database when they enter the comp area.
