@@ -775,7 +775,8 @@ export default function App() {
   // Coach's narrative read of the plan (plan_summary), fetched once per loaded plan.
   const [coachRead, setCoachRead] = useState(null);
   const [coachReadLoading, setCoachReadLoading] = useState(false);
-  const coachReadForRef = useRef(null);
+  const coachReadForRef = useRef(null); // plan_id the current coachRead was generated/cached for
+  const coachReqRef = useRef(0);        // request token so a superseded coach-read cannot clobber a newer one
   // True once the rep has confirmed the plan summary; gates Coach's Take.
   const [planConfirmed, setPlanConfirmed] = useState(false);
   const [saveError, setSaveError] = useState(false);     // upload-time persistence failed
@@ -1366,6 +1367,8 @@ export default function App() {
         if (d && d.ok && d.plan) {
           setCompPlan(d.plan);    // restore the rep's current plan
           setPlanConfirmed(true); // a saved current plan is the rep's confirmed plan
+          // Seed the cached Coach's Take so the view opens instantly with no regen.
+          if (d.coachTake) { setCoachRead(d.coachTake); coachReadForRef.current = d.plan.meta && d.plan.meta.plan_id; }
         }
       } catch (e) {
         // Non-fatal: the rep can still navigate, and the comp-area effect will fetch.
@@ -1398,7 +1401,11 @@ export default function App() {
         const r = await fetch("/api/get-plan", { headers });
         const d = await r.json().catch(() => null);
         if (cancelled) return;
-        if (d && d.ok && d.plan) setCompPlan(d.plan);
+        if (d && d.ok && d.plan) {
+          setCompPlan(d.plan);
+          // Seed the cached Coach's Take so the view opens instantly with no regen.
+          if (d.coachTake) { setCoachRead(d.coachTake); coachReadForRef.current = d.plan.meta && d.plan.meta.plan_id; }
+        }
         setDbPlanLoading(false);
       } catch (e) {
         if (!cancelled) setDbPlanLoading(false);
@@ -1414,36 +1421,59 @@ export default function App() {
     if (screen === "coach_take" && !planConfirmed) goFlow("plan_summary");
   }, [screen, planConfirmed]);
 
-  // Fetch Coach's read on demand when the Coach's Take view opens (once per plan).
-  useEffect(() => {
-    if (screen !== "coach_take" || !compPlan) return;
-    if (coachReadForRef.current === compPlan) return; // already fetched for this plan
-    coachReadForRef.current = compPlan;
-    let cancelled = false;
+  // Generate Coach's read for a plan and cache it. Takes are keyed to the plan's id
+  // (every material change mints a new plan_id in save-plan), so when we already hold
+  // the take for this plan version we skip regeneration unless forced. On success the
+  // take is persisted via /api/save-coach-take so reopening the plan is instant; a
+  // newer call supersedes an in-flight one via coachReqRef.
+  const runCoachRead = async (plan, force) => {
+    if (!plan) return;
+    const planId = (plan.meta && plan.meta.plan_id) || null;
+    if (!force && coachReadForRef.current === planId && coachRead) return; // already in hand
+    coachReadForRef.current = planId;
+    const reqId = ++coachReqRef.current;
     setCoachRead(null);
     setCoachProgress(0);
     setCoachReadLoading(true);
-    fetch("/api/coach-read", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ plan: compPlan }),
-    })
-      .then((r) => r.json().catch(() => null))
-      .then((data) => {
-        if (cancelled) return;
-        if (data && data.ok && data.read) { setCoachRead(data.read); }
-        else { setCoachRead(null); coachReadForRef.current = null; } // allow retry on reopen
-        setCoachProgress(100);
-        setCoachReadLoading(false);
-      })
-      .catch(() => {
-        if (cancelled) return;
+    try {
+      const r = await fetch("/api/coach-read", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await r.json().catch(() => null);
+      if (reqId !== coachReqRef.current) return; // a newer run superseded this one
+      if (data && data.ok && data.read) {
+        setCoachRead(data.read);
+        // Persist onto this plan version so reopening shows it instantly. Best-effort.
+        if (planId) {
+          try {
+            const headers = { "content-type": "application/json", ...(await authHeaders()) };
+            fetch("/api/save-coach-take", { method: "POST", headers, body: JSON.stringify({ planId, take: data.read }) });
+          } catch (e) { /* cache write is non-fatal */ }
+        }
+      } else {
         setCoachRead(null);
         coachReadForRef.current = null; // allow retry on reopen
-        setCoachProgress(100);
-        setCoachReadLoading(false);
-      });
-    return () => { cancelled = true; };
+      }
+      setCoachProgress(100);
+      setCoachReadLoading(false);
+    } catch (e) {
+      if (reqId !== coachReqRef.current) return;
+      setCoachRead(null);
+      coachReadForRef.current = null; // allow retry on reopen
+      setCoachProgress(100);
+      setCoachReadLoading(false);
+    }
+  };
+
+  // When the Coach's Take view opens, show the cached take instantly if we already
+  // hold one for this plan version (seeded from get-plan or generated earlier this
+  // session); only call coach-read when there is none. The cache key is plan_id, so a
+  // re-uploaded or amended plan (new plan_id) regenerates.
+  useEffect(() => {
+    if (screen !== "coach_take" || !compPlan) return;
+    runCoachRead(compPlan, false);
   }, [screen, compPlan]);
 
   // ══ AUTH (login / signup, front-end stub) ════════════════════════════
@@ -1863,6 +1893,12 @@ export default function App() {
           <button style={backLink} onClick={() => goFlow("comp_dashboard")}>‹ Back to Comp Plan</button>
           <h1 className="hb-h1" style={{ marginTop: 12 }}>Coach's Take</h1>
           <p className="hb-sub">Good, your plan is locked in. Here's what I'm seeing and where I think we can go to work.</p>
+          {compPlan && !coachReadLoading ? (
+            <button
+              onClick={() => runCoachRead(compPlan, true)}
+              style={{ background: "none", border: "1px solid var(--border)", borderRadius: 100, padding: "6px 14px", color: "var(--muted)", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 12 }}
+            >↻ Re-run Coach's Take</button>
+          ) : null}
 
           {!compPlan ? (
             <div className="ob-card">Load a plan first and Coach will give you a read.</div>
