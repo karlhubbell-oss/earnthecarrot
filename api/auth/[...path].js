@@ -20,11 +20,20 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "NEON_AUTH_URL is not configured" });
     }
 
-    // Reconstruct the upstream path (+ query) from the [...path] catch-all.
+    // Reconstruct the upstream path (+ query). Prefer the [...path] catch-all param,
+    // but fall back to stripping the /api/auth prefix off req.url so this works the
+    // same whether Vercel routes here via the auto-generated dynamic route or via the
+    // explicit vercel.json rewrite. The query is taken from req.url (the rewrite may
+    // inject a synthetic ?path= param into req.query, which we deliberately ignore).
     const segs = req.query && req.query.path;
-    const pathStr = Array.isArray(segs) ? segs.join("/") : (segs || "");
-    const qIdx = req.url.indexOf("?");
-    const qs = qIdx >= 0 ? req.url.slice(qIdx) : "";
+    let pathStr = Array.isArray(segs) ? segs.join("/") : (typeof segs === "string" ? segs : "");
+    const rawUrl = req.url || "";
+    const qIdx = rawUrl.indexOf("?");
+    const qs = qIdx >= 0 ? rawUrl.slice(qIdx) : "";
+    if (!pathStr) {
+      const pathOnly = qIdx >= 0 ? rawUrl.slice(0, qIdx) : rawUrl;
+      pathStr = pathOnly.replace(/^\/api\/auth\/?/, "");
+    }
     const target = `${NEON_BASE}/${pathStr}${qs}`;
 
     // Forward only an allowlist of request headers. Critically this drops Vercel's
