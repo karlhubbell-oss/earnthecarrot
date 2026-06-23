@@ -778,6 +778,9 @@ export default function App() {
   const coachReadForRef = useRef(null);
   // True once the rep has confirmed the plan summary; gates Coach's Take.
   const [planConfirmed, setPlanConfirmed] = useState(false);
+  const [saveError, setSaveError] = useState(false);     // upload-time persistence failed
+  const [confirming, setConfirming] = useState(false);   // confirm action is awaiting a save
+  const [confirmError, setConfirmError] = useState("");  // shown on the review step if confirm fails to save
   // Which loaded-document row is awaiting remove confirmation (index), or null.
   const [docRemoveIdx, setDocRemoveIdx] = useState(null);
   const [archiving, setArchiving] = useState(false);
@@ -919,15 +922,56 @@ export default function App() {
         body: JSON.stringify({ plan, filename: filename || null, originalFilename: filename || null }),
       });
       const d = await r.json().catch(() => null);
-      if (d && d.ok) {
-        // Stamp the new plan's id so it can be archived before a get-plan reload.
+      if (r.ok && d && d.ok) {
+        // Stamp the new plan's id so confirm knows it is persisted and can archive it.
         if (d.planId) setCompPlan((prev) => (prev ? { ...prev, meta: { ...(prev.meta || {}), plan_id: d.planId } } : prev));
+        setSaveError(false);
         console.log("save-plan ok:", d);
       } else {
+        // No longer silent: flag it so confirm knows persistence has not happened.
+        setSaveError(true);
         console.error("save-plan failed:", d);
       }
     } catch (e) {
+      setSaveError(true);
       console.error("save-plan error:", e);
+    }
+  };
+
+  // Persist on confirm: never let a rep confirm a plan that is not actually saved.
+  // If the upload-time save already persisted it (meta.plan_id present), we do not
+  // re-insert (no duplicate); we only advance. If it did not persist, we save now
+  // and advance only on success, otherwise we surface the failure and stay put.
+  const confirmPlan = async () => {
+    if (!compPlan) return;
+    setConfirmError("");
+    setConfirming(true);
+    try {
+      let planId = compPlan.meta && compPlan.meta.plan_id;
+      if (!planId) {
+        const headers = { "content-type": "application/json", ...(await authHeaders()) };
+        const filename = (compPlan.provenance && Array.isArray(compPlan.provenance.source_files) && compPlan.provenance.source_files[0]) || null;
+        const r = await fetch("/api/save-plan", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ plan: compPlan, filename, originalFilename: filename }),
+        });
+        const d = await r.json().catch(() => null);
+        if (!r.ok || !d || !d.ok || !d.planId) {
+          setConfirmError("We could not save your plan just now. Nothing was lost. Please try confirming again in a moment.");
+          setConfirming(false);
+          return;
+        }
+        planId = d.planId;
+        setCompPlan((prev) => (prev ? { ...prev, meta: { ...(prev.meta || {}), plan_id: planId } } : prev));
+        setSaveError(false);
+      }
+      setPlanConfirmed(true);
+      setConfirming(false);
+      goFlow("coach_take");
+    } catch (e) {
+      setConfirmError("We could not save your plan just now. Nothing was lost. Please try confirming again in a moment.");
+      setConfirming(false);
     }
   };
 
@@ -964,7 +1008,7 @@ export default function App() {
       }
       setReadProgress(100);
       setCompPlan(data.plan);
-      savePlanToDb(data.plan, file.name);
+      await savePlanToDb(data.plan, file.name); // persist now so confirm sees plan_id (no later double-write)
       setCoachRead(null);
       coachReadForRef.current = null;
       setClarificationAnswers({});
@@ -3542,7 +3586,9 @@ export default function App() {
                 <div style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)", marginBottom: 6 }}>Tell us what to fix</div>
                 <textarea value={correctionNote} onChange={(e) => setCorrectionNote(e.target.value)} placeholder="Anything Coach got wrong? Type it here." rows={4} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: "1.5px solid var(--border)", borderRadius: 12, fontSize: 16, fontFamily: "'DM Sans',sans-serif", lineHeight: 1.5, resize: "vertical", marginBottom: 16 }} />
 
-                <button className="cf-cta" style={{ width: "100%" }} onClick={() => { setPlanConfirmed(true); goFlow("coach_take"); }}>Looks right, confirm plan</button>
+                {saveError && !(compPlan.meta && compPlan.meta.plan_id) && <div style={{ background: "var(--gold-light)", border: "1px solid var(--gold)", color: "#7A5C00", borderRadius: 12, padding: "10px 14px", fontSize: 15, lineHeight: 1.45, marginBottom: 12 }}>Heads up, your plan has not saved yet. Confirm below and Coach will save it.</div>}
+                {confirmError && <div style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", color: "#B91C1C", borderRadius: 12, padding: "10px 14px", fontSize: 15, lineHeight: 1.45, marginBottom: 12 }}>{confirmError}</div>}
+                <button className="cf-cta" style={{ width: "100%", opacity: confirming ? 0.6 : 1 }} disabled={confirming} onClick={confirmPlan}>{confirming ? "Saving your plan..." : "Looks right, confirm plan"}</button>
               </div>
             </div>
           </div>
