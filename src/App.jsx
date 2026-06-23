@@ -949,7 +949,28 @@ export default function App() {
     try {
       let planId = compPlan.meta && compPlan.meta.plan_id;
       if (!planId) {
-        const headers = { "content-type": "application/json", ...(await authHeaders()) };
+        // The upload path (savePlanToDb) runs right after sign-in, so authHeaders()
+        // always has a fresh token there. Confirm can run later -- after navigation
+        // or on a rehydrated plan -- when the in-memory session is not populated, so
+        // authHeaders() can come back empty and this POST would go out with no bearer
+        // and 401. Make sure we hold a bearer: if authHeaders() is empty, pull a token
+        // straight from the (now first-party) /api/auth/token endpoint and retry once;
+        // if there is still no token, surface it instead of saving without auth.
+        let auth = await authHeaders();
+        if (!auth.Authorization) {
+          try {
+            const tr = await fetch("/api/auth/token", { credentials: "include" });
+            const td = tr.ok ? await tr.json().catch(() => null) : null;
+            const t = td && (td.token || td.accessToken);
+            if (t) auth = { Authorization: `Bearer ${t}` };
+          } catch (e) { /* fall through to the sign-in message below */ }
+        }
+        if (!auth.Authorization) {
+          setConfirmError("Please sign in again to save your plan. Nothing was lost.");
+          setConfirming(false);
+          return;
+        }
+        const headers = { "content-type": "application/json", ...auth };
         const filename = (compPlan.provenance && Array.isArray(compPlan.provenance.source_files) && compPlan.provenance.source_files[0]) || null;
         const r = await fetch("/api/save-plan", {
           method: "POST",
