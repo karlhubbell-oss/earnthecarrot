@@ -900,15 +900,27 @@ export default function App() {
     reader.readAsDataURL(file);
   });
   // Authorization header carrying the Neon Auth session JWT, so the server can
-  // verify the caller and derive their rep. Empty when no token is available.
+  // verify the caller and derive their rep. getAccessToken() returns empty when the
+  // in-memory session is not hydrated (on a rehydrated plan, or right after a fresh
+  // login before the client populates), so we fall back to the now first-party
+  // /api/auth/token endpoint, which mints a token straight from the session cookie.
+  // Every authenticated call goes through here, so this single path is what keeps
+  // them from firing bare and 401ing. Empty only when neither source yields a token
+  // (the rep is genuinely signed out).
   const authHeaders = async () => {
+    let t = null;
     try {
       const r = await authClient.getAccessToken();
-      const t = r && r.data ? (r.data.token || r.data.accessToken || null) : null;
-      return t ? { Authorization: `Bearer ${t}` } : {};
-    } catch (e) {
-      return {};
+      t = r && r.data ? (r.data.token || r.data.accessToken || null) : null;
+    } catch (e) { /* fall through to the cookie-backed endpoint */ }
+    if (!t) {
+      try {
+        const tr = await fetch("/api/auth/token", { credentials: "include" });
+        const td = tr.ok ? await tr.json().catch(() => null) : null;
+        t = (td && (td.token || td.accessToken)) || null;
+      } catch (e) { /* leave t null; caller gets no Authorization */ }
     }
+    return t ? { Authorization: `Bearer ${t}` } : {};
   };
   // Persist a parsed plan to the database. The server derives the rep from the
   // verified token, so no repId is sent. Fire-and-forget: never blocks the UI.
@@ -949,22 +961,10 @@ export default function App() {
     try {
       let planId = compPlan.meta && compPlan.meta.plan_id;
       if (!planId) {
-        // The upload path (savePlanToDb) runs right after sign-in, so authHeaders()
-        // always has a fresh token there. Confirm can run later -- after navigation
-        // or on a rehydrated plan -- when the in-memory session is not populated, so
-        // authHeaders() can come back empty and this POST would go out with no bearer
-        // and 401. Make sure we hold a bearer: if authHeaders() is empty, pull a token
-        // straight from the (now first-party) /api/auth/token endpoint and retry once;
-        // if there is still no token, surface it instead of saving without auth.
-        let auth = await authHeaders();
-        if (!auth.Authorization) {
-          try {
-            const tr = await fetch("/api/auth/token", { credentials: "include" });
-            const td = tr.ok ? await tr.json().catch(() => null) : null;
-            const t = td && (td.token || td.accessToken);
-            if (t) auth = { Authorization: `Bearer ${t}` };
-          } catch (e) { /* fall through to the sign-in message below */ }
-        }
+        // authHeaders() now obtains a token even when getAccessToken() is empty (it
+        // falls back to the first-party /api/auth/token endpoint), so confirm just
+        // needs to refuse to save bare if the rep is genuinely signed out.
+        const auth = await authHeaders();
         if (!auth.Authorization) {
           setConfirmError("Please sign in again to save your plan. Nothing was lost.");
           setConfirming(false);
