@@ -27,12 +27,18 @@ export default async function handler(req, res) {
     const qs = qIdx >= 0 ? req.url.slice(qIdx) : "";
     const target = `${NEON_BASE}/${pathStr}${qs}`;
 
-    // Forward incoming headers except the ones fetch must compute itself. This keeps
-    // Cookie (the session), Origin (Neon's CSRF check), Content-Type, Authorization.
+    // Forward only an allowlist of request headers. Critically this drops Vercel's
+    // x-forwarded-host / x-vercel-* headers: Neon derives its hostname check from
+    // x-forwarded-host, so forwarding www.earnthecarrot.com made it reject with
+    // INVALID_HOSTNAME. With these gone, fetch sets Host to the Neon host and the
+    // check passes. We keep Cookie (session), Origin (CSRF), Content-Type, and Auth.
+    const ALLOWED = new Set([
+      "cookie", "content-type", "origin", "authorization",
+      "accept", "accept-language", "user-agent", "x-neon-client-info",
+    ]);
     const headers = {};
     for (const [k, v] of Object.entries(req.headers || {})) {
-      const lk = k.toLowerCase();
-      if (lk === "host" || lk === "content-length" || lk === "connection" || lk === "accept-encoding") continue;
+      if (!ALLOWED.has(k.toLowerCase())) continue;
       if (v == null) continue;
       headers[k] = Array.isArray(v) ? v.join(", ") : v;
     }
