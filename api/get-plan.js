@@ -141,7 +141,11 @@ export default async function handler(req, res) {
       if (compTiersByName[c.name]) c.tiers = compTiersByName[c.name].sort((a, b) => (a.from_attainment_pct || 0) - (b.from_attainment_pct || 0));
     });
 
-    return res.status(200).json({ ok: true, plan });
+    // Cached Coach's Take for this exact plan version (null when not yet generated,
+    // or when a materially changed plan minted a new row). Neon returns jsonb parsed.
+    const coachTake = planRow.coach_take ?? null;
+
+    return res.status(200).json({ ok: true, plan, coachTake });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err && err.message ? err.message : err) });
   }

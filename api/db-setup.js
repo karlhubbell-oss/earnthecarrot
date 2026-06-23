@@ -89,8 +89,12 @@ export default async function handler(req, res) {
         created_at timestamptz DEFAULT now()
       )`;
 
+    // Migration: cache for Coach's Take, stored on the plan row it was generated for.
+    // Idempotent, so it is safe to re-run db-setup at any time.
+    await sql`ALTER TABLE compensation_plans ADD COLUMN IF NOT EXISTS coach_take jsonb`;
+
     const tables = tableNames.map((t) => ({ table: t, status: existing.has(t) ? "already existed" : "created" }));
-    return res.status(200).json({ ok: true, tables });
+    return res.status(200).json({ ok: true, tables, migrations: ["compensation_plans.coach_take jsonb"] });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err && err.message ? err.message : err) });
   }
