@@ -8,8 +8,16 @@ import { BetterAuthReactAdapter } from "@neondatabase/neon-js/auth/react/adapter
 // Without the adapter, createAuthClient defaults to the vanilla client and has
 // no useSession hook. Null when the URL is missing (an unconfigured build) so
 // main.jsx can say so plainly instead of crashing.
-const url = import.meta.env.VITE_NEON_AUTH_URL;
+//
+// STAGE 2: the browser talks to our same-origin proxy (/api/auth) instead of the
+// Neon Auth host directly. That makes Neon's session cookie first-party, so the
+// browser stores and resends it and getAccessToken()/token works — the cross-origin
+// cookie was previously blocked as third-party. The proxy (api/auth/[...path].js)
+// forwards each call to the real Neon host server-side. We still gate on
+// VITE_NEON_AUTH_URL so an unconfigured build stays null.
+const configured = Boolean(import.meta.env.VITE_NEON_AUTH_URL);
+const baseURL = typeof window !== "undefined" ? `${window.location.origin}/api/auth` : null;
 
-export const authClient = url
-  ? createAuthClient(url, { adapter: BetterAuthReactAdapter() })
+export const authClient = configured && baseURL
+  ? createAuthClient(baseURL, { adapter: BetterAuthReactAdapter() })
   : null;
