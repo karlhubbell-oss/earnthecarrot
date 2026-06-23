@@ -1,5 +1,11 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "rewrites": [
+    {
+      "source": "/auth/:path*",
+      "destination": "https://ep-long-rain-atnnyz1t.neonauth.c-9.us-east-1.aws.neon.tech/neondb/auth/:path*"
+    }
+  ]
 }
