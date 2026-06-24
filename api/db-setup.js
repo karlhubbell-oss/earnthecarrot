@@ -93,8 +93,17 @@ export default async function handler(req, res) {
     // Idempotent, so it is safe to re-run db-setup at any time.
     await sql`ALTER TABLE compensation_plans ADD COLUMN IF NOT EXISTS coach_take jsonb`;
 
+    // Migration: plan_year, the organizing key for current-vs-prior comparison and
+    // the year tabs. Derived from effective_from, falling back to received_at.
+    // Backfills any existing rows that predate the column.
+    await sql`ALTER TABLE compensation_plans ADD COLUMN IF NOT EXISTS plan_year integer`;
+    await sql`
+      UPDATE compensation_plans
+      SET plan_year = COALESCE(EXTRACT(YEAR FROM effective_from), EXTRACT(YEAR FROM received_at))::int
+      WHERE plan_year IS NULL`;
+
     const tables = tableNames.map((t) => ({ table: t, status: existing.has(t) ? "already existed" : "created" }));
-    return res.status(200).json({ ok: true, tables, migrations: ["compensation_plans.coach_take jsonb"] });
+    return res.status(200).json({ ok: true, tables, migrations: ["compensation_plans.coach_take jsonb", "compensation_plans.plan_year integer (+backfill)"] });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err && err.message ? err.message : err) });
   }

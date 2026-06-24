@@ -778,6 +778,13 @@ export default function App() {
   const coachReadForRef = useRef(null); // plan_id the current coachRead was generated/cached for
   const coachReqRef = useRef(0);        // request token so a superseded coach-read cannot clobber a newer one
   const coachTakeCacheRef = useRef({}); // plan_id -> take; synchronous cache so a cold-boot seed serves without depending on coachRead state timing
+  // Plan comparison (Phase 1): the rep's plans by year, which year-tab is selected on
+  // the plan summary, and a per-id cache of reconstructed plans (the current plan is
+  // compPlan; priors are fetched on demand via get-plan?planId=).
+  const [comparePlans, setComparePlans] = useState([]);          // [{id, name, plan_year, effective_from, effective_to, is_current, received_at}], newest year first
+  const [selectedPlanId, setSelectedPlanId] = useState(null);    // null = current/default tab
+  const [comparePlanCache, setComparePlanCache] = useState({});  // plan_id -> full reconstructed plan
+  const comparePlansFetchedRef = useRef(null);                   // repId we've fetched the plan list for
   // True once the rep has confirmed the plan summary; gates Coach's Take.
   const [planConfirmed, setPlanConfirmed] = useState(false);
   const [saveError, setSaveError] = useState(false);     // upload-time persistence failed
@@ -1145,7 +1152,7 @@ export default function App() {
   const logout = async () => {
     try { await authClient.signOut(); } catch (e) {}
     ensureRepRef.current = null;
-    setCurrentUser(null); setCurrentName(""); setCurrentRepId(null); setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; coachTakeCacheRef.current = {}; setPlanConfirmed(false); planFetchedRef.current = null; setAvatarMenuOpen(false); goFlow("landing");
+    setCurrentUser(null); setCurrentName(""); setCurrentRepId(null); setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; coachTakeCacheRef.current = {}; setComparePlans([]); setSelectedPlanId(null); setComparePlanCache({}); comparePlansFetchedRef.current = null; setPlanConfirmed(false); planFetchedRef.current = null; setAvatarMenuOpen(false); goFlow("landing");
   };
   // Shared top bar. full=true (signed in) shows Upload + profile avatar; full=false is brand only.
   const renderTopBar = (full) => (
@@ -1321,7 +1328,7 @@ export default function App() {
     if (!sessionUser) {
       ensureRepRef.current = null;
       setCurrentUser(null); setCurrentName(""); setCurrentRepId(null);
-      setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; coachTakeCacheRef.current = {};
+      setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; coachTakeCacheRef.current = {}; setComparePlans([]); setSelectedPlanId(null); setComparePlanCache({}); comparePlansFetchedRef.current = null;
       setPlanConfirmed(false); planFetchedRef.current = null;
       return;
     }
@@ -1424,6 +1431,47 @@ export default function App() {
     })();
     return () => { cancelled = true; };
   }, [screen, currentRepId, compPlan]);
+
+  // Comparison: load the rep's plan list (for the year tabs) once they're in the comp
+  // area. Default-selects the newest year (the current plan). Lightweight rows only;
+  // a prior plan's full detail is fetched on demand when its tab is opened.
+  useEffect(() => {
+    const inCompArea = ["comp_dashboard", "comp_documents", "plan_summary", "coach_take", "payout_curve"].indexOf(screen) >= 0;
+    if (!inCompArea || !currentRepId) return;
+    if (comparePlansFetchedRef.current === currentRepId) return;
+    comparePlansFetchedRef.current = currentRepId;
+    let cancelled = false;
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const r = await fetch("/api/list-plans", { headers });
+        const d = await r.json().catch(() => null);
+        if (cancelled || !d || !d.ok || !Array.isArray(d.plans)) return;
+        setComparePlans(d.plans);
+        setSelectedPlanId((prev) => prev || (d.plans[0] && d.plans[0].id) || null); // default: newest year (current)
+      } catch (e) { /* non-fatal: tabs just won't show */ }
+    })();
+    return () => { cancelled = true; };
+  }, [screen, currentRepId]);
+
+  // Keep the current plan in the comparison cache so its own tab renders instantly.
+  useEffect(() => {
+    const pid = compPlan && compPlan.meta && compPlan.meta.plan_id;
+    if (pid) setComparePlanCache((prev) => (prev[pid] ? prev : { ...prev, [pid]: compPlan }));
+  }, [compPlan]);
+
+  // Select a year tab; fetch + cache that plan's full detail on first open (rep-scoped
+  // on the server). The current plan is already cached, so it shows with no fetch.
+  const selectComparePlan = async (planId) => {
+    setSelectedPlanId(planId);
+    if (!planId || comparePlanCache[planId]) return;
+    try {
+      const headers = await authHeaders();
+      const r = await fetch(`/api/get-plan?planId=${encodeURIComponent(planId)}`, { headers });
+      const d = await r.json().catch(() => null);
+      if (d && d.ok && d.plan) setComparePlanCache((prev) => ({ ...prev, [planId]: d.plan }));
+    } catch (e) { /* non-fatal: the tab will show its loading state */ }
+  };
 
   // Gate Coach's Take: it is step 3 and is only reachable once the plan is
   // confirmed in step 2. If a rep lands here without a confirmed plan (back
@@ -3261,13 +3309,38 @@ export default function App() {
       );
     }
 
-    const meta = compPlan.meta || {};
-    const pay = compPlan.pay || {};
-    const quota = compPlan.quota || {};
-    const commission = compPlan.commission || {};
-    const spiffs = Array.isArray(compPlan.spiffs) ? compPlan.spiffs : [];
-    const other = compPlan.other_terms || {};
-    const fc = (compPlan.provenance && compPlan.provenance.field_confidence) || {};
+    // ── Comparison tabs (Phase 1) ──────────────────────────────────────────
+    // comparePlans is sorted newest plan year first, so [0] is the current plan: its
+    // tab is leftmost and selected by default; priors sit to the right by year. The
+    // current plan is compPlan; a prior plan is whatever we cached for its tab. Prior
+    // tabs are READ-ONLY here, editing and confirm stay on the current plan.
+    const currentTabPlan = comparePlans.length ? comparePlans[0] : null;
+    const activeTabId = selectedPlanId || (currentTabPlan && currentTabPlan.id) || null;
+    const onCurrentTab = !currentTabPlan || activeTabId === currentTabPlan.id;
+    const displayedPlan = onCurrentTab ? compPlan : comparePlanCache[activeTabId];
+    const yearTabs = comparePlans.length >= 2 ? (
+      <div role="tablist" aria-label="Plan year" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
+        {comparePlans.map((p) => {
+          const active = p.id === activeTabId;
+          const isCur = currentTabPlan && p.id === currentTabPlan.id;
+          return (
+            <button key={p.id} role="tab" aria-selected={active} onClick={() => selectComparePlan(p.id)}
+              style={{ fontFamily: "'DM Sans',sans-serif", fontWeight: 700, fontSize: 16, cursor: "pointer", padding: "8px 16px", borderRadius: 100,
+                border: active ? "1.5px solid var(--carrot)" : "1.5px solid var(--border)", background: active ? "var(--carrot)" : "white", color: active ? "white" : "var(--ink)" }}>
+              FY{p.plan_year != null ? p.plan_year : "?"}{isCur ? " · current" : ""}
+            </button>
+          );
+        })}
+      </div>
+    ) : null;
+
+    const meta = (displayedPlan && displayedPlan.meta) || {};
+    const pay = (displayedPlan && displayedPlan.pay) || {};
+    const quota = (displayedPlan && displayedPlan.quota) || {};
+    const commission = (displayedPlan && displayedPlan.commission) || {};
+    const spiffs = Array.isArray(displayedPlan && displayedPlan.spiffs) ? displayedPlan.spiffs : [];
+    const other = (displayedPlan && displayedPlan.other_terms) || {};
+    const fc = (displayedPlan && displayedPlan.provenance && displayedPlan.provenance.field_confidence) || {};
 
     const isMissing = (v) => v === null || v === undefined || v === "";
     const tagEl = (kind) => {
@@ -3497,6 +3570,68 @@ export default function App() {
     const clarQuestions = Array.isArray(compPlan.provenance && compPlan.provenance.needs_clarification) ? compPlan.provenance.needs_clarification : [];
     const clarFile = (compPlan.provenance && Array.isArray(compPlan.provenance.source_files) && compPlan.provenance.source_files[0]) || meta.plan_name || "your plan";
 
+    // Prior-year tab: read-only summary of the selected prior plan. No editing/confirm
+    // (those stay on the current plan). Reuses the same derived display strings, all of
+    // which are computed from raw plan fields, not the edit overlay.
+    if (!onCurrentTab) {
+      return (
+        <div className="cf-wrap" style={{ paddingTop: TOPBAR_H }}>
+          <style>{S}</style>
+          <style>{OB_STYLES}</style>
+          {renderTopBar(true)}
+          {renderRail()}
+          <div className="cf-screen" style={{ maxWidth: 1160, marginLeft: `max(${railW}px, calc((100vw - 1160px) / 2))`, marginRight: "auto" }}>
+            <button onClick={() => goFlow("comp_dashboard")} style={{ background: "none", border: "none", color: "var(--carrot)", fontWeight: 700, fontSize: 18, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0, marginBottom: 14 }}>‹ Back to Comp Plan</button>
+            <h1 className="cf-h1" style={{ marginBottom: 8 }}>{meta.plan_name || "Prior plan"}</h1>
+            <p style={{ fontSize: 18, color: "var(--muted)", lineHeight: 1.55, marginBottom: 18 }}>Prior-year plan{periodStr ? ` · ${periodStr}` : ""} · read only. Switch to the current tab to edit.</p>
+            {yearTabs}
+            {!displayedPlan ? (
+              <div className="ob-card" style={{ padding: 20, fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>Loading this plan…</div>
+            ) : (
+              <>
+                <div className="ob-card">
+                  <div style={secH}>Pay</div>
+                  <div className="ob-stat"><div className="ob-stat-lbl">Base salary</div><div className="ob-stat-val">{isMissing(pay.base_salary && pay.base_salary.amount) ? "—" : fmt(pay.base_salary.amount)}</div></div>
+                  <div className="ob-stat"><div className="ob-stat-lbl">OTE</div><div className="ob-stat-val">{isMissing(pay.ote && pay.ote.amount) ? "—" : fmt(pay.ote.amount)}</div></div>
+                  <div className="ob-stat"><div className="ob-stat-lbl">Target variable</div><div className="ob-stat-val">{isMissing(pay.target_variable && pay.target_variable.amount) ? "—" : fmt(pay.target_variable.amount)}</div></div>
+                  {payMix ? <div className="ob-stat"><div className="ob-stat-lbl">Pay mix</div><div className="ob-stat-val">{payMix}</div></div> : null}
+                </div>
+                <div className="ob-card">
+                  <div style={secH}>Quota & components</div>
+                  <div className="ob-stat"><div className="ob-stat-lbl">Total quota</div><div className="ob-stat-val">{isMissing(quota.total_quota && quota.total_quota.amount) ? "—" : fmt(quota.total_quota.amount)}</div></div>
+                  {components.map((c, i) => (
+                    <div key={i} style={{ borderTop: "1px solid var(--border)", paddingTop: 10, marginTop: 10 }}>
+                      <div style={{ fontWeight: 700 }}>{c.name || "Component"}{c.weight_pct != null ? ` · ${c.weight_pct}%` : ""}{c.quota_amount != null ? ` · ${fmt(c.quota_amount)}` : ""}</div>
+                      {Array.isArray(c.tiers) && c.tiers.length
+                        ? <div style={noteStyle}>{c.tiers.map((t) => `${t.from_attainment_pct ?? "?"}–${t.to_attainment_pct ?? "up"}%: ${pct(t.rate)}`).join("  ·  ")}</div>
+                        : c.rate != null ? <div style={noteStyle}>Rate: {pct(c.rate)}</div> : null}
+                    </div>
+                  ))}
+                </div>
+                <div className="ob-card">
+                  <div style={secH}>Commission</div>
+                  {basisText ? <div style={noteStyle}><b>Basis:</b> {basisText}</div> : null}
+                  {calcText ? <div style={noteStyle}><b>Calculation:</b> {calcText}</div> : null}
+                  {tiers.length ? <div style={noteStyle}><b>Tiers:</b> {tiers.map((t) => `${t.from_attainment_pct ?? "?"}–${t.to_attainment_pct ?? "up"}%: ${pct(t.rate)}`).join("  ·  ")}</div> : null}
+                  {floorText ? <div style={noteStyle}><b>Floor:</b> {floorText}</div> : null}
+                  {capText ? <div style={noteStyle}><b>Cap:</b> {capText}</div> : null}
+                </div>
+                {(spiffs.length || other.payout_frequency || other.clawback_terms || drawText) ? (
+                  <div className="ob-card">
+                    <div style={secH}>Extras</div>
+                    {drawText ? <div style={noteStyle}><b>Draw:</b> {drawText}</div> : null}
+                    {other.payout_frequency ? <div style={noteStyle}><b>Payout:</b> {other.payout_frequency}</div> : null}
+                    {other.clawback_terms ? <div style={noteStyle}><b>Clawback:</b> {other.clawback_terms}</div> : null}
+                    {spiffs.map((s, i) => <div key={i} style={noteStyle}><b>SPIFF:</b> {s.name}{s.payout != null ? ` · ${fmt(s.payout)}` : ""}{s.detail ? ` · ${s.detail}` : ""}</div>)}
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="cf-wrap" style={{ paddingTop: TOPBAR_H }}>
         <style>{S}</style>
@@ -3508,6 +3643,7 @@ export default function App() {
           <button onClick={() => goFlow("comp_dashboard")} style={{ background: "none", border: "none", color: "var(--carrot)", fontWeight: 700, fontSize: 18, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0, marginBottom: 14 }}>‹ Back to Comp Plan</button>
           <h1 className="cf-h1" style={{ marginBottom: 8 }}>Here's what we found in your plan</h1>
           <p style={{ fontSize: 18, color: "var(--muted)", lineHeight: 1.55, marginBottom: 22 }}>Give it a look and make sure we got everything right. When you confirm, Coach will take it from there.</p>
+          {yearTabs}
 
           {/* Laptop first: plan summary on the left, confirm/edit panel on the right. */}
           <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
