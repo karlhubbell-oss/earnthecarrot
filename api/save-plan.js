@@ -171,9 +171,13 @@ export default async function handler(req, res) {
     // Exactly one current plan per rep: retire any prior current plans first.
     queries.push(sql`UPDATE compensation_plans SET is_current = false WHERE rep_id = ${repId} AND is_current = true`);
 
+    // plan_year: the organizing key for comparison/year tabs. From effective_from
+    // when known, else the current year (matches the db-setup backfill rule).
+    const planYear = effFromDate ? effFromDate.getUTCFullYear() : new Date().getUTCFullYear();
+
     queries.push(sql`
-      INSERT INTO compensation_plans (id, rep_id, name, effective_from, effective_to, received_at, source_document_id, is_current)
-      VALUES (${planId}, ${repId}, ${meta.plan_name || null}, ${effFromStr}, ${effToStr}, now(), ${docId}, true)`);
+      INSERT INTO compensation_plans (id, rep_id, name, effective_from, effective_to, received_at, source_document_id, is_current, plan_year)
+      VALUES (${planId}, ${repId}, ${meta.plan_name || null}, ${effFromStr}, ${effToStr}, now(), ${docId}, true, ${planYear})`);
 
     periods.forEach((p) => {
       queries.push(sql`
