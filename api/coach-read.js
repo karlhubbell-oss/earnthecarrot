@@ -1,3 +1,5 @@
+import { diffPlans, formatDiffBrief } from "../lib/planDiff.js";
+
 const SYSTEM_PROMPT = `You are a sharp sales compensation strategist. You read a parsed comp plan object and return a short, honest "Coach's read" of what the plan is really designed to do.
 
 Return ONLY a single JSON object with exactly this shape. No preamble, no explanation, no markdown code fences:
@@ -20,6 +22,57 @@ Critical rules:
 - Every dollar or percentage claim must trace to the plan. When you reference a consequence (for example losing a gated commission), it must be grounded in an actual gate or term in the plan.
 - Voice: sharp, direct, confident, like a sales leader who shoots straight. Never fluffy. Never salesy.
 - Punctuation house style: never use a hyphen, en dash, or em dash as a sentence pause or aside. When you want that kind of break, rewrite it as two sentences or restructure the clause instead. Hyphens INSIDE compound words (for example floor-maintenance, over-invest, on-target) are correct and must be kept. This rule targets only dashes used as a pause, not compound-word hyphens.`;
+
+// Comparison commentary: only runs when the rep has a prior-year plan. The diff is
+// computed deterministically (lib/planDiff) and handed to the model; the model writes
+// only the plain-language read around those facts, never new numbers.
+export const COMPARE_SYSTEM_PROMPT = `You are a sharp sales compensation strategist comparing a rep's CURRENT comp plan to their PRIOR-year plan. You are given a deterministic diff of exactly what changed. Explain it to the rep straight.
+
+Return ONLY a single JSON object with exactly this shape. No preamble, no markdown code fences:
+
+{
+  "headline": "1 sentence naming the real shift from the prior plan to this one. Plain, sharp, no hedging.",
+  "points": [
+    { "change": "the specific thing that changed, in plain words with the actual numbers", "meaning": "what it does to YOUR money, concretely", "move": "the move it suggests you make" }
+  ],
+  "bottom_line": "1 short paragraph: the net effect across all the changes, and the play. Be honest about what got worse."
+}
+
+Critical rules:
+- Reason ONLY from the diff provided. Never invent numbers or changes that are not in the diff. Every number you cite must appear in the diff.
+- Tone: plain truth plus agency. State what changed, what it means for the rep's money, and the move it suggests. This is NOT a good-news-bad-news-good-news sandwich. Do not soften a cut by burying it between two positives. If something got worse for the rep (a lower rate, a smaller share, a cut quota), say so plainly and say what it means in real money.
+- One "points" entry per material change (or tightly related group, e.g. a component's weight and rate together). Keep each concrete and specific to the numbers.
+- Voice: sharp, direct, like a sales leader who shoots straight. Never fluffy, never salesy, never corporate-cheerful about a takeaway.
+- Punctuation house style: never use a hyphen, en dash, or em dash as a sentence pause or aside. Rewrite as two sentences instead. Hyphens inside compound words are fine.`;
+
+// Build the user message for the comparison call from the deterministic diff brief.
+export function buildComparisonUserMessage(diff) {
+  return "Here is the deterministic diff between the prior-year plan and the current plan. Write your comparison as the JSON object described.\n\n" + formatDiffBrief(diff);
+}
+
+// One Anthropic messages call -> parsed JSON object (strips code fences). Throws on
+// API error or unparseable output so the caller can decide how to degrade.
+async function callModelJSON(system, userContent, maxTokens) {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": process.env.ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: maxTokens,
+      system,
+      messages: [{ role: "user", content: userContent }],
+    }),
+  });
+  const data = await response.json();
+  if (data.error) { const e = new Error(typeof data.error === "string" ? data.error : (data.error.message || "model error")); e.apiError = data.error; throw e; }
+  const rawText = (data.content || []).map((b) => b.text || "").join("");
+  const cleaned = rawText.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
+  return JSON.parse(cleaned);
+}
 
 // Strip em/en dashes used as punctuation from a single string (regular hyphens kept).
 function stripDashes(s) {
@@ -50,7 +103,7 @@ export default async function handler(req, res) {
     if (!process.env.ANTHROPIC_API_KEY) {
       return res.status(500).json({ ok: false, error: "ANTHROPIC_API_KEY is not configured." });
     }
-    const { plan } = req.body || {};
+    const { plan, priorPlan } = req.body || {};
     if (!plan) {
       return res.status(400).json({ ok: false, error: "Missing plan in request body." });
     }
@@ -92,7 +145,23 @@ export default async function handler(req, res) {
       });
     }
 
-    // Safety net: strip stray em/en dashes from all string values in the read.
+    // Comparison commentary: only when a prior plan is supplied and the diff has
+    // material changes. Best-effort: a failure here never blocks the base read.
+    if (priorPlan) {
+      try {
+        const diff = diffPlans(plan, priorPlan);
+        if (diff.hasPrior && diff.summary.total > 0) {
+          const comparison = await callModelJSON(COMPARE_SYSTEM_PROMPT, buildComparisonUserMessage(diff), 1536);
+          read.comparison = { prior_year: diff.priorYear, current_year: diff.currentYear, ...comparison };
+        }
+      } catch (cmpErr) {
+        // Leave the take without a comparison rather than failing the whole read.
+        console.error("coach-read comparison failed:", cmpErr && cmpErr.message ? cmpErr.message : cmpErr);
+      }
+    }
+
+    // Safety net: strip stray em/en dashes from all string values in the read
+    // (includes the comparison section attached above).
     read = deepStripDashes(read);
 
     return res.status(200).json({ ok: true, read });
