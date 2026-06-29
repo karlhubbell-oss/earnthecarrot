@@ -1620,6 +1620,14 @@ export default function App() {
     const lblStyle = { display: "block", fontSize: 18, fontWeight: 700, marginBottom: 6, marginTop: 4 };
     const inpStyle = { width: "100%", padding: "13px 16px", border: "1.5px solid var(--border)", borderRadius: 12, fontSize: 18, fontFamily: "'DM Sans',sans-serif", background: "white", color: "var(--ink)", marginBottom: 16, boxSizing: "border-box" };
     const onEnter = (e) => { if (e.key === "Enter") submitAuth(); };
+    // Two-column signup layout helpers (laptop-first; the grid collapses to one
+    // column on narrow screens via auto-fit).
+    const fieldsGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", columnGap: 28, rowGap: 0, marginBottom: 4 };
+    const colHdr = { fontSize: 15, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--carrot)", marginBottom: 12 };
+    const helpLine = { color: "var(--muted)", fontSize: 14, lineHeight: 1.4, margin: "-10px 0 14px" };
+    // Evenly-spaced segmented control for the age / 401k bracket.
+    const segWrap = { display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 7, marginBottom: 6 };
+    const segBtn = (on) => ({ padding: "10px 4px", borderRadius: 10, border: on ? "1.5px solid var(--carrot)" : "1.5px solid var(--border)", background: on ? "var(--carrot)" : "white", color: on ? "white" : "var(--muted)", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", textAlign: "center", whiteSpace: "nowrap" });
     const circle = (cur) => ({ width: 34, height: 34, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 18, flex: "none", background: cur ? "var(--carrot)" : "white", color: cur ? "white" : "var(--muted)", border: cur ? "none" : "1.5px solid var(--border)" });
     const greenCoach = <span style={{ color: "var(--green)", fontWeight: 700 }}>Coach</span>;
     const steps = [
@@ -1639,10 +1647,11 @@ export default function App() {
         `}</style>
         {renderTopBar(false)}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "48px 24px", minHeight: "calc(100vh - 75px)" }}>
-          <div style={{ display: "flex", gap: 28, width: "100%", maxWidth: 1000, flexWrap: "wrap", alignItems: "stretch" }}>
+          <div style={{ display: "flex", gap: 28, width: "100%", maxWidth: isSignup ? 1200 : 1000, flexWrap: "wrap", alignItems: "stretch" }}>
 
-            {/* LEFT: form card */}
-            <div style={{ flex: "1 1 440px", maxWidth: 500, background: "white", border: "1.5px solid var(--border)", borderRadius: 24, padding: "42px 40px", boxShadow: "0 20px 50px -24px rgba(26,18,8,0.25)" }}>
+            {/* LEFT: form card. Wider on signup so the credentials and take-home
+                details sit side by side instead of one tall scrolling column. */}
+            <div style={{ flex: isSignup ? "1 1 600px" : "1 1 440px", maxWidth: isSignup ? 820 : 500, background: "white", border: "1.5px solid var(--border)", borderRadius: 24, padding: "42px 40px", boxShadow: "0 20px 50px -24px rgba(26,18,8,0.25)" }}>
               <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: 35, fontWeight: 900, marginBottom: 6, lineHeight: 1.15 }}>{isSignup ? "Let's get you started" : "Welcome back"}</h1>
               <p style={{ color: "var(--muted)", fontSize: 18, marginBottom: 24, lineHeight: 1.5 }}>{isSignup ? "Just a couple of details and we'll get to work." : "Let's keep going."}</p>
 
@@ -1651,52 +1660,63 @@ export default function App() {
                 <button onClick={() => { if (authMode !== "signup") toggleAuthMode(); }} style={tabStyle(isSignup)}>Sign up</button>
               </div>
 
-              {isSignup && (
-                <>
-                  <label style={lblStyle}>First name</label>
-                  <input value={authFirst} onChange={(e) => setAuthFirst(e.target.value)} placeholder="Karl" style={inpStyle} autoComplete="given-name" onKeyDown={onEnter} />
-                </>
-              )}
+              {isSignup ? (
+                /* Laptop-first: two balanced columns inside the card. Account on the
+                   left, take-home details on the right. auto-fit collapses to one
+                   column on a phone. */
+                <div style={fieldsGrid}>
+                  {/* Column 1 — account */}
+                  <div>
+                    <div style={colHdr}>Your account</div>
+                    <label style={lblStyle}>First name</label>
+                    <input value={authFirst} onChange={(e) => setAuthFirst(e.target.value)} placeholder="Karl" style={inpStyle} autoComplete="given-name" onKeyDown={onEnter} />
 
-              <label style={lblStyle}>Email</label>
-              <input type="email" value={authUser} onChange={(e) => setAuthUser(e.target.value)} placeholder="you@company.com" style={inpStyle} autoComplete="email" onKeyDown={onEnter} />
+                    <label style={lblStyle}>Email</label>
+                    <input type="email" value={authUser} onChange={(e) => setAuthUser(e.target.value)} placeholder="you@company.com" style={inpStyle} autoComplete="email" onKeyDown={onEnter} />
 
-              <label style={lblStyle}>Password</label>
-              <input type="password" value={authPass} onChange={(e) => setAuthPass(e.target.value)} placeholder="••••••••" style={inpStyle} autoComplete={isSignup ? "new-password" : "current-password"} onKeyDown={onEnter} />
+                    <label style={lblStyle}>Password</label>
+                    <input type="password" value={authPass} onChange={(e) => setAuthPass(e.target.value)} placeholder="••••••••" style={inpStyle} autoComplete="new-password" onKeyDown={onEnter} />
 
-              {isSignup && (
-                <>
-                  <label style={lblStyle}>Confirm password</label>
-                  <input type="password" value={authPass2} onChange={(e) => setAuthPass2(e.target.value)} placeholder="••••••••" style={inpStyle} autoComplete="new-password" onKeyDown={onEnter} />
-
-                  {/* Take-home profile: collected here so Coach can calculate real
-                      take-home from day one. Persisted to the rep, editable later in
-                      the Step-3 take-home screen. State is required; the rest default. */}
-                  <div style={{ borderTop: "1.5px solid var(--border)", margin: "8px 0 18px" }} />
-                  <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--carrot)", marginBottom: 4 }}>Your take-home details</div>
-                  <p style={{ color: "var(--muted)", fontSize: 16, marginBottom: 14, lineHeight: 1.45 }}>So Coach can show your real take-home, not just gross. You can change these any time.</p>
-
-                  <label style={lblStyle}>What state do you live in?</label>
-                  <select value={suState} onChange={(e) => setSuState(e.target.value)} style={inpStyle}>
-                    <option value="">Select state</option>
-                    {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-
-                  <label style={lblStyle}>401k contribution bracket</label>
-                  <div className="bs-pills" style={{ marginBottom: 16 }}>
-                    {AGE_BRACKETS.map((b) => (
-                      <button key={b} type="button" className={`bs-opt ${suAge === b ? "on" : ""}`} onClick={() => setSuAge(b)}>{b}</button>
-                    ))}
+                    <label style={lblStyle}>Confirm password</label>
+                    <input type="password" value={authPass2} onChange={(e) => setAuthPass2(e.target.value)} placeholder="••••••••" style={inpStyle} autoComplete="new-password" onKeyDown={onEnter} />
                   </div>
 
-                  <label style={lblStyle}>401k contribution: {k401Pct}%</label>
-                  <input className="ob-slider" type="range" min="0" max="100" step="0.5" value={k401Pct} onChange={(e) => setK401Pct(+e.target.value)} style={{ marginBottom: 16 }} />
+                  {/* Column 2 — take-home profile (persisted to the rep, editable later
+                      in the Step-3 take-home screen). State is required; rest default. */}
+                  <div>
+                    <div style={colHdr}>Take-home details</div>
 
-                  <label style={lblStyle}>Monthly benefits / medical premium</label>
-                  <input type="number" value={healthMo} onChange={(e) => setHealthMo(+e.target.value)} placeholder="200" style={inpStyle} />
+                    <label style={lblStyle}>What state do you live in?</label>
+                    <select value={suState} onChange={(e) => setSuState(e.target.value)} style={inpStyle}>
+                      <option value="">Select state</option>
+                      {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
 
-                  <label style={lblStyle}>Other monthly deductions</label>
-                  <input type="number" value={otherMonthly} onChange={(e) => setOtherMonthly(+e.target.value)} placeholder="0" style={inpStyle} />
+                    <label style={lblStyle}>Age bracket</label>
+                    <div style={segWrap}>
+                      {AGE_BRACKETS.map((b) => (
+                        <button key={b} type="button" style={segBtn(suAge === b)} onClick={() => setSuAge(b)}>{b}</button>
+                      ))}
+                    </div>
+                    <p style={helpLine}>Your age bracket. Sets your 401k contribution limit.</p>
+
+                    <label style={lblStyle}>401k contribution: {k401Pct}%</label>
+                    <input className="ob-slider" type="range" min="0" max="100" step="0.5" value={k401Pct} onChange={(e) => setK401Pct(+e.target.value)} style={{ marginBottom: 16 }} />
+
+                    <label style={lblStyle}>Monthly benefits / medical premium</label>
+                    <input type="number" value={healthMo} onChange={(e) => setHealthMo(+e.target.value)} placeholder="200" style={inpStyle} />
+
+                    <label style={lblStyle}>Other monthly deductions</label>
+                    <input type="number" value={otherMonthly} onChange={(e) => setOtherMonthly(+e.target.value)} placeholder="0" style={inpStyle} />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <label style={lblStyle}>Email</label>
+                  <input type="email" value={authUser} onChange={(e) => setAuthUser(e.target.value)} placeholder="you@company.com" style={inpStyle} autoComplete="email" onKeyDown={onEnter} />
+
+                  <label style={lblStyle}>Password</label>
+                  <input type="password" value={authPass} onChange={(e) => setAuthPass(e.target.value)} placeholder="••••••••" style={inpStyle} autoComplete="current-password" onKeyDown={onEnter} />
                 </>
               )}
 
