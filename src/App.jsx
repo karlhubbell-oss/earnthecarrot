@@ -1626,8 +1626,8 @@ export default function App() {
     const colHdr = { fontSize: 15, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--carrot)", marginBottom: 12 };
     const helpLine = { color: "var(--muted)", fontSize: 14, lineHeight: 1.4, margin: "-10px 0 14px" };
     // Evenly-spaced segmented control for the age / 401k bracket.
-    const segWrap = { display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 7, marginBottom: 6 };
-    const segBtn = (on) => ({ padding: "10px 4px", borderRadius: 10, border: on ? "1.5px solid var(--carrot)" : "1.5px solid var(--border)", background: on ? "var(--carrot)" : "white", color: on ? "white" : "var(--muted)", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", textAlign: "center", whiteSpace: "nowrap" });
+    const segWrap = { display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 8, marginBottom: 6 };
+    const segBtn = (on) => ({ padding: "13px 8px", borderRadius: 10, border: on ? "1.5px solid var(--carrot)" : "1.5px solid var(--border)", background: on ? "var(--carrot)" : "white", color: on ? "white" : "var(--muted)", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", textAlign: "center", whiteSpace: "nowrap" });
     const circle = (cur) => ({ width: 34, height: 34, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 18, flex: "none", background: cur ? "var(--carrot)" : "white", color: cur ? "white" : "var(--muted)", border: cur ? "none" : "1.5px solid var(--border)" });
     const greenCoach = <span style={{ color: "var(--green)", fontWeight: 700 }}>Coach</span>;
     const steps = [
@@ -1692,7 +1692,7 @@ export default function App() {
                       {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
 
-                    <label style={lblStyle}>Age bracket</label>
+                    <label style={lblStyle}>401k Age Bracket</label>
                     <div style={segWrap}>
                       {AGE_BRACKETS.map((b) => (
                         <button key={b} type="button" style={segBtn(suAge === b)} onClick={() => setSuAge(b)}>{b}</button>
