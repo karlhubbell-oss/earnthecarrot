@@ -785,6 +785,7 @@ export default function App() {
   const [selectedPlanId, setSelectedPlanId] = useState(null);    // null = current/default tab
   const [comparePlanCache, setComparePlanCache] = useState({});  // plan_id -> full reconstructed plan
   const comparePlansFetchedRef = useRef(null);                   // repId we've fetched the plan list for
+  const pendingProfileSaveRef = useRef(false);                   // just signed up: persist the take-home profile once the rep is created
   const [comparePlansLoadedFor, setComparePlansLoadedFor] = useState(null); // repId whose plan list has resolved (so we know whether a prior exists before generating a take)
   // True once the rep has confirmed the plan summary; gates Coach's Take.
   const [planConfirmed, setPlanConfirmed] = useState(false);
@@ -1114,6 +1115,20 @@ export default function App() {
     );
   };
 
+  // Persist the rep's take-home profile (the signup + Step-3 fields) to their reps
+  // row. Used by signup (after the rep is created) and the Step-3 edit screen. Best
+  // effort; the values also live in React state so the UI never blocks on this.
+  const saveRepProfile = async () => {
+    try {
+      const headers = { "content-type": "application/json", ...(await authHeaders()) };
+      await fetch("/api/save-rep-profile", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ home_state: suState, age_bracket: suAge, k401_pct: k401Pct, health_monthly: healthMo, other_monthly: otherMonthly }),
+      });
+    } catch (e) { /* non-fatal: profile stays in state, retryable on next save */ }
+  };
+
   // ── AUTH helpers (front-end stub) ──
   const goAuth = (mode) => { setAuthMode(mode); setAuthError(""); setAuthFirst(""); setAuthPass(""); setAuthPass2(""); goFlow("auth"); };
   const toggleAuthMode = () => { setAuthMode((m) => (m === "login" ? "signup" : "login")); setAuthError(""); setAuthFirst(""); setAuthPass(""); setAuthPass2(""); };
@@ -1126,6 +1141,9 @@ export default function App() {
       if (!fn) { setAuthError("Please enter your first name."); return; }
       if (!email || !authPass) { setAuthError("Please enter your email and a password."); return; }
       if (authPass !== authPass2) { setAuthError("Those passwords do not match. Please try again."); return; }
+      // State is the only take-home field with no usable default and it drives the
+      // tax math, so it is required. The rest are pre-filled and accepted as-is.
+      if (!suState) { setAuthError("Please select your state so Coach can calculate your take-home pay."); return; }
       setAuthError("");
       let error;
       try {
@@ -1138,6 +1156,8 @@ export default function App() {
         else setAuthError("We could not create your account. Please try again.");
         return;
       }
+      // Persist the take-home profile once the ensure-rep effect has created the rep.
+      pendingProfileSaveRef.current = true;
       const dest = postAuthDest; setPostAuthDest(null); goFlow(dest || "home_base");
     } else {
       if (!email || !authPass) { setAuthError("Please enter your email and password."); return; }
@@ -1347,7 +1367,24 @@ export default function App() {
           body: JSON.stringify({ email: sessionUser.email || null, name: sessionUser.name || null }),
         });
         const d = await r.json().catch(() => null);
-        if (!cancelled) { if (d && d.ok && d.repId) setCurrentRepId(d.repId); else console.error("ensure-rep failed:", d); }
+        if (cancelled) return;
+        if (d && d.ok && d.repId) {
+          setCurrentRepId(d.repId);
+          if (pendingProfileSaveRef.current) {
+            // Just signed up: write the take-home profile the rep entered on signup.
+            pendingProfileSaveRef.current = false;
+            saveRepProfile();
+          } else if (d.profile) {
+            // Returning rep: seed the take-home inputs from the stored profile so the
+            // values (and the take-home math) survive a reload. Only fill what exists.
+            const p = d.profile;
+            if (p.home_state) setSuState(p.home_state);
+            if (p.age_bracket) setSuAge(p.age_bracket);
+            if (p.k401_pct != null) setK401Pct(Number(p.k401_pct));
+            if (p.health_monthly != null) setHealthMo(Number(p.health_monthly));
+            if (p.other_monthly != null) setOtherMonthly(Number(p.other_monthly));
+          }
+        } else { console.error("ensure-rep failed:", d); }
       } catch (e) {
         if (!cancelled) console.error("ensure-rep error:", e);
       }
@@ -1631,6 +1668,35 @@ export default function App() {
                 <>
                   <label style={lblStyle}>Confirm password</label>
                   <input type="password" value={authPass2} onChange={(e) => setAuthPass2(e.target.value)} placeholder="••••••••" style={inpStyle} autoComplete="new-password" onKeyDown={onEnter} />
+
+                  {/* Take-home profile: collected here so Coach can calculate real
+                      take-home from day one. Persisted to the rep, editable later in
+                      the Step-3 take-home screen. State is required; the rest default. */}
+                  <div style={{ borderTop: "1.5px solid var(--border)", margin: "8px 0 18px" }} />
+                  <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--carrot)", marginBottom: 4 }}>Your take-home details</div>
+                  <p style={{ color: "var(--muted)", fontSize: 16, marginBottom: 14, lineHeight: 1.45 }}>So Coach can show your real take-home, not just gross. You can change these any time.</p>
+
+                  <label style={lblStyle}>What state do you live in?</label>
+                  <select value={suState} onChange={(e) => setSuState(e.target.value)} style={inpStyle}>
+                    <option value="">Select state</option>
+                    {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+
+                  <label style={lblStyle}>401k contribution bracket</label>
+                  <div className="bs-pills" style={{ marginBottom: 16 }}>
+                    {AGE_BRACKETS.map((b) => (
+                      <button key={b} type="button" className={`bs-opt ${suAge === b ? "on" : ""}`} onClick={() => setSuAge(b)}>{b}</button>
+                    ))}
+                  </div>
+
+                  <label style={lblStyle}>401k contribution: {k401Pct}%</label>
+                  <input className="ob-slider" type="range" min="0" max="100" step="0.5" value={k401Pct} onChange={(e) => setK401Pct(+e.target.value)} style={{ marginBottom: 16 }} />
+
+                  <label style={lblStyle}>Monthly benefits / medical premium</label>
+                  <input type="number" value={healthMo} onChange={(e) => setHealthMo(+e.target.value)} placeholder="200" style={inpStyle} />
+
+                  <label style={lblStyle}>Other monthly deductions</label>
+                  <input type="number" value={otherMonthly} onChange={(e) => setOtherMonthly(+e.target.value)} placeholder="0" style={inpStyle} />
                 </>
               )}
 
@@ -3936,7 +4002,7 @@ export default function App() {
 
           <div className="cf-info">🧮 Based on your state and deductions Coach will calculate your real take-home at every milestone. You can update these any time.</div>
 
-          <button className="cf-cta" onClick={() => goFlow("comp_dashboard")}>Looks right →</button>
+          <button className="cf-cta" onClick={() => { saveRepProfile(); goFlow("comp_dashboard"); }}>Looks right →</button>
         </div>
       </div>
     );

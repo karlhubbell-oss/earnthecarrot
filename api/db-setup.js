@@ -102,8 +102,20 @@ export default async function handler(req, res) {
       SET plan_year = COALESCE(EXTRACT(YEAR FROM effective_from), EXTRACT(YEAR FROM received_at))::int
       WHERE plan_year IS NULL`;
 
+    // Migration: rep take-home profile, collected at signup and editable later.
+    // Idempotent. Numeric fields carry the same defaults the UI pre-fills.
+    await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS home_state text`;
+    await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS age_bracket text`;
+    await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS k401_pct numeric DEFAULT 6`;
+    await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS health_monthly numeric DEFAULT 200`;
+    await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS other_monthly numeric DEFAULT 0`;
+
     const tables = tableNames.map((t) => ({ table: t, status: existing.has(t) ? "already existed" : "created" }));
-    return res.status(200).json({ ok: true, tables, migrations: ["compensation_plans.coach_take jsonb", "compensation_plans.plan_year integer (+backfill)"] });
+    return res.status(200).json({ ok: true, tables, migrations: [
+      "compensation_plans.coach_take jsonb",
+      "compensation_plans.plan_year integer (+backfill)",
+      "reps.{home_state,age_bracket,k401_pct,health_monthly,other_monthly}",
+    ] });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err && err.message ? err.message : err) });
   }
