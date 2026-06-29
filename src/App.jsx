@@ -1988,12 +1988,6 @@ export default function App() {
           <button style={backLink} onClick={() => goFlow("comp_dashboard")}>‹ Back to Comp Plan</button>
           <h1 className="hb-h1" style={{ marginTop: 12 }}>Coach's Take</h1>
           <p className="hb-sub">Good, your plan is locked in. Here's what I'm seeing and where I think we can go to work.</p>
-          {compPlan && !coachReadLoading ? (
-            <button
-              onClick={() => runCoachRead(compPlan, true)}
-              style={{ background: "none", border: "1px solid var(--border)", borderRadius: 100, padding: "6px 14px", color: "var(--muted)", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 12 }}
-            >↻ Re-run Coach's Take</button>
-          ) : null}
 
           {!compPlan ? (
             <div className="ob-card">Load a plan first and Coach will give you a read.</div>
@@ -2079,6 +2073,15 @@ export default function App() {
                   ) : null}
                 </div>
               ) : null}
+
+              {/* Escape hatch only: the take auto-regenerates when the plan changes
+                  (new plan_id), so this is a quiet text link, not a flow step. */}
+              <div style={{ marginTop: 22, textAlign: "center" }}>
+                <button
+                  onClick={() => runCoachRead(compPlan, true)}
+                  style={{ background: "none", border: "none", padding: 4, color: "var(--muted)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", textDecoration: "underline", opacity: 0.7 }}
+                >Re-run Coach's Take</button>
+              </div>
             </>
           ) : (
             <div className="ob-card">Coach could not read your plan right now. Head back and open this again to retry.</div>
