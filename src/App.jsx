@@ -785,6 +785,7 @@ export default function App() {
   const [selectedPlanId, setSelectedPlanId] = useState(null);    // null = current/default tab
   const [comparePlanCache, setComparePlanCache] = useState({});  // plan_id -> full reconstructed plan
   const comparePlansFetchedRef = useRef(null);                   // repId we've fetched the plan list for
+  const [comparePlansLoadedFor, setComparePlansLoadedFor] = useState(null); // repId whose plan list has resolved (so we know whether a prior exists before generating a take)
   // True once the rep has confirmed the plan summary; gates Coach's Take.
   const [planConfirmed, setPlanConfirmed] = useState(false);
   const [saveError, setSaveError] = useState(false);     // upload-time persistence failed
@@ -1152,7 +1153,7 @@ export default function App() {
   const logout = async () => {
     try { await authClient.signOut(); } catch (e) {}
     ensureRepRef.current = null;
-    setCurrentUser(null); setCurrentName(""); setCurrentRepId(null); setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; coachTakeCacheRef.current = {}; setComparePlans([]); setSelectedPlanId(null); setComparePlanCache({}); comparePlansFetchedRef.current = null; setPlanConfirmed(false); planFetchedRef.current = null; setAvatarMenuOpen(false); goFlow("landing");
+    setCurrentUser(null); setCurrentName(""); setCurrentRepId(null); setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; coachTakeCacheRef.current = {}; setComparePlans([]); setSelectedPlanId(null); setComparePlanCache({}); comparePlansFetchedRef.current = null; setComparePlansLoadedFor(null); setPlanConfirmed(false); planFetchedRef.current = null; setAvatarMenuOpen(false); goFlow("landing");
   };
   // Shared top bar. full=true (signed in) shows Upload + profile avatar; full=false is brand only.
   const renderTopBar = (full) => (
@@ -1328,7 +1329,7 @@ export default function App() {
     if (!sessionUser) {
       ensureRepRef.current = null;
       setCurrentUser(null); setCurrentName(""); setCurrentRepId(null);
-      setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; coachTakeCacheRef.current = {}; setComparePlans([]); setSelectedPlanId(null); setComparePlanCache({}); comparePlansFetchedRef.current = null;
+      setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; coachTakeCacheRef.current = {}; setComparePlans([]); setSelectedPlanId(null); setComparePlanCache({}); comparePlansFetchedRef.current = null; setComparePlansLoadedFor(null);
       setPlanConfirmed(false); planFetchedRef.current = null;
       return;
     }
@@ -1442,14 +1443,19 @@ export default function App() {
     comparePlansFetchedRef.current = currentRepId;
     let cancelled = false;
     (async () => {
+      let plans = [];
       try {
         const headers = await authHeaders();
         const r = await fetch("/api/list-plans", { headers });
         const d = await r.json().catch(() => null);
-        if (cancelled || !d || !d.ok || !Array.isArray(d.plans)) return;
-        setComparePlans(d.plans);
-        setSelectedPlanId((prev) => prev || (d.plans[0] && d.plans[0].id) || null); // default: newest year (current)
-      } catch (e) { /* non-fatal: tabs just won't show */ }
+        if (d && d.ok && Array.isArray(d.plans)) plans = d.plans;
+      } catch (e) { /* non-fatal: leave plans empty */ }
+      if (cancelled) return;
+      setComparePlans(plans);
+      setSelectedPlanId((prev) => prev || (plans[0] && plans[0].id) || null); // default: newest year (current)
+      // Mark the list resolved (even if empty/failed) so the take generator knows
+      // whether a prior exists and can proceed instead of waiting forever.
+      setComparePlansLoadedFor(currentRepId);
     })();
     return () => { cancelled = true; };
   }, [screen, currentRepId]);
@@ -1505,10 +1511,26 @@ export default function App() {
     setCoachProgress(0);
     setCoachReadLoading(true);
     try {
+      // Resolve the immediate prior plan (if any) so the take includes year-over-year
+      // comparison. comparePlans is newest-first, so the first entry that is not the
+      // current plan is the prior. Use the cache, fetching the prior's full detail once.
+      let priorPlan = null;
+      const priorMeta = comparePlans.find((p) => p.id && p.id !== planId);
+      if (priorMeta) {
+        priorPlan = comparePlanCache[priorMeta.id] || null;
+        if (!priorPlan) {
+          try {
+            const ph = await authHeaders();
+            const pr = await fetch(`/api/get-plan?planId=${encodeURIComponent(priorMeta.id)}`, { headers: ph });
+            const pd = await pr.json().catch(() => null);
+            if (pd && pd.ok && pd.plan) { priorPlan = pd.plan; setComparePlanCache((prev) => ({ ...prev, [priorMeta.id]: pd.plan })); }
+          } catch (e) { /* no prior available; the take just won't include a comparison */ }
+        }
+      }
       const r = await fetch("/api/coach-read", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify(priorPlan ? { plan, priorPlan } : { plan }),
       });
       const data = await r.json().catch(() => null);
       if (reqId !== coachReqRef.current) return; // a newer run superseded this one
@@ -1540,11 +1562,14 @@ export default function App() {
   // When the Coach's Take view opens, show the cached take instantly if we already
   // hold one for this plan version (seeded from get-plan or generated earlier this
   // session); only call coach-read when there is none. The cache key is plan_id, so a
-  // re-uploaded or amended plan (new plan_id) regenerates.
+  // re-uploaded or amended plan (new plan_id) regenerates. We wait until the plan list
+  // has resolved (comparePlansLoadedFor) so a first generation knows whether a prior
+  // exists and includes the comparison rather than racing to generate without it.
   useEffect(() => {
     if (screen !== "coach_take" || !compPlan) return;
+    if (comparePlansLoadedFor !== currentRepId) return;
     runCoachRead(compPlan, false);
-  }, [screen, compPlan]);
+  }, [screen, compPlan, comparePlansLoadedFor, currentRepId]);
 
   // ══ AUTH (login / signup, front-end stub) ════════════════════════════
   if (screen === "auth") {
@@ -2029,6 +2054,29 @@ export default function App() {
               {cr.bridge ? (
                 <div style={{ background: "var(--green-light)", border: "1.5px solid var(--green)", borderRadius: 16, padding: 18, marginTop: 16 }}>
                   <div style={{ fontSize: 18, color: "#1B4332", lineHeight: 1.6 }}>{cr.bridge}</div>
+                </div>
+              ) : null}
+
+              {/* Year-over-year comparison: present only when a prior plan exists (the
+                  server attaches cr.comparison only then). Cached with the take. */}
+              {cr.comparison && (cr.comparison.headline || (Array.isArray(cr.comparison.points) && cr.comparison.points.length) || cr.comparison.bottom_line) ? (
+                <div className="ob-card" style={{ marginTop: 16, background: "#F7F4FF", border: "1.5px solid #C9BCF0" }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "#5B3FB0", marginBottom: 8 }}>
+                    What changed{cr.comparison.prior_year && cr.comparison.current_year ? ` · FY${cr.comparison.prior_year} → FY${cr.comparison.current_year}` : " from last year"}
+                  </div>
+                  {cr.comparison.headline ? (
+                    <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, lineHeight: 1.35, color: "var(--ink)", marginBottom: 14 }}>{cr.comparison.headline}</div>
+                  ) : null}
+                  {Array.isArray(cr.comparison.points) ? cr.comparison.points.map((p, i) => (
+                    <div key={i} style={{ borderTop: i === 0 ? "none" : "1px solid var(--border)", paddingTop: i === 0 ? 0 : 12, marginTop: i === 0 ? 0 : 12 }}>
+                      {p.change ? <div style={{ fontWeight: 700, color: "var(--ink)" }}>{p.change}</div> : null}
+                      {p.meaning ? <div style={{ fontSize: 16, color: "var(--muted)", lineHeight: 1.5, marginTop: 2 }}>{p.meaning}</div> : null}
+                      {p.move ? <div style={{ fontSize: 16, color: "#5B3FB0", fontWeight: 600, lineHeight: 1.5, marginTop: 4 }}>→ {p.move}</div> : null}
+                    </div>
+                  )) : null}
+                  {cr.comparison.bottom_line ? (
+                    <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1.5px solid #C9BCF0", fontSize: 17, color: "var(--ink)", lineHeight: 1.6 }}>{cr.comparison.bottom_line}</div>
+                  ) : null}
                 </div>
               ) : null}
             </>

@@ -35,12 +35,13 @@ Return ONLY a single JSON object with exactly this shape. No preamble, no markdo
   "points": [
     { "change": "the specific thing that changed, in plain words with the actual numbers", "meaning": "what it does to YOUR money, concretely", "move": "the move it suggests you make" }
   ],
-  "bottom_line": "1 short paragraph: the net effect across all the changes, and the play. Be honest about what got worse."
+  "bottom_line": "the net effect across the changes, and the play. Be honest about what got worse. A short paragraph when several things changed; a single sentence when little did."
 }
 
 Critical rules:
 - Reason ONLY from the diff provided. Never invent numbers or changes that are not in the diff. Every number you cite must appear in the diff.
 - Tone: plain truth plus agency. State what changed, what it means for the rep's money, and the move it suggests. This is NOT a good-news-bad-news-good-news sandwich. Do not soften a cut by burying it between two positives. If something got worse for the rep (a lower rate, a smaller share, a cut quota), say so plainly and say what it means in real money.
+- Scale the whole commentary to how much actually changed. The diff drives the length: the number of "points" should track the number of material changes. Several distinct changes warrant several points; one or two changes warrant just one or two points and a brief bottom line. Do NOT pad to look thorough, do not invent secondary angles, and do not split one change into multiple points to fill space. If only one thing changed, make that single point well and stop.
 - One "points" entry per material change (or tightly related group, e.g. a component's weight and rate together). Keep each concrete and specific to the numbers.
 - Voice: sharp, direct, like a sales leader who shoots straight. Never fluffy, never salesy, never corporate-cheerful about a takeaway.
 - Punctuation house style: never use a hyphen, en dash, or em dash as a sentence pause or aside. Rewrite as two sentences instead. Hyphens inside compound words are fine.`;
