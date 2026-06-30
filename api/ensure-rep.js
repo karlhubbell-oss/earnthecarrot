@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
     // Return the stored take-home profile so the client can seed its inputs on load.
     // Read-only here; writes go through save-rep-profile so a reload can't clobber.
-    const rows = await sql`SELECT home_state, age_bracket, k401_pct, health_monthly, other_monthly, target_pct, stretch_pct, target_carrot_name, target_carrot_cost, stretch_carrot_name, stretch_carrot_cost, target_locked, stretch_locked FROM reps WHERE id = ${repId} LIMIT 1`;
+    const rows = await sql`SELECT home_state, age_bracket, k401_pct, health_monthly, other_monthly, target_pct, stretch_pct, target_carrot_name, target_carrot_cost, stretch_carrot_name, stretch_carrot_cost, target_locked, stretch_locked, deal_plan FROM reps WHERE id = ${repId} LIMIT 1`;
     const r = rows[0] || {};
     const profile = {
       home_state: r.home_state ?? null,
@@ -37,6 +37,8 @@ export default async function handler(req, res) {
       stretch_carrot_cost: r.stretch_carrot_cost == null ? null : Number(r.stretch_carrot_cost),
       target_locked: r.target_locked === true,
       stretch_locked: r.stretch_locked === true,
+      // jsonb: the driver returns this already parsed (object) or null.
+      deal_plan: r.deal_plan ?? null,
     };
     return res.status(200).json({ ok: true, repId, profile });
   } catch (err) {

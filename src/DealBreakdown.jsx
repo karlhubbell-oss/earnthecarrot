@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { toEarningsPlan } from "./lib/planAdapter.js";
 
 /*
@@ -130,6 +130,58 @@ function deriveComponents(plan, targetPct, stretchPct) {
   });
 }
 
+// Build the editable models, preferring the rep's SAVED plan when present. We always
+// re-derive the fresh defaults from the real plan (so names, descriptions, and the
+// "where this came from" source note stay accurate), then overlay the rep's stored
+// target and per-band edits on top, matched by component name. New components in the
+// plan get defaults; removed ones drop out — robust to a plan that changed since.
+function buildComps(plan, targetPct, stretchPct, stored) {
+  const base = deriveComponents(plan, targetPct, stretchPct);
+  const saved = stored && Array.isArray(stored.components) ? stored.components : null;
+  if (!saved) return base;
+  const byName = new Map(saved.map((c) => [c.name, c]));
+  return base.map((b) => {
+    const s = byName.get(b.name);
+    if (!s) return b;
+    const bands = Array.isArray(s.bands) ? s.bands : [];
+    const sizes = b.sizes.map((sz) => {
+      const sb = bands.find((x) => x.band === sz.label.toLowerCase());
+      if (!sb) return sz;
+      return {
+        ...sz,
+        size: sb.quota_per_deal != null ? String(sb.quota_per_deal) : sz.size,
+        typical: sb.deals_per_year == null ? "" : String(sb.deals_per_year),
+        count: Number.isFinite(Number(sb.count)) ? Number(sb.count) : sz.count,
+      };
+    });
+    return { ...b, target: s.stretch_target != null ? String(s.stretch_target) : b.target, sizes };
+  });
+}
+
+// The persisted shape. Structured and keyed so it reads back here AND feeds the quarter
+// planner: each band carries component + size band + quota-retired-per-deal + count, so
+// the planner can expand it into `count` individual deals to place across the year.
+function serialize(comps, ctx) {
+  return {
+    version: 1,
+    target_pct: ctx.targetPct,
+    stretch_pct: ctx.stretchPct,
+    total_quota: ctx.totalQuota,
+    components: comps.map((c) => ({
+      name: c.name,
+      source: c.source,
+      stretch_target: num(c.target),
+      bands: c.sizes.map((s) => ({
+        band: s.label.toLowerCase(),
+        label: s.label,
+        quota_per_deal: num(s.size),
+        deals_per_year: s.typical === "" || s.typical == null ? null : num(s.typical),
+        count: s.count,
+      })),
+    })),
+  };
+}
+
 // ── icons ─────────────────────────────────────────────────────────────────
 function MicIcon({ size = 15 }) {
   return (
@@ -193,6 +245,8 @@ export default function DealBreakdown({
   plan = null,
   targetPct = 110,
   stretchPct = 150,
+  stored = null,
+  onPersist = () => {},
   onBack = () => {},
   onContinue = () => {},
 }) {
@@ -205,9 +259,41 @@ export default function DealBreakdown({
   // Where the target milestone sits along a stretch bar (same proportion everywhere).
   const tickFrac = stretchPct > 0 ? Math.min(Math.max(targetMult / stretchMult, 0), 1) : 0;
 
-  const [comps, setComps] = useState(() => deriveComponents(plan, targetPct, stretchPct));
+  const [comps, setComps] = useState(() => buildComps(plan, targetPct, stretchPct, stored));
 
-  // Edit helpers — pass one keeps it all in local state.
+  // ── persistence ──────────────────────────────────────────────────────────
+  // Save (debounced) whenever the plan changes, so edits survive reload and
+  // logout/login. The first render saves only when there was nothing stored yet —
+  // that captures Coach's pre-populated answer so the planner has data even if the
+  // rep never touches a control. A pending save is flushed on navigate-away.
+  const onPersistRef = useRef(onPersist);
+  onPersistRef.current = onPersist;
+  const saveTimer = useRef(null);
+  const pendingSave = useRef(null);
+  const firstRender = useRef(true);
+  const hadStored = useRef(!!(stored && Array.isArray(stored.components) && stored.components.length));
+
+  useEffect(() => {
+    const obj = serialize(comps, { targetPct, stretchPct, totalQuota });
+    pendingSave.current = obj;
+    if (firstRender.current) {
+      firstRender.current = false;
+      if (hadStored.current) { pendingSave.current = null; return; } // loaded as-is; nothing new to write
+    }
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      if (pendingSave.current) { onPersistRef.current(pendingSave.current); pendingSave.current = null; }
+    }, 700);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [comps, targetPct, stretchPct, totalQuota]);
+
+  // Flush any pending save when leaving the screen, so a quick edit-then-navigate sticks.
+  useEffect(() => () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (pendingSave.current) { onPersistRef.current(pendingSave.current); pendingSave.current = null; }
+  }, []);
+
+  // Edit helpers — local state drives the live math; the effect above persists it.
   const editComp = (ci, patch) => setComps((cs) => cs.map((c, i) => (i === ci ? { ...c, ...patch } : c)));
   const editSize = (ci, si, patch) =>
     setComps((cs) => cs.map((c, i) => (i === ci ? { ...c, sizes: c.sizes.map((s, j) => (j === si ? { ...s, ...patch } : s)) } : c)));

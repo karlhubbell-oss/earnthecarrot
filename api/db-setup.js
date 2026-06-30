@@ -120,6 +120,10 @@ export default async function handler(req, res) {
     // Per-goal lock state (each card locks independently).
     await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS target_locked boolean DEFAULT false`;
     await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS stretch_locked boolean DEFAULT false`;
+    // Strategy Step 2: the rep's deal-breakdown plan (per-component deal-size bands,
+    // deals-per-year context, in-plan counts, and the editable per-component stretch
+    // target). Structured JSON so the quarter planner can read back individual deals.
+    await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS deal_plan jsonb`;
 
     // Usage limiter: per-op event log + per-user daily cap. Granular (event_type) so a
     // later admin panel / email summary can see what a user did, not just counts.
@@ -141,6 +145,7 @@ export default async function handler(req, res) {
       "reps.{target_pct,stretch_pct}",
       "reps.{target_carrot_name,target_carrot_cost,stretch_carrot_name,stretch_carrot_cost}",
       "reps.{target_locked,stretch_locked}",
+      "reps.deal_plan jsonb",
       "usage_events table (+rep_created_idx)",
       "reps.daily_op_limit integer (default 25)",
     ] });

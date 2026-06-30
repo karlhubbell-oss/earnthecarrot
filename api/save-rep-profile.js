@@ -36,6 +36,12 @@ export default async function handler(req, res) {
     const sCarrotCost = numOrNull(body.stretch_carrot_cost);
     const targetLocked = body.target_locked === true;
     const stretchLocked = body.stretch_locked === true;
+    // deal_plan: a structured object (Strategy Step 2). Stored as jsonb. Accept only a
+    // plain object; anything else (including an explicit null) clears it to NULL.
+    const dealPlan =
+      body.deal_plan && typeof body.deal_plan === "object" && !Array.isArray(body.deal_plan)
+        ? JSON.stringify(body.deal_plan)
+        : null;
 
     const sql = neon(process.env.DATABASE_URL);
     const repId = await resolveRepId(sql, identity);
@@ -54,7 +60,8 @@ export default async function handler(req, res) {
         stretch_carrot_name = ${sCarrotName},
         stretch_carrot_cost = ${sCarrotCost},
         target_locked = ${targetLocked},
-        stretch_locked = ${stretchLocked}
+        stretch_locked = ${stretchLocked},
+        deal_plan = ${dealPlan}::jsonb
       WHERE id = ${repId}`;
 
     return res.status(200).json({ ok: true, repId });
