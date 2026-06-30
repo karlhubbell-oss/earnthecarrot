@@ -2218,7 +2218,7 @@ export default function App() {
         <style>{HOME_STYLES}</style>
         {renderTopBar(true)}
         {renderRail()}
-        <div className="hb-main" style={{ maxWidth: 620, marginLeft: `max(${railW}px, calc((100vw - 620px) / 2))`, marginRight: "auto" }}>
+        <div className="hb-main" style={{ maxWidth: 1160, marginLeft: `max(${railW}px, calc((100vw - 1160px) / 2))`, marginRight: "auto" }}>
           <button style={backLink} onClick={() => goFlow("comp_dashboard")}>‹ Back to Comp Plan</button>
           {inner}
         </div>

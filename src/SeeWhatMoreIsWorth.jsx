@@ -154,7 +154,7 @@ export default function SeeWhatMoreIsWorth({
   return (
     <div className="swmiw-root">
       <style>{`
-        .swmiw-root{ font-family:'Hanken Grotesk',sans-serif; color:#1A1410; max-width:520px; margin:0 auto; }
+        .swmiw-root{ font-family:'Hanken Grotesk',sans-serif; color:#1A1410; max-width:100%; margin:0 auto; }
         .swmiw-root *{ box-sizing:border-box; }
         .swmiw-root .topbar{ padding:4px 0 8px; }
         .swmiw-root .crumb{ font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:#B07A4E; font-weight:600; }
@@ -262,6 +262,35 @@ export default function SeeWhatMoreIsWorth({
         .swmiw-root .cta:hover{ transform:translateY(-1px); }
         .swmiw-root .cta .ctaMain{ font-size:16px; font-weight:700; display:flex; align-items:center; gap:8px; }
         .swmiw-root .cta .ctaSub{ font-size:11.5px; font-weight:500; color:#FFE7D5; }
+
+        /* Laptop-first: two panes (goals on the left, strategy on the right) and
+           larger type. The base rules above remain the phone layout, so this stacks
+           gracefully below 760px without any extra work. */
+        @media (min-width:760px){
+          .swmiw-root .layout{ display:flex; flex-direction:row; gap:28px; align-items:flex-start; }
+          .swmiw-root .leftcol{ flex:1 1 600px; min-width:0; }
+          .swmiw-root .rightcol{ flex:1 1 380px; max-width:460px; min-width:0; }
+          .swmiw-root .crumb{ font-size:12px; }
+          .swmiw-root .screen-title{ font-size:34px; }
+          .swmiw-root .screen-sub{ font-size:16px; }
+          .swmiw-root .sliderbox{ padding:54px 8px 8px; }
+          .swmiw-root .miles .mv{ font-size:11px; }
+          .swmiw-root .gcard{ padding:16px; }
+          .swmiw-root .gcard .h{ font-size:15px; }
+          .swmiw-root .gcard .lab{ font-size:11px; }
+          .swmiw-root .gcard .netval{ font-size:38px; }
+          .swmiw-root .gcard .grossval{ font-size:20px; }
+          .swmiw-root .carrot{ padding:16px; }
+          .swmiw-root .carrot-h{ font-size:14.5px; }
+          .swmiw-root .carrot-inp{ font-size:16px; padding:12px 14px; }
+          .swmiw-root .carrot-ro .ro-val{ font-size:17px; }
+          .swmiw-root .carrot-act.lock{ font-size:15px; padding:11px; }
+          .swmiw-root .qbr-note{ font-size:12.5px; }
+          .swmiw-root .delta{ font-size:16px; padding:13px 16px; } .swmiw-root .delta b{ font-size:21px; }
+          .swmiw-root .coach{ padding:18px; } .swmiw-root .coach .ttl{ font-size:17px; } .swmiw-root .coach p{ font-size:15px; }
+          .swmiw-root .confidence{ padding:18px; margin-top:14px; } .swmiw-root .confidence .lead{ font-size:15px; } .swmiw-root .confidence li{ font-size:15px; } .swmiw-root .confidence .note{ font-size:14px; }
+          .swmiw-root .cta .ctaMain{ font-size:18px; } .swmiw-root .cta .ctaSub{ font-size:13px; }
+        }
       `}</style>
 
       <div className="topbar">
@@ -270,6 +299,8 @@ export default function SeeWhatMoreIsWorth({
         <div className="screen-sub">{screenSub}</div>
       </div>
 
+      <div className="layout">
+      <div className="leftcol">
       <div className="sliderbox">
         <div className="stage" ref={trackRef}>
           <div className="track" />
@@ -331,7 +362,9 @@ export default function SeeWhatMoreIsWorth({
 
       {/* Secondary highlight: the target-to-stretch delta (not the headline). */}
       <div className="delta"><CarrotMark size={15} color="#2E7D43" /> Hitting stretch over target is worth <b>+{fmt(gap)}</b> more take-home.</div>
+      </div>
 
+      <div className="rightcol">
       <div className="coach">
         <div className="ttl"><CarrotMark size={16} color="#E8642C" /> Coach Observation</div>
         <p>Moving from <b>{target}%</b> to <b>{stretch}%</b> of plan is worth an additional <b>{fmt(gap)}</b> in take-home income. Most reps know what their quota is. Very few know what missing their stretch goal actually costs them. The next step is figuring out whether your territory can realistically support that goal.</p>
@@ -355,6 +388,8 @@ export default function SeeWhatMoreIsWorth({
           <span className="ctaMain">Build My Territory Strategy <span style={{ fontSize: 17, lineHeight: 1 }}>→</span></span>
           <span className="ctaSub">Coach will work with you to build out your plan of attack</span>
         </button>
+      </div>
+      </div>
       </div>
     </div>
   );
