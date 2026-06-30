@@ -30,6 +30,10 @@ export default async function handler(req, res) {
     const other = numOrNull(body.other_monthly);
     const targetPct = numOrNull(body.target_pct);
     const stretchPct = numOrNull(body.stretch_pct);
+    const tCarrotName = typeof body.target_carrot_name === "string" && body.target_carrot_name.trim() ? body.target_carrot_name.trim() : null;
+    const tCarrotCost = numOrNull(body.target_carrot_cost);
+    const sCarrotName = typeof body.stretch_carrot_name === "string" && body.stretch_carrot_name.trim() ? body.stretch_carrot_name.trim() : null;
+    const sCarrotCost = numOrNull(body.stretch_carrot_cost);
 
     const sql = neon(process.env.DATABASE_URL);
     const repId = await resolveRepId(sql, identity);
@@ -42,7 +46,11 @@ export default async function handler(req, res) {
         health_monthly = ${health},
         other_monthly = ${other},
         target_pct = ${targetPct},
-        stretch_pct = ${stretchPct}
+        stretch_pct = ${stretchPct},
+        target_carrot_name = ${tCarrotName},
+        target_carrot_cost = ${tCarrotCost},
+        stretch_carrot_name = ${sCarrotName},
+        stretch_carrot_cost = ${sCarrotCost}
       WHERE id = ${repId}`;
 
     return res.status(200).json({ ok: true, repId });

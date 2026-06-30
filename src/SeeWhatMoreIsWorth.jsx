@@ -62,6 +62,11 @@ export default function SeeWhatMoreIsWorth({
   defaultTarget = 110,
   defaultStretch = 150,
   crumb = "Step 5 of 8",
+  title = null,
+  subhead = null,
+  carrots = { target: { name: "", cost: "" }, stretch: { name: "", cost: "" } },
+  onCarrotChange = () => {},   // (which, field, value)
+  onCarrotBlur = () => {},     // parent persists on blur
   onContinue = () => {},
   onCommit = () => {},   // called when a marker drag ends, so the parent can persist
 }) {
@@ -103,7 +108,9 @@ export default function SeeWhatMoreIsWorth({
   const tVsQuota = tTH - baseQuota;
   const sVsQuota = sTH - baseQuota;
   const gap = sTH - tTH;
-  const title = topTierName ? `What Is ${topTierName} Worth?` : "How Much More Is On The Table?";
+  const screenTitle = title || (topTierName ? `What Is ${topTierName} Worth?` : "How Much More Is On The Table?");
+  const screenSub = subhead || "Move your Target and Stretch goals to see how much additional take-home income is possible.";
+  const CARROT_DEF = "Your carrot is your motivation, what you'll buy or do if you hit this goal.";
 
   return (
     <div className="swmiw-root">
@@ -160,6 +167,20 @@ export default function SeeWhatMoreIsWorth({
           opacity:0; visibility:hidden; transition:opacity .15s; z-index:5; pointer-events:none; }
         .swmiw-root .info:hover .bub, .swmiw-root .info:focus .bub{ opacity:1; visibility:visible; }
         .swmiw-root .gcard .add{ font-size:12px; font-weight:700; margin-top:10px; }
+        /* Each goal column holds its card and the carrot beneath it. */
+        .swmiw-root .goalcol{ flex:1; display:flex; flex-direction:column; gap:10px; }
+        .swmiw-root .goalcol .gcard{ flex:none; }
+        .swmiw-root .carrot{ border-radius:16px; padding:13px; border:1.5px dashed; }
+        .swmiw-root .carrot.t{ border-color:#E8B79A; background:#FFFBF7; } .swmiw-root .carrot.s{ border-color:#A9D3B6; background:#F7FCF8; }
+        .swmiw-root .carrot-h{ display:flex; align-items:center; gap:6px; font-weight:700; font-size:12.5px; margin-bottom:9px; }
+        .swmiw-root .carrot.t .carrot-h{ color:#C25A28; } .swmiw-root .carrot.s .carrot-h{ color:#2E7D43; }
+        .swmiw-root .carrot-inp{ width:100%; padding:10px 12px; border:1.5px solid #E7D6C4; border-radius:10px; font-size:14px; font-family:'Hanken Grotesk',sans-serif; background:#fff; color:#1A1410; margin-bottom:8px; box-sizing:border-box; }
+        .swmiw-root .carrot-inp:last-child{ margin-bottom:0; }
+        .swmiw-root .carrot-inp:focus{ outline:none; border-color:#E8642C; }
+        .swmiw-root .qbr-note{ font-size:11px; color:#9A8775; line-height:1.45; margin-top:9px; font-style:italic; }
+        .swmiw-root .delta{ display:flex; align-items:center; justify-content:center; gap:7px; margin-top:14px; padding:11px 14px;
+          border:1px solid #C6E3CE; background:#F1F8F2; border-radius:12px; font-size:13.5px; color:#1F3D2A; }
+        .swmiw-root .delta b{ color:#2E7D43; font-family:'Playfair Display',serif; font-size:16px; }
         .swmiw-root .gcard.t .add{ color:#C25A28; } .swmiw-root .gcard.s .add{ color:#2E7D43; }
         .swmiw-root .gcard .add.hero{ background:#E9F7EC; border-radius:8px; padding:6px 9px; font-size:13px; }
 
@@ -192,8 +213,8 @@ export default function SeeWhatMoreIsWorth({
 
       <div className="topbar">
         <div className="crumb">{crumb}</div>
-        <div className="screen-title">{title}</div>
-        <div className="screen-sub">Move your Target and Stretch goals to see how much additional take-home income is possible.</div>
+        <div className="screen-title">{screenTitle}</div>
+        <div className="screen-sub">{screenSub}</div>
       </div>
 
       <div className="sliderbox">
@@ -221,39 +242,54 @@ export default function SeeWhatMoreIsWorth({
       </div>
 
       <div className="pair">
-        <div className="gcard t">
-          <div className="h"><CarrotMark size={14} color="#E8642C" /> Target Goal</div>
-          <div className="pc">{target}% of plan</div>
-          <div className="netblock">
-            <div className="lab">Estimated take-home <Info text={NET_DEF} /></div>
-            <div className="netval">{fmt(tTH)}</div>
+        {/* Each goal: the absolute numbers card, with its carrot directly below. */}
+        <div className="goalcol">
+          <div className="gcard t">
+            <div className="h"><CarrotMark size={14} color="#E8642C" /> At Target ({target}%)</div>
+            <div className="netblock">
+              <div className="lab">Estimated take-home <Info text={NET_DEF} /></div>
+              <div className="netval">{fmt(tTH)}</div>
+            </div>
+            <div className="grossblock">
+              <div className="lab">Gross <Info text={GROSS_DEF} /></div>
+              <div className="grossval">{fmt(tGross)}</div>
+            </div>
           </div>
-          <div className="grossblock">
-            <div className="lab">Gross <Info text={GROSS_DEF} /></div>
-            <div className="grossval">{fmt(tGross)}</div>
+          <div className="carrot t">
+            <div className="carrot-h"><CarrotMark size={14} color="#E8642C" /> Your Target carrot <Info text={CARROT_DEF} /></div>
+            <input className="carrot-inp" type="text" placeholder="What would you buy? e.g. boat" value={carrots.target.name}
+              onChange={(e) => onCarrotChange("target", "name", e.target.value)} onBlur={onCarrotBlur} />
+            <input className="carrot-inp" type="number" placeholder="Estimated cost" value={carrots.target.cost}
+              onChange={(e) => onCarrotChange("target", "cost", e.target.value)} onBlur={onCarrotBlur} />
           </div>
-          <div className="add">+{fmt(tVsQuota)} net vs quota</div>
         </div>
-        <div className="gcard s">
-          <div className="h"><CarrotMark size={14} color="#2E7D43" /> Stretch Goal</div>
-          <div className="pc">{stretch}% of plan</div>
-          <div className="netblock">
-            <div className="lab">Estimated take-home <Info text={NET_DEF} /></div>
-            <div className="netval">{fmt(sTH)}</div>
+
+        <div className="goalcol">
+          <div className="gcard s">
+            <div className="h"><CarrotMark size={14} color="#2E7D43" /> At Stretch ({stretch}%)</div>
+            <div className="netblock">
+              <div className="lab">Estimated take-home <Info text={NET_DEF} /></div>
+              <div className="netval">{fmt(sTH)}</div>
+            </div>
+            <div className="grossblock">
+              <div className="lab">Gross <Info text={GROSS_DEF} /></div>
+              <div className="grossval">{fmt(sGross)}</div>
+            </div>
           </div>
-          <div className="grossblock">
-            <div className="lab">Gross <Info text={GROSS_DEF} /></div>
-            <div className="grossval">{fmt(sGross)}</div>
+          <div className="carrot s">
+            <div className="carrot-h"><CarrotMark size={14} color="#2E7D43" /> Your Stretch carrot <Info text={CARROT_DEF} /></div>
+            <input className="carrot-inp" type="text" placeholder="What would you buy? e.g. kitchen remodel" value={carrots.stretch.name}
+              onChange={(e) => onCarrotChange("stretch", "name", e.target.value)} onBlur={onCarrotBlur} />
+            <input className="carrot-inp" type="number" placeholder="Estimated cost" value={carrots.stretch.cost}
+              onChange={(e) => onCarrotChange("stretch", "cost", e.target.value)} onBlur={onCarrotBlur} />
           </div>
-          <div className="add hero">+{fmt(gap)} net vs target</div>
         </div>
       </div>
 
-      <div className="hero">
-        <div className="lab">Additional Take Home</div>
-        <div className="big">+{fmt(gap)}</div>
-        <div className="desc">The difference between your Target and Stretch goals, after taxes, deductions, healthcare, and 401k.</div>
-      </div>
+      <div className="qbr-note">* These carrots will be used as your motivators in your QBR document, which you can edit later.</div>
+
+      {/* Secondary highlight: the target-to-stretch delta (not the headline). */}
+      <div className="delta"><CarrotMark size={15} color="#2E7D43" /> Hitting stretch over target is worth <b>+{fmt(gap)}</b> more take-home.</div>
 
       <div className="coach">
         <div className="ttl"><CarrotMark size={16} color="#E8642C" /> Coach Observation</div>

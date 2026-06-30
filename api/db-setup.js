@@ -112,6 +112,11 @@ export default async function handler(req, res) {
     // Chosen target / stretch attainment goals (set on the earnings-goals screen).
     await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS target_pct numeric`;
     await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS stretch_pct numeric`;
+    // Carrots: what the rep is fighting for at each goal (name + estimated cost).
+    await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS target_carrot_name text`;
+    await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS target_carrot_cost numeric`;
+    await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS stretch_carrot_name text`;
+    await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS stretch_carrot_cost numeric`;
 
     const tables = tableNames.map((t) => ({ table: t, status: existing.has(t) ? "already existed" : "created" }));
     return res.status(200).json({ ok: true, tables, migrations: [
@@ -119,6 +124,7 @@ export default async function handler(req, res) {
       "compensation_plans.plan_year integer (+backfill)",
       "reps.{home_state,age_bracket,k401_pct,health_monthly,other_monthly}",
       "reps.{target_pct,stretch_pct}",
+      "reps.{target_carrot_name,target_carrot_cost,stretch_carrot_name,stretch_carrot_cost}",
     ] });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err && err.message ? err.message : err) });
