@@ -829,6 +829,9 @@ export default function App() {
   const [stretchPct, setStretchPct] = useState(150);
   // Carrots: what the rep is fighting for at each goal (name + estimated cost).
   const [carrots, setCarrots] = useState({ target: { name: "", cost: "", locked: false }, stretch: { name: "", cost: "", locked: false } });
+  // Strategy Step 2: the rep's deal-breakdown plan (structured object, persisted to
+  // reps.deal_plan). Null until the rep visits Step 2 or it loads from the profile.
+  const [dealPlan, setDealPlan] = useState(null);
   const [metrics, setMetrics] = useState([
     { id: 1, emoji: "📞", label: "Cold calls", freq: "Daily", floor: 10, stretch: 15, reminder: true, treat: "" },
     { id: 2, emoji: "🤝", label: "Discovery meetings", freq: "Weekly", floor: 5, stretch: 8, reminder: false, treat: "" },
@@ -1189,6 +1192,7 @@ export default function App() {
         target_carrot_name: carrots.target.name, target_carrot_cost: carrots.target.cost === "" ? null : carrots.target.cost,
         stretch_carrot_name: carrots.stretch.name, stretch_carrot_cost: carrots.stretch.cost === "" ? null : carrots.stretch.cost,
         target_locked: !!carrots.target.locked, stretch_locked: !!carrots.stretch.locked,
+        deal_plan: dealPlan,
         ...extra,
       };
       await fetch("/api/save-rep-profile", { method: "POST", headers, body: JSON.stringify(body) });
@@ -1239,7 +1243,7 @@ export default function App() {
   const logout = async () => {
     try { await authClient.signOut(); } catch (e) {}
     ensureRepRef.current = null;
-    setCurrentUser(null); setCurrentName(""); setCurrentRepId(null); setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; coachTakeCacheRef.current = {}; setComparePlans([]); setSelectedPlanId(null); setComparePlanCache({}); comparePlansFetchedRef.current = null; setComparePlansLoadedFor(null); setPlanConfirmed(false); planFetchedRef.current = null; setAvatarMenuOpen(false); goFlow("landing");
+    setCurrentUser(null); setCurrentName(""); setCurrentRepId(null); setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; coachTakeCacheRef.current = {}; setComparePlans([]); setSelectedPlanId(null); setComparePlanCache({}); comparePlansFetchedRef.current = null; setComparePlansLoadedFor(null); setPlanConfirmed(false); planFetchedRef.current = null; setDealPlan(null); setAvatarMenuOpen(false); goFlow("landing");
   };
   // Shared top bar. full=true (signed in) shows Upload + profile avatar; full=false is brand only.
   const renderTopBar = (full) => (
@@ -1415,7 +1419,7 @@ export default function App() {
     if (!sessionUser) {
       ensureRepRef.current = null;
       setCurrentUser(null); setCurrentName(""); setCurrentRepId(null);
-      setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; coachTakeCacheRef.current = {}; setComparePlans([]); setSelectedPlanId(null); setComparePlanCache({}); comparePlansFetchedRef.current = null; setComparePlansLoadedFor(null);
+      setCompPlan(null); setCoachRead(null); coachReadForRef.current = null; coachTakeCacheRef.current = {}; setComparePlans([]); setSelectedPlanId(null); setComparePlanCache({}); comparePlansFetchedRef.current = null; setComparePlansLoadedFor(null); setDealPlan(null);
       setPlanConfirmed(false); planFetchedRef.current = null;
       return;
     }
@@ -1455,6 +1459,7 @@ export default function App() {
               target: { name: p.target_carrot_name || "", cost: p.target_carrot_cost == null ? "" : String(p.target_carrot_cost), locked: p.target_locked === true },
               stretch: { name: p.stretch_carrot_name || "", cost: p.stretch_carrot_cost == null ? "" : String(p.stretch_carrot_cost), locked: p.stretch_locked === true },
             });
+            if (p.deal_plan) setDealPlan(p.deal_plan);
           }
         } else { console.error("ensure-rep failed:", d); }
       } catch (e) {
@@ -2362,6 +2367,8 @@ export default function App() {
         plan={compPlan}
         targetPct={targetPct}
         stretchPct={stretchPct}
+        stored={dealPlan}
+        onPersist={(obj) => { setDealPlan(obj); saveRepProfile({ deal_plan: obj }); }}
         onBack={() => goFlow("earnings_goals")}
         onContinue={() => {}}
       />
