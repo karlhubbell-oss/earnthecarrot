@@ -39,6 +39,12 @@ function sampleTakeHome(pct) {
   return Math.round(g - r - SAMPLE.healthcare - taxable * SAMPLE.tax);
 }
 const fmt = (n) => "$" + Math.round(n).toLocaleString("en-US");
+// Group a raw cost into thousands for DISPLAY only (e.g. "20000" -> "20,000").
+// The stored value stays the raw digit string, so persistence and math are unaffected.
+const groupThousands = (s) => {
+  const digits = String(s == null ? "" : s).replace(/[^\d]/g, "");
+  return digits ? Number(digits).toLocaleString("en-US") : "";
+};
 
 function CarrotMark({ size = 22, color = "#E8642C" }) {
   return (
@@ -130,8 +136,8 @@ export default function SeeWhatMoreIsWorth({
           <>
             <input className="carrot-inp" type="text" placeholder={placeholder} value={c.name || ""}
               onChange={(e) => onCarrotChange(which, "name", e.target.value)} onBlur={onCarrotBlur} />
-            <input className="carrot-inp" type="number" placeholder="Estimated cost" value={c.cost ?? ""}
-              onChange={(e) => onCarrotChange(which, "cost", e.target.value)} onBlur={onCarrotBlur} />
+            <input className="carrot-inp" type="text" inputMode="numeric" placeholder="Estimated cost" value={groupThousands(c.cost)}
+              onChange={(e) => onCarrotChange(which, "cost", e.target.value.replace(/[^\d]/g, ""))} onBlur={onCarrotBlur} />
             <button className="carrot-act lock" type="button" disabled={!(c.name || "").trim()} onClick={() => onToggleLock(which, true)}>
               <LockIcon open /> Lock it in
             </button>
