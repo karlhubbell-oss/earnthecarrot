@@ -1,4 +1,7 @@
 import { diffPlans, formatDiffBrief } from "../lib/planDiff.js";
+import { neon } from "@neondatabase/serverless";
+import { verifyIdentity, resolveRepId } from "../lib/serverAuth.js";
+import { gateUsage, logUsageEvent, usageBlockedMessage } from "../lib/usage.js";
 
 const SYSTEM_PROMPT = `You are a sharp sales compensation strategist. You read a parsed comp plan object and return a short, honest "Coach's read" of what the plan is really designed to do.
 
@@ -109,6 +112,27 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: "Missing plan in request body." });
     }
 
+    // Usage limiter (server-side, token-derived rep). Gate the Coach's Take generation
+    // before the model call; the comparison below consumes a second op only if budget
+    // remains. `sql`/`usage` stay null and we fail open if the limiter errors.
+    const identity = await verifyIdentity(req);
+    if (!identity) return res.status(401).json({ ok: false, error: "Not authenticated." });
+    let sql = null, repId = null, usage = null;
+    if (process.env.DATABASE_URL) {
+      try {
+        sql = neon(process.env.DATABASE_URL);
+        repId = await resolveRepId(sql, identity);
+        const gate = await gateUsage(sql, repId, "coach_take");
+        if (gate.blocked) {
+          return res.status(429).json({ ok: false, code: "DAILY_LIMIT", error: usageBlockedMessage(), usage: gate });
+        }
+        usage = gate;
+      } catch (e) {
+        sql = null; // fail open: a limiter error never blocks the read
+        console.error("coach-read usage gate error (allowing):", e && e.message ? e.message : e);
+      }
+    }
+
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -151,7 +175,14 @@ export default async function handler(req, res) {
     if (priorPlan) {
       try {
         const diff = diffPlans(plan, priorPlan);
-        if (diff.hasPrior && diff.summary.total > 0) {
+        // The comparison is a second expensive op: only generate it if the rep still
+        // has budget after the take (skip rather than overshoot the daily cap).
+        const hasBudget = !usage || usage.remaining > 0;
+        if (diff.hasPrior && diff.summary.total > 0 && hasBudget) {
+          if (sql && repId && usage) {
+            await logUsageEvent(sql, repId, "comparison");
+            usage = { ...usage, used: usage.used + 1, remaining: Math.max(0, usage.limit - (usage.used + 1)) };
+          }
           const comparison = await callModelJSON(COMPARE_SYSTEM_PROMPT, buildComparisonUserMessage(diff), 1536);
           read.comparison = { prior_year: diff.priorYear, current_year: diff.currentYear, ...comparison };
         }
@@ -165,7 +196,7 @@ export default async function handler(req, res) {
     // (includes the comparison section attached above).
     read = deepStripDashes(read);
 
-    return res.status(200).json({ ok: true, read });
+    return res.status(200).json({ ok: true, read, usage });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err) });
   }

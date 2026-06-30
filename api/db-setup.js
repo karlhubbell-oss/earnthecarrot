@@ -121,6 +121,18 @@ export default async function handler(req, res) {
     await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS target_locked boolean DEFAULT false`;
     await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS stretch_locked boolean DEFAULT false`;
 
+    // Usage limiter: per-op event log + per-user daily cap. Granular (event_type) so a
+    // later admin panel / email summary can see what a user did, not just counts.
+    await sql`
+      CREATE TABLE IF NOT EXISTS usage_events (
+        id text PRIMARY KEY,
+        rep_id text REFERENCES reps(id),
+        event_type text,
+        created_at timestamptz DEFAULT now()
+      )`;
+    await sql`CREATE INDEX IF NOT EXISTS usage_events_rep_created_idx ON usage_events (rep_id, created_at)`;
+    await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS daily_op_limit integer DEFAULT 25`;
+
     const tables = tableNames.map((t) => ({ table: t, status: existing.has(t) ? "already existed" : "created" }));
     return res.status(200).json({ ok: true, tables, migrations: [
       "compensation_plans.coach_take jsonb",
@@ -129,6 +141,8 @@ export default async function handler(req, res) {
       "reps.{target_pct,stretch_pct}",
       "reps.{target_carrot_name,target_carrot_cost,stretch_carrot_name,stretch_carrot_cost}",
       "reps.{target_locked,stretch_locked}",
+      "usage_events table (+rep_created_idx)",
+      "reps.daily_op_limit integer (default 25)",
     ] });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err && err.message ? err.message : err) });

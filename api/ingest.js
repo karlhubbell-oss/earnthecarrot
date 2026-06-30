@@ -1,5 +1,9 @@
 export const config = { maxDuration: 60 };
 
+import { neon } from "@neondatabase/serverless";
+import { verifyIdentity, resolveRepId } from "../lib/serverAuth.js";
+import { gateUsage, usageBlockedMessage } from "../lib/usage.js";
+
 const SYSTEM_PROMPT = `You are a precise extraction engine for sales compensation plans. You read a comp plan PDF and return a single JSON object describing it. You never invent numbers. When a value is not stated in the plan, set it to null and record a clarifying question.
 
 Return ONLY the JSON object. No preamble, no explanation, no markdown code fences.
@@ -136,6 +140,26 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: "Missing pdfBase64 in request body." });
     }
 
+    // Usage limiter (server-side, token-derived rep). Counts this ingest against the
+    // rep's daily cap before the expensive model call runs.
+    const identity = await verifyIdentity(req);
+    if (!identity) return res.status(401).json({ ok: false, error: "Not authenticated." });
+    let usage = null;
+    if (process.env.DATABASE_URL) {
+      try {
+        const sql = neon(process.env.DATABASE_URL);
+        const repId = await resolveRepId(sql, identity);
+        const gate = await gateUsage(sql, repId, "ingest");
+        if (gate.blocked) {
+          return res.status(429).json({ ok: false, code: "DAILY_LIMIT", error: usageBlockedMessage(), usage: gate });
+        }
+        usage = gate;
+      } catch (e) {
+        // Fail open on a DB/limiter error so it never breaks ingestion; not client-triggerable.
+        console.error("ingest usage gate error (allowing):", e && e.message ? e.message : e);
+      }
+    }
+
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -189,7 +213,7 @@ export default async function handler(req, res) {
       plan.provenance.source_files = filename ? [filename] : [];
     }
 
-    return res.status(200).json({ ok: true, plan });
+    return res.status(200).json({ ok: true, plan, usage });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err) });
   }
