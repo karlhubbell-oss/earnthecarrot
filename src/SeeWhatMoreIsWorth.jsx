@@ -91,7 +91,7 @@ export default function SeeWhatMoreIsWorth({
   const up = (e) => { dragRef.current = null; try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {} onCommit({ target, stretch }); };
 
   // Net / Gross definitions, shown on hover.
-  const NET_DEF = "Your take-home pay after taxes, 401k, healthcare, and other deductions.";
+  const NET_DEF = "Estimated take-home after taxes, 401k, healthcare, and other deductions. Real withholding varies; load a pay statement later to make it exact.";
   const GROSS_DEF = "Your total earnings before any deductions. Base salary plus commission.";
   const Info = ({ text }) => (
     <span className="info" tabIndex={0} aria-label={text}>i<span className="bub">{text}</span></span>
@@ -225,7 +225,7 @@ export default function SeeWhatMoreIsWorth({
           <div className="h"><CarrotMark size={14} color="#E8642C" /> Target Goal</div>
           <div className="pc">{target}% of plan</div>
           <div className="netblock">
-            <div className="lab">Net <Info text={NET_DEF} /></div>
+            <div className="lab">Estimated take-home <Info text={NET_DEF} /></div>
             <div className="netval">{fmt(tTH)}</div>
           </div>
           <div className="grossblock">
@@ -238,7 +238,7 @@ export default function SeeWhatMoreIsWorth({
           <div className="h"><CarrotMark size={14} color="#2E7D43" /> Stretch Goal</div>
           <div className="pc">{stretch}% of plan</div>
           <div className="netblock">
-            <div className="lab">Net <Info text={NET_DEF} /></div>
+            <div className="lab">Estimated take-home <Info text={NET_DEF} /></div>
             <div className="netval">{fmt(sTH)}</div>
           </div>
           <div className="grossblock">
