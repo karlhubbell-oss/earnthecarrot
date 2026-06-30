@@ -28,6 +28,8 @@ export default async function handler(req, res) {
     const k401 = numOrNull(body.k401_pct);
     const health = numOrNull(body.health_monthly);
     const other = numOrNull(body.other_monthly);
+    const targetPct = numOrNull(body.target_pct);
+    const stretchPct = numOrNull(body.stretch_pct);
 
     const sql = neon(process.env.DATABASE_URL);
     const repId = await resolveRepId(sql, identity);
@@ -38,7 +40,9 @@ export default async function handler(req, res) {
         age_bracket = ${ageBracket},
         k401_pct = ${k401},
         health_monthly = ${health},
-        other_monthly = ${other}
+        other_monthly = ${other},
+        target_pct = ${targetPct},
+        stretch_pct = ${stretchPct}
       WHERE id = ${repId}`;
 
     return res.status(200).json({ ok: true, repId });

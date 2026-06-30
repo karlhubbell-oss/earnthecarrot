@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Area, AreaChart, Label } from "recharts";
 import SeeWhatMoreIsWorth from "./SeeWhatMoreIsWorth";
 import PayoutCurveScreen from "./PayoutCurve";
+import { toEarningsPlan } from "./lib/planAdapter";
+import { computeEarnings } from "./lib/earnings";
 import { authClient } from "./lib/auth";
 
 const S = `
@@ -821,6 +823,7 @@ export default function App() {
   const [bigCarrots, setBigCarrots] = useState([{ id: 1, name: "Family trip to Hawaii", cost: 12000 }]);
   const [medCarrots, setMedCarrots] = useState([{ id: 1, name: "Weekend getaway", cost: 2500, period: "Quarterly" }]);
   const [targetPct, setTargetPct] = useState(110);
+  const [stretchPct, setStretchPct] = useState(150);
   const [metrics, setMetrics] = useState([
     { id: 1, emoji: "📞", label: "Cold calls", freq: "Daily", floor: 10, stretch: 15, reminder: true, treat: "" },
     { id: 2, emoji: "🤝", label: "Discovery meetings", freq: "Weekly", floor: 5, stretch: 8, reminder: false, treat: "" },
@@ -1118,14 +1121,13 @@ export default function App() {
   // Persist the rep's take-home profile (the signup + Step-3 fields) to their reps
   // row. Used by signup (after the rep is created) and the Step-3 edit screen. Best
   // effort; the values also live in React state so the UI never blocks on this.
-  const saveRepProfile = async () => {
+  const saveRepProfile = async (extra = {}) => {
     try {
       const headers = { "content-type": "application/json", ...(await authHeaders()) };
-      await fetch("/api/save-rep-profile", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ home_state: suState, age_bracket: suAge, k401_pct: k401Pct, health_monthly: healthMo, other_monthly: otherMonthly }),
-      });
+      // save-rep-profile hard-writes every field, so always send the full profile from
+      // state; `extra` overrides just-changed values that may not have committed yet.
+      const body = { home_state: suState, age_bracket: suAge, k401_pct: k401Pct, health_monthly: healthMo, other_monthly: otherMonthly, target_pct: targetPct, stretch_pct: stretchPct, ...extra };
+      await fetch("/api/save-rep-profile", { method: "POST", headers, body: JSON.stringify(body) });
     } catch (e) { /* non-fatal: profile stays in state, retryable on next save */ }
   };
 
@@ -1383,6 +1385,8 @@ export default function App() {
             if (p.k401_pct != null) setK401Pct(Number(p.k401_pct));
             if (p.health_monthly != null) setHealthMo(Number(p.health_monthly));
             if (p.other_monthly != null) setOtherMonthly(Number(p.other_monthly));
+            if (p.target_pct != null) setTargetPct(Number(p.target_pct));
+            if (p.stretch_pct != null) setStretchPct(Number(p.stretch_pct));
           }
         } else { console.error("ensure-rep failed:", d); }
       } catch (e) {
@@ -1780,6 +1784,7 @@ export default function App() {
     const SummaryIcon = <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" /><path d="M14 3v5h5" /><path d="M9 13h6M9 17h4" /></svg>;
     const TakeIcon = <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8 8 0 0 1-11.5 7.2L4 20l1.3-4.4A8 8 0 1 1 21 11.5Z" /></svg>;
     const CurveIcon = <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M6 15c4 0 5-8 9-8 3 0 3 4 6 4" /></svg>;
+    const GoalIcon = <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F4711A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" /></svg>;
     const cards = hasPlan
       ? [
           { key: "docs", icon: FolderIcon, name: "Comp Plan Documents", desc: "Your comp plan, SPIFF notes, and anything you've dropped in.", cls: "hb-area active", onClick: () => goFlow("comp_documents"), badge: "ready" },
@@ -1788,6 +1793,7 @@ export default function App() {
             ? { key: "take", icon: TakeIcon, name: "Coach's Take", desc: "Coach's read on what this plan is really built to make you do.", cls: "hb-area active", onClick: () => goFlow("coach_take"), badge: "ready" }
             : { key: "take", icon: TakeIcon, name: "Coach's Take", desc: "Coach's read on what your plan is really built to do.", cls: "hb-area soon", hint: "Review your plan first" },
           { key: "curve", icon: CurveIcon, name: "Payout Curve", desc: "See what your plan pays at every level of attainment.", cls: "hb-area active", onClick: () => goFlow("payout_curve"), badge: "ready" },
+          { key: "goals", icon: GoalIcon, name: "Target & Stretch Goals", desc: "Set your target and stretch attainment and see net and gross take-home for each.", cls: "hb-area active", onClick: () => goFlow("earnings_goals"), badge: "ready" },
         ]
       : [
           { key: "docs", icon: FolderIcon, name: "Comp Plan Documents", desc: "Drop in your comp plan and I'll show you what it's really worth.", cls: "hb-area hot", onClick: () => goFlow("comp_documents"), cue: "Start here", button: "Upload your comp plan" },
@@ -2187,6 +2193,56 @@ export default function App() {
         {renderRail()}
         <PayoutCurveScreen plan={compPlan} onBack={() => goFlow("comp_dashboard")} />
       </div>
+    );
+  }
+
+  // ══ EARNINGS GOALS (target / stretch, Net + Gross from the real plan) ═══
+  if (screen === "earnings_goals") {
+    const backLink = { background: "none", border: "none", color: "var(--carrot)", fontWeight: 700, fontSize: 18, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0, marginBottom: 8 };
+    const chrome = (inner) => (
+      <div className="hb-wrap" style={{ paddingTop: TOPBAR_H, paddingLeft: railW }}>
+        <style>{S}</style>
+        <style>{HOME_STYLES}</style>
+        {renderTopBar(true)}
+        {renderRail()}
+        <div className="hb-main" style={{ maxWidth: 620, marginLeft: `max(${railW}px, calc((100vw - 620px) / 2))`, marginRight: "auto" }}>
+          <button style={backLink} onClick={() => goFlow("comp_dashboard")}>‹ Back to Comp Plan</button>
+          {inner}
+        </div>
+      </div>
+    );
+    // Guard: a goal screen needs a plan to compute earnings from.
+    if (!compPlan) {
+      return chrome(<div className="ob-card" style={{ padding: 20, fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>Load your comp plan first and Coach will show what your target and stretch goals are worth.</div>);
+    }
+    // Bridge: real engine -> gross, then the existing net (take-home) calc.
+    const ep = toEarningsPlan(compPlan);
+    const grossAt = (pct) => computeEarnings(ep, pct / 100).totalEarnings;
+    const netAt = (pct) => calcNet(grossAt(pct));
+    // Plan-driven bounds: floor and cap come from the real plan, not 75/200.
+    const floorPct = ep.floor && ep.floor.attainment != null ? Math.round(ep.floor.attainment * 100) : 75;
+    const capPct = ep.cap && ep.cap.attainment != null ? Math.round(ep.cap.attainment * 100) : 200;
+    const planMin = Math.max(0, Math.min(floorPct, capPct - 20)); // floor stays below the ceiling
+    const planMax = Math.max(planMin + 20, capPct);
+    const SEP = 10;
+    const dTarget = Math.min(Math.max(targetPct, planMin), planMax - SEP);
+    const dStretch = Math.min(Math.max(stretchPct, dTarget + SEP), planMax);
+    const milestones = [...new Set([planMin, 100, 125, 150, 175, capPct].filter((v) => v >= planMin && v <= planMax))].sort((a, b) => a - b);
+    const persist = ({ target, stretch }) => { setTargetPct(target); setStretchPct(stretch); saveRepProfile({ target_pct: target, stretch_pct: stretch }); };
+    return chrome(
+      <SeeWhatMoreIsWorth
+        grossAt={grossAt}
+        takeHomeAt={netAt}
+        planMin={planMin}
+        planMax={planMax}
+        minSeparation={SEP}
+        milestones={milestones}
+        defaultTarget={dTarget}
+        defaultStretch={dStretch}
+        crumb="Your earnings goals"
+        onCommit={persist}
+        onContinue={(g) => { persist(g); goFlow("comp_dashboard"); }}
+      />
     );
   }
 
