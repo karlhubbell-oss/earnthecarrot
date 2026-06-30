@@ -824,6 +824,8 @@ export default function App() {
   const [medCarrots, setMedCarrots] = useState([{ id: 1, name: "Weekend getaway", cost: 2500, period: "Quarterly" }]);
   const [targetPct, setTargetPct] = useState(110);
   const [stretchPct, setStretchPct] = useState(150);
+  // Carrots: what the rep is fighting for at each goal (name + estimated cost).
+  const [carrots, setCarrots] = useState({ target: { name: "", cost: "" }, stretch: { name: "", cost: "" } });
   const [metrics, setMetrics] = useState([
     { id: 1, emoji: "📞", label: "Cold calls", freq: "Daily", floor: 10, stretch: 15, reminder: true, treat: "" },
     { id: 2, emoji: "🤝", label: "Discovery meetings", freq: "Weekly", floor: 5, stretch: 8, reminder: false, treat: "" },
@@ -1126,7 +1128,13 @@ export default function App() {
       const headers = { "content-type": "application/json", ...(await authHeaders()) };
       // save-rep-profile hard-writes every field, so always send the full profile from
       // state; `extra` overrides just-changed values that may not have committed yet.
-      const body = { home_state: suState, age_bracket: suAge, k401_pct: k401Pct, health_monthly: healthMo, other_monthly: otherMonthly, target_pct: targetPct, stretch_pct: stretchPct, ...extra };
+      const body = {
+        home_state: suState, age_bracket: suAge, k401_pct: k401Pct, health_monthly: healthMo, other_monthly: otherMonthly,
+        target_pct: targetPct, stretch_pct: stretchPct,
+        target_carrot_name: carrots.target.name, target_carrot_cost: carrots.target.cost === "" ? null : carrots.target.cost,
+        stretch_carrot_name: carrots.stretch.name, stretch_carrot_cost: carrots.stretch.cost === "" ? null : carrots.stretch.cost,
+        ...extra,
+      };
       await fetch("/api/save-rep-profile", { method: "POST", headers, body: JSON.stringify(body) });
     } catch (e) { /* non-fatal: profile stays in state, retryable on next save */ }
   };
@@ -1387,6 +1395,10 @@ export default function App() {
             if (p.other_monthly != null) setOtherMonthly(Number(p.other_monthly));
             if (p.target_pct != null) setTargetPct(Number(p.target_pct));
             if (p.stretch_pct != null) setStretchPct(Number(p.stretch_pct));
+            setCarrots({
+              target: { name: p.target_carrot_name || "", cost: p.target_carrot_cost == null ? "" : String(p.target_carrot_cost) },
+              stretch: { name: p.stretch_carrot_name || "", cost: p.stretch_carrot_cost == null ? "" : String(p.stretch_carrot_cost) },
+            });
           }
         } else { console.error("ensure-rep failed:", d); }
       } catch (e) {
@@ -2229,6 +2241,7 @@ export default function App() {
     const dStretch = Math.min(Math.max(stretchPct, dTarget + SEP), planMax);
     const milestones = [...new Set([planMin, 100, 125, 150, 175, capPct].filter((v) => v >= planMin && v <= planMax))].sort((a, b) => a - b);
     const persist = ({ target, stretch }) => { setTargetPct(target); setStretchPct(stretch); saveRepProfile({ target_pct: target, stretch_pct: stretch }); };
+    const onCarrotChange = (which, field, value) => setCarrots((c) => ({ ...c, [which]: { ...c[which], [field]: value } }));
     return chrome(
       <SeeWhatMoreIsWorth
         grossAt={grossAt}
@@ -2239,7 +2252,12 @@ export default function App() {
         milestones={milestones}
         defaultTarget={dTarget}
         defaultStretch={dStretch}
-        crumb="Your earnings goals"
+        crumb="Strategy · Step 1"
+        title="Set Your Target and Stretch Goals"
+        subhead="Pick the numbers you're playing for, then name the carrot behind each one. This is where your strategy starts."
+        carrots={carrots}
+        onCarrotChange={onCarrotChange}
+        onCarrotBlur={() => saveRepProfile()}
         onCommit={persist}
         onContinue={(g) => { persist(g); goFlow("comp_dashboard"); }}
       />
