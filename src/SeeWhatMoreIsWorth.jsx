@@ -64,9 +64,10 @@ export default function SeeWhatMoreIsWorth({
   crumb = "Step 5 of 8",
   title = null,
   subhead = null,
-  carrots = { target: { name: "", cost: "" }, stretch: { name: "", cost: "" } },
+  carrots = { target: { name: "", cost: "", locked: false }, stretch: { name: "", cost: "", locked: false } },
   onCarrotChange = () => {},   // (which, field, value)
   onCarrotBlur = () => {},     // parent persists on blur
+  onToggleLock = () => {},     // (which, value) -> parent updates + persists lock state
   onContinue = () => {},
   onCommit = () => {},   // called when a marker drag ends, so the parent can persist
 }) {
@@ -101,6 +102,44 @@ export default function SeeWhatMoreIsWorth({
   const Info = ({ text }) => (
     <span className="info" tabIndex={0} aria-label={text}>i<span className="bub">{text}</span></span>
   );
+
+  const LockIcon = ({ open }) => (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="11" width="16" height="9" rx="2" />
+      {open ? <path d="M8 11V8a4 4 0 0 1 7.5-2" /> : <path d="M8 11V8a4 4 0 0 1 8 0v3" />}
+    </svg>
+  );
+  // A carrot: editable inputs with a Lock button, or a locked read-only view with Edit.
+  const renderCarrot = (which, color, placeholder) => {
+    const c = carrots[which] || {};
+    const locked = !!c.locked;
+    return (
+      <div className={`carrot ${which === "target" ? "t" : "s"}${locked ? " locked" : ""}`}>
+        <div className="carrot-h">
+          <CarrotMark size={14} color={color} /> Your {which === "target" ? "Target" : "Stretch"} carrot <Info text={CARROT_DEF} />
+          {locked ? (
+            <button className="carrot-act edit" type="button" onClick={() => onToggleLock(which, false)}>Edit</button>
+          ) : null}
+        </div>
+        {locked ? (
+          <div className="carrot-ro">
+            <div className="ro-row"><span className="ro-lab">What</span><span className="ro-val">{c.name || "Not set"}</span></div>
+            <div className="ro-row"><span className="ro-lab">Cost</span><span className="ro-val">{c.cost === "" || c.cost == null ? "Not set" : fmt(Number(c.cost))}</span></div>
+          </div>
+        ) : (
+          <>
+            <input className="carrot-inp" type="text" placeholder={placeholder} value={c.name || ""}
+              onChange={(e) => onCarrotChange(which, "name", e.target.value)} onBlur={onCarrotBlur} />
+            <input className="carrot-inp" type="number" placeholder="Estimated cost" value={c.cost ?? ""}
+              onChange={(e) => onCarrotChange(which, "cost", e.target.value)} onBlur={onCarrotBlur} />
+            <button className="carrot-act lock" type="button" disabled={!(c.name || "").trim()} onClick={() => onToggleLock(which, true)}>
+              <LockIcon open /> Lock it in
+            </button>
+          </>
+        )}
+      </div>
+    );
+  };
 
   const baseQuota = takeHomeAt(100);
   const tGross = grossAt(target), tTH = takeHomeAt(target);
@@ -177,6 +216,20 @@ export default function SeeWhatMoreIsWorth({
         .swmiw-root .carrot-inp{ width:100%; padding:10px 12px; border:1.5px solid #E7D6C4; border-radius:10px; font-size:14px; font-family:'Hanken Grotesk',sans-serif; background:#fff; color:#1A1410; margin-bottom:8px; box-sizing:border-box; }
         .swmiw-root .carrot-inp:last-child{ margin-bottom:0; }
         .swmiw-root .carrot-inp:focus{ outline:none; border-color:#E8642C; }
+        .swmiw-root .carrot.locked{ background:#F6F1EA; border-style:solid; border-color:#DCC9B4; }
+        .swmiw-root .carrot-h{ flex-wrap:wrap; }
+        /* Lock / Edit action buttons. */
+        .swmiw-root .carrot-act{ cursor:pointer; font-family:'Hanken Grotesk',sans-serif; font-weight:700; border-radius:9px; }
+        .swmiw-root .carrot-act.lock{ display:flex; align-items:center; justify-content:center; gap:6px; width:100%; padding:9px; font-size:13px;
+          border:none; color:#fff; background:linear-gradient(135deg,#E8642C,#FF8A4C); }
+        .swmiw-root .carrot-act.lock:disabled{ background:#E7D6C4; color:#fff; cursor:not-allowed; }
+        .swmiw-root .carrot-act.edit{ margin-left:auto; padding:3px 11px; font-size:11px; background:#fff; border:1.5px solid #D9C3AC; color:#9A6A3E; }
+        .swmiw-root .carrot-act.edit:hover{ border-color:#E8642C; color:#E8642C; }
+        /* Locked read-only view. */
+        .swmiw-root .carrot-ro .ro-row{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:5px 0; border-bottom:1px dashed #E2D2BF; }
+        .swmiw-root .carrot-ro .ro-row:last-child{ border-bottom:none; }
+        .swmiw-root .carrot-ro .ro-lab{ font-size:9.5px; letter-spacing:.04em; text-transform:uppercase; color:#9A8775; font-weight:600; }
+        .swmiw-root .carrot-ro .ro-val{ font-size:14px; font-weight:600; color:#1A1410; text-align:right; }
         .swmiw-root .qbr-note{ font-size:11px; color:#9A8775; line-height:1.45; margin-top:9px; font-style:italic; }
         .swmiw-root .delta{ display:flex; align-items:center; justify-content:center; gap:7px; margin-top:14px; padding:11px 14px;
           border:1px solid #C6E3CE; background:#F1F8F2; border-radius:12px; font-size:13.5px; color:#1F3D2A; }
@@ -255,13 +308,7 @@ export default function SeeWhatMoreIsWorth({
               <div className="grossval">{fmt(tGross)}</div>
             </div>
           </div>
-          <div className="carrot t">
-            <div className="carrot-h"><CarrotMark size={14} color="#E8642C" /> Your Target carrot <Info text={CARROT_DEF} /></div>
-            <input className="carrot-inp" type="text" placeholder="What would you buy? e.g. boat" value={carrots.target.name}
-              onChange={(e) => onCarrotChange("target", "name", e.target.value)} onBlur={onCarrotBlur} />
-            <input className="carrot-inp" type="number" placeholder="Estimated cost" value={carrots.target.cost}
-              onChange={(e) => onCarrotChange("target", "cost", e.target.value)} onBlur={onCarrotBlur} />
-          </div>
+          {renderCarrot("target", "#E8642C", "What would you buy? e.g. boat")}
         </div>
 
         <div className="goalcol">
@@ -276,13 +323,7 @@ export default function SeeWhatMoreIsWorth({
               <div className="grossval">{fmt(sGross)}</div>
             </div>
           </div>
-          <div className="carrot s">
-            <div className="carrot-h"><CarrotMark size={14} color="#2E7D43" /> Your Stretch carrot <Info text={CARROT_DEF} /></div>
-            <input className="carrot-inp" type="text" placeholder="What would you buy? e.g. kitchen remodel" value={carrots.stretch.name}
-              onChange={(e) => onCarrotChange("stretch", "name", e.target.value)} onBlur={onCarrotBlur} />
-            <input className="carrot-inp" type="number" placeholder="Estimated cost" value={carrots.stretch.cost}
-              onChange={(e) => onCarrotChange("stretch", "cost", e.target.value)} onBlur={onCarrotBlur} />
-          </div>
+          {renderCarrot("stretch", "#2E7D43", "What would you buy? e.g. kitchen remodel")}
         </div>
       </div>
 

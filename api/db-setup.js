@@ -117,6 +117,9 @@ export default async function handler(req, res) {
     await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS target_carrot_cost numeric`;
     await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS stretch_carrot_name text`;
     await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS stretch_carrot_cost numeric`;
+    // Per-goal lock state (each card locks independently).
+    await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS target_locked boolean DEFAULT false`;
+    await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS stretch_locked boolean DEFAULT false`;
 
     const tables = tableNames.map((t) => ({ table: t, status: existing.has(t) ? "already existed" : "created" }));
     return res.status(200).json({ ok: true, tables, migrations: [
@@ -125,6 +128,7 @@ export default async function handler(req, res) {
       "reps.{home_state,age_bracket,k401_pct,health_monthly,other_monthly}",
       "reps.{target_pct,stretch_pct}",
       "reps.{target_carrot_name,target_carrot_cost,stretch_carrot_name,stretch_carrot_cost}",
+      "reps.{target_locked,stretch_locked}",
     ] });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err && err.message ? err.message : err) });
