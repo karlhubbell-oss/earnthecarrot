@@ -825,7 +825,7 @@ export default function App() {
   const [targetPct, setTargetPct] = useState(110);
   const [stretchPct, setStretchPct] = useState(150);
   // Carrots: what the rep is fighting for at each goal (name + estimated cost).
-  const [carrots, setCarrots] = useState({ target: { name: "", cost: "" }, stretch: { name: "", cost: "" } });
+  const [carrots, setCarrots] = useState({ target: { name: "", cost: "", locked: false }, stretch: { name: "", cost: "", locked: false } });
   const [metrics, setMetrics] = useState([
     { id: 1, emoji: "📞", label: "Cold calls", freq: "Daily", floor: 10, stretch: 15, reminder: true, treat: "" },
     { id: 2, emoji: "🤝", label: "Discovery meetings", freq: "Weekly", floor: 5, stretch: 8, reminder: false, treat: "" },
@@ -1133,6 +1133,7 @@ export default function App() {
         target_pct: targetPct, stretch_pct: stretchPct,
         target_carrot_name: carrots.target.name, target_carrot_cost: carrots.target.cost === "" ? null : carrots.target.cost,
         stretch_carrot_name: carrots.stretch.name, stretch_carrot_cost: carrots.stretch.cost === "" ? null : carrots.stretch.cost,
+        target_locked: !!carrots.target.locked, stretch_locked: !!carrots.stretch.locked,
         ...extra,
       };
       await fetch("/api/save-rep-profile", { method: "POST", headers, body: JSON.stringify(body) });
@@ -1396,8 +1397,8 @@ export default function App() {
             if (p.target_pct != null) setTargetPct(Number(p.target_pct));
             if (p.stretch_pct != null) setStretchPct(Number(p.stretch_pct));
             setCarrots({
-              target: { name: p.target_carrot_name || "", cost: p.target_carrot_cost == null ? "" : String(p.target_carrot_cost) },
-              stretch: { name: p.stretch_carrot_name || "", cost: p.stretch_carrot_cost == null ? "" : String(p.stretch_carrot_cost) },
+              target: { name: p.target_carrot_name || "", cost: p.target_carrot_cost == null ? "" : String(p.target_carrot_cost), locked: p.target_locked === true },
+              stretch: { name: p.stretch_carrot_name || "", cost: p.stretch_carrot_cost == null ? "" : String(p.stretch_carrot_cost), locked: p.stretch_locked === true },
             });
           }
         } else { console.error("ensure-rep failed:", d); }
@@ -2242,6 +2243,12 @@ export default function App() {
     const milestones = [...new Set([planMin, 100, 125, 150, 175, capPct].filter((v) => v >= planMin && v <= planMax))].sort((a, b) => a - b);
     const persist = ({ target, stretch }) => { setTargetPct(target); setStretchPct(stretch); saveRepProfile({ target_pct: target, stretch_pct: stretch }); };
     const onCarrotChange = (which, field, value) => setCarrots((c) => ({ ...c, [which]: { ...c[which], [field]: value } }));
+    // Toggle a card's lock and persist immediately; override the just-changed flag so
+    // it is saved regardless of the async state update.
+    const onToggleLock = (which, value) => {
+      setCarrots((c) => ({ ...c, [which]: { ...c[which], locked: value } }));
+      saveRepProfile(which === "target" ? { target_locked: value } : { stretch_locked: value });
+    };
     return chrome(
       <SeeWhatMoreIsWorth
         grossAt={grossAt}
@@ -2258,6 +2265,7 @@ export default function App() {
         carrots={carrots}
         onCarrotChange={onCarrotChange}
         onCarrotBlur={() => saveRepProfile()}
+        onToggleLock={onToggleLock}
         onCommit={persist}
         onContinue={(g) => { persist(g); goFlow("comp_dashboard"); }}
       />

@@ -34,6 +34,8 @@ export default async function handler(req, res) {
     const tCarrotCost = numOrNull(body.target_carrot_cost);
     const sCarrotName = typeof body.stretch_carrot_name === "string" && body.stretch_carrot_name.trim() ? body.stretch_carrot_name.trim() : null;
     const sCarrotCost = numOrNull(body.stretch_carrot_cost);
+    const targetLocked = body.target_locked === true;
+    const stretchLocked = body.stretch_locked === true;
 
     const sql = neon(process.env.DATABASE_URL);
     const repId = await resolveRepId(sql, identity);
@@ -50,7 +52,9 @@ export default async function handler(req, res) {
         target_carrot_name = ${tCarrotName},
         target_carrot_cost = ${tCarrotCost},
         stretch_carrot_name = ${sCarrotName},
-        stretch_carrot_cost = ${sCarrotCost}
+        stretch_carrot_cost = ${sCarrotCost},
+        target_locked = ${targetLocked},
+        stretch_locked = ${stretchLocked}
       WHERE id = ${repId}`;
 
     return res.status(200).json({ ok: true, repId });
