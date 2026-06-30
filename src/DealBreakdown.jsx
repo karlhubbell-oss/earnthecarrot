@@ -290,9 +290,15 @@ export default function DealBreakdown({
               {/* deal-size rows: Big on top → Small on the bottom */}
               <div className="dbk-rows">
                 <div className="dbk-rows-head">
-                  <span className="rh-size">Deal size</span>
-                  <span className="rh-typ">Typical / yr</span>
+                  <span className="rh-size">
+                    Quota retired per deal
+                    <span className="dbk-info" tabIndex={0} aria-label="The amount of each deal that counts toward your quota, not necessarily the full contract value.">
+                      i<span className="dbk-bub">The amount of each deal that counts toward your quota — not necessarily the full contract value.</span>
+                    </span>
+                  </span>
+                  <span className="rh-typ">Deals / yr</span>
                   <span className="rh-cnt">In your plan</span>
+                  <span className="rh-total">Retires</span>
                 </div>
                 {c.sizes.map((r, si) => (
                   <div key={r.label} className="dbk-row">
@@ -317,6 +323,7 @@ export default function DealBreakdown({
                       onChange={(e) => editSize(ci, si, { typical: digitsOf(e.target.value) })}
                     />
                     <Stepper value={r.count} onChange={(v) => editSize(ci, si, { count: v })} />
+                    <div className="dbk-row-total" title={`${r.count} × ${fmt(num(r.size))}`}>{fmt(num(r.size) * r.count)}</div>
                   </div>
                 ))}
               </div>
@@ -410,11 +417,20 @@ const CSS = `
 .dbk-source{ font-size:11.5px; color:#9A6A3E; line-height:1.45; margin-top:7px; font-style:italic; }
 
 .dbk-rows{ margin-bottom:12px; }
-.dbk-rows-head{ display:grid; grid-template-columns:64px 1fr 92px 104px; gap:10px; align-items:center; padding:0 2px 6px; }
+.dbk-rows-head{ display:grid; grid-template-columns:54px 1fr 72px 96px 84px; gap:9px; align-items:center; padding:0 2px 6px; }
 .dbk-rows-head span{ font-size:10px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; color:var(--muted); }
-.dbk-rows-head .rh-size{ grid-column:1 / 3; } .dbk-rows-head .rh-typ{ text-align:center; } .dbk-rows-head .rh-cnt{ text-align:center; }
-.dbk-row{ display:grid; grid-template-columns:64px 1fr 92px 104px; gap:10px; align-items:center; padding:6px 0; }
+.dbk-rows-head .rh-size{ grid-column:1 / 3; } .dbk-rows-head .rh-typ{ text-align:center; } .dbk-rows-head .rh-cnt{ text-align:center; } .dbk-rows-head .rh-total{ text-align:right; }
+.dbk-row{ display:grid; grid-template-columns:54px 1fr 72px 96px 84px; gap:9px; align-items:center; padding:6px 0; }
 .dbk-row-tag{ font-size:12px; font-weight:800; color:var(--ink); }
+.dbk-row-total{ text-align:right; font-size:14px; font-weight:800; color:var(--carrot-dark); white-space:nowrap; }
+/* info dot + hover/focus bubble (matches the goals screen pattern) */
+.dbk-info{ position:relative; display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border-radius:50%;
+  border:1px solid #C9B49E; color:#9A8775; font-size:9px; font-style:italic; font-weight:700; cursor:help; font-family:Georgia,serif;
+  vertical-align:middle; margin-left:5px; text-transform:none; letter-spacing:0; }
+.dbk-info .dbk-bub{ position:absolute; bottom:150%; left:0; transform:translateX(-8%); width:220px; background:var(--ink); color:#F7EFE6;
+  font-size:11px; line-height:1.45; letter-spacing:0; text-transform:none; font-weight:500; padding:9px 11px; border-radius:8px;
+  box-shadow:0 8px 20px -6px rgba(0,0,0,.5); opacity:0; visibility:hidden; transition:opacity .15s; z-index:5; pointer-events:none; }
+.dbk-info:hover .dbk-bub, .dbk-info:focus .dbk-bub{ opacity:1; visibility:visible; }
 .dbk-field{ border:1.5px solid var(--border); border-radius:10px; background:#fff; font-family:'DM Sans',sans-serif; font-size:15px; color:var(--ink); }
 .dbk-field:focus-within, .dbk-field:focus{ outline:none; border-color:var(--carrot); }
 .dbk-field-size{ display:flex; align-items:center; gap:6px; padding:0 8px; }
@@ -455,6 +471,8 @@ const CSS = `
   .dbk-target-inp{ font-size:30px; }
 }
 @media(max-width:520px){
-  .dbk-rows-head, .dbk-row{ grid-template-columns:54px 1fr 76px 92px; gap:7px; }
+  .dbk-rows-head, .dbk-row{ grid-template-columns:40px minmax(66px,1fr) 50px 80px 64px; gap:5px; }
+  .dbk-field-size input{ font-size:14px; }
+  .dbk-row-total{ font-size:13px; }
 }
 `;
