@@ -61,7 +61,9 @@ export default function SeeWhatMoreIsWorth({
   topTierName = null,
   defaultTarget = 110,
   defaultStretch = 150,
+  crumb = "Step 5 of 8",
   onContinue = () => {},
+  onCommit = () => {},   // called when a marker drag ends, so the parent can persist
 }) {
   const grossAt = grossProp || sampleGross;
   const takeHomeAt = thProp || sampleTakeHome;
@@ -86,7 +88,14 @@ export default function SeeWhatMoreIsWorth({
     if (dragRef.current === "target") setTarget(Math.max(MIN, Math.min(v, stretch - SEP)));
     else setStretch(Math.min(MAX, Math.max(v, target + SEP)));
   };
-  const up = (e) => { dragRef.current = null; try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {} };
+  const up = (e) => { dragRef.current = null; try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {} onCommit({ target, stretch }); };
+
+  // Net / Gross definitions, shown on hover.
+  const NET_DEF = "Your take-home pay after taxes, 401k, healthcare, and other deductions.";
+  const GROSS_DEF = "Your total earnings before any deductions. Base salary plus commission.";
+  const Info = ({ text }) => (
+    <span className="info" tabIndex={0} aria-label={text}>i<span className="bub">{text}</span></span>
+  );
 
   const baseQuota = takeHomeAt(100);
   const tGross = grossAt(target), tTH = takeHomeAt(target);
@@ -136,10 +145,21 @@ export default function SeeWhatMoreIsWorth({
         .swmiw-root .gcard .h{ display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px; }
         .swmiw-root .gcard.t .h{ color:#C25A28; } .swmiw-root .gcard.s .h{ color:#2E7D43; }
         .swmiw-root .gcard .pc{ font-size:10.5px; color:#8A7460; margin-top:1px; }
-        .swmiw-root .gcard .line{ margin-top:8px; }
-        .swmiw-root .gcard .lab{ font-size:9.5px; letter-spacing:.04em; text-transform:uppercase; color:#9A8775; }
-        .swmiw-root .gcard .val{ font-family:'Playfair Display',serif; font-size:17px; font-weight:600; }
-        .swmiw-root .gcard .add{ font-size:12px; font-weight:700; margin-top:8px; }
+        .swmiw-root .gcard .lab{ font-size:9.5px; letter-spacing:.04em; text-transform:uppercase; color:#9A8775; display:flex; align-items:center; gap:4px; }
+        /* Net is the hero number; gross sits below it, smaller and muted. */
+        .swmiw-root .gcard .netblock{ margin-top:10px; }
+        .swmiw-root .gcard .netval{ font-family:'Playfair Display',serif; font-size:30px; font-weight:700; line-height:1.05; margin-top:1px; }
+        .swmiw-root .gcard.t .netval{ color:#C25A28; } .swmiw-root .gcard.s .netval{ color:#2E7D43; }
+        .swmiw-root .gcard .grossblock{ margin-top:9px; }
+        .swmiw-root .gcard .grossval{ font-family:'Playfair Display',serif; font-size:16px; font-weight:600; color:#7A6A55; margin-top:1px; }
+        /* Info dot + hover bubble for the Net / Gross definitions. */
+        .swmiw-root .info{ position:relative; display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border-radius:50%;
+          border:1px solid #C9B49E; color:#9A8775; font-size:9px; font-style:italic; font-weight:700; cursor:help; font-family:Georgia,serif; }
+        .swmiw-root .info .bub{ position:absolute; bottom:140%; left:50%; transform:translateX(-50%); width:190px; background:#1A1410; color:#F7EFE6;
+          font-size:11px; line-height:1.4; letter-spacing:0; text-transform:none; font-weight:500; padding:8px 10px; border-radius:8px; box-shadow:0 8px 20px -6px rgba(0,0,0,.5);
+          opacity:0; visibility:hidden; transition:opacity .15s; z-index:5; pointer-events:none; }
+        .swmiw-root .info:hover .bub, .swmiw-root .info:focus .bub{ opacity:1; visibility:visible; }
+        .swmiw-root .gcard .add{ font-size:12px; font-weight:700; margin-top:10px; }
         .swmiw-root .gcard.t .add{ color:#C25A28; } .swmiw-root .gcard.s .add{ color:#2E7D43; }
         .swmiw-root .gcard .add.hero{ background:#E9F7EC; border-radius:8px; padding:6px 9px; font-size:13px; }
 
@@ -171,7 +191,7 @@ export default function SeeWhatMoreIsWorth({
       `}</style>
 
       <div className="topbar">
-        <div className="crumb">Step 5 of 8</div>
+        <div className="crumb">{crumb}</div>
         <div className="screen-title">{title}</div>
         <div className="screen-sub">Move your Target and Stretch goals to see how much additional take-home income is possible.</div>
       </div>
@@ -204,17 +224,28 @@ export default function SeeWhatMoreIsWorth({
         <div className="gcard t">
           <div className="h"><CarrotMark size={14} color="#E8642C" /> Target Goal</div>
           <div className="pc">{target}% of plan</div>
-          <div className="line"><div className="lab">Gross</div><div className="val">{fmt(tGross)}</div></div>
-          <div className="line"><div className="lab">Take Home</div><div className="val">{fmt(tTH)}</div></div>
-          <div className="add">+{fmt(tVsQuota)} vs quota</div>
+          <div className="netblock">
+            <div className="lab">Net <Info text={NET_DEF} /></div>
+            <div className="netval">{fmt(tTH)}</div>
+          </div>
+          <div className="grossblock">
+            <div className="lab">Gross <Info text={GROSS_DEF} /></div>
+            <div className="grossval">{fmt(tGross)}</div>
+          </div>
+          <div className="add">+{fmt(tVsQuota)} net vs quota</div>
         </div>
         <div className="gcard s">
           <div className="h"><CarrotMark size={14} color="#2E7D43" /> Stretch Goal</div>
           <div className="pc">{stretch}% of plan</div>
-          <div className="line"><div className="lab">Gross</div><div className="val">{fmt(sGross)}</div></div>
-          <div className="line"><div className="lab">Take Home</div><div className="val">{fmt(sTH)}</div></div>
-          <div className="add">+{fmt(sVsQuota)} vs quota</div>
-          <div className="add hero">+{fmt(gap)} vs target</div>
+          <div className="netblock">
+            <div className="lab">Net <Info text={NET_DEF} /></div>
+            <div className="netval">{fmt(sTH)}</div>
+          </div>
+          <div className="grossblock">
+            <div className="lab">Gross <Info text={GROSS_DEF} /></div>
+            <div className="grossval">{fmt(sGross)}</div>
+          </div>
+          <div className="add hero">+{fmt(gap)} net vs target</div>
         </div>
       </div>
 
