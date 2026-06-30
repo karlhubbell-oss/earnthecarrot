@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Area, AreaChart, Label } from "recharts";
 import SeeWhatMoreIsWorth from "./SeeWhatMoreIsWorth";
+import DealBreakdown from "./DealBreakdown";
 import PayoutCurveScreen from "./PayoutCurve";
 import { toEarningsPlan } from "./lib/planAdapter";
 import { computeEarnings } from "./lib/earnings";
@@ -2333,7 +2334,36 @@ export default function App() {
         onCarrotBlur={() => saveRepProfile()}
         onToggleLock={onToggleLock}
         onCommit={persist}
-        onContinue={(g) => { persist(g); goFlow("comp_dashboard"); }}
+        onContinue={(g) => { persist(g); goFlow("deal_breakdown"); }}
+      />
+    );
+  }
+
+  // ══ DEAL BREAKDOWN (Strategy Step 2: stretch goal -> concrete deals) ════
+  if (screen === "deal_breakdown") {
+    const backLink = { background: "none", border: "none", color: "var(--carrot)", fontWeight: 700, fontSize: 18, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0, marginBottom: 8 };
+    const chrome = (inner) => (
+      <div className="hb-wrap" style={{ paddingTop: TOPBAR_H, paddingLeft: railW }}>
+        <style>{S}</style>
+        <style>{HOME_STYLES}</style>
+        {renderTopBar(true)}
+        {renderRail()}
+        <div className="hb-main" style={{ maxWidth: 1160, marginLeft: `max(${railW}px, calc((100vw - 1160px) / 2))`, marginRight: "auto" }}>
+          <button style={backLink} onClick={() => goFlow("earnings_goals")}>‹ Back to your goals</button>
+          {inner}
+        </div>
+      </div>
+    );
+    if (!compPlan) {
+      return chrome(<div className="ob-card" style={{ padding: 20, fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>Load your comp plan and set your goals first, and Coach will break your stretch number into the deals it takes to get there.</div>);
+    }
+    return chrome(
+      <DealBreakdown
+        plan={compPlan}
+        targetPct={targetPct}
+        stretchPct={stretchPct}
+        onBack={() => goFlow("earnings_goals")}
+        onContinue={() => {}}
       />
     );
   }
