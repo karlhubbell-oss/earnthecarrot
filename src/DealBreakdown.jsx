@@ -71,9 +71,9 @@ function proposeSizes(target) {
   const medCount = c(0.35, medium);
   const smallCount = c(0.25, small);
   return [
-    { label: "Big", size: String(big), typical: String(bigCount), count: bigCount },
-    { label: "Medium", size: String(medium), typical: String(medCount), count: medCount },
-    { label: "Small", size: String(small), typical: String(smallCount), count: smallCount },
+    { label: "Big", size: String(big), count: bigCount },
+    { label: "Medium", size: String(medium), count: medCount },
+    { label: "Small", size: String(small), count: smallCount },
   ];
 }
 
@@ -150,7 +150,6 @@ function buildComps(plan, targetPct, stretchPct, stored) {
       return {
         ...sz,
         size: sb.quota_per_deal != null ? String(sb.quota_per_deal) : sz.size,
-        typical: sb.deals_per_year == null ? "" : String(sb.deals_per_year),
         count: Number.isFinite(Number(sb.count)) ? Number(sb.count) : sz.count,
       };
     });
@@ -175,7 +174,6 @@ function serialize(comps, ctx) {
         band: s.label.toLowerCase(),
         label: s.label,
         quota_per_deal: num(s.size),
-        deals_per_year: s.typical === "" || s.typical == null ? null : num(s.typical),
         count: s.count,
       })),
     })),
@@ -382,7 +380,6 @@ export default function DealBreakdown({
                       i<span className="dbk-bub">The amount of each deal that counts toward your quota — not necessarily the full contract value.</span>
                     </span>
                   </span>
-                  <span className="rh-typ">Deals / yr</span>
                   <span className="rh-cnt">In your plan</span>
                   <span className="rh-total">Retires</span>
                 </div>
@@ -400,14 +397,6 @@ export default function DealBreakdown({
                         onChange={(e) => editSize(ci, si, { size: digitsOf(e.target.value) })}
                       />
                     </div>
-                    <input
-                      className="dbk-field dbk-typ"
-                      type="text"
-                      inputMode="numeric"
-                      value={digitsOf(r.typical)}
-                      placeholder="—"
-                      onChange={(e) => editSize(ci, si, { typical: digitsOf(e.target.value) })}
-                    />
                     <Stepper value={r.count} onChange={(v) => editSize(ci, si, { count: v })} />
                     <div className="dbk-row-total" title={`${r.count} × ${fmt(num(r.size))}`}>{fmt(num(r.size) * r.count)}</div>
                   </div>
@@ -503,10 +492,10 @@ const CSS = `
 .dbk-source{ font-size:11.5px; color:#9A6A3E; line-height:1.45; margin-top:7px; font-style:italic; }
 
 .dbk-rows{ margin-bottom:12px; }
-.dbk-rows-head{ display:grid; grid-template-columns:54px 1fr 72px 96px 84px; gap:9px; align-items:center; padding:0 2px 6px; }
+.dbk-rows-head{ display:grid; grid-template-columns:54px 1fr 96px 84px; gap:9px; align-items:center; padding:0 2px 6px; }
 .dbk-rows-head span{ font-size:10px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; color:var(--muted); }
-.dbk-rows-head .rh-size{ grid-column:1 / 3; } .dbk-rows-head .rh-typ{ text-align:center; } .dbk-rows-head .rh-cnt{ text-align:center; } .dbk-rows-head .rh-total{ text-align:right; }
-.dbk-row{ display:grid; grid-template-columns:54px 1fr 72px 96px 84px; gap:9px; align-items:center; padding:6px 0; }
+.dbk-rows-head .rh-size{ grid-column:1 / 3; } .dbk-rows-head .rh-cnt{ text-align:center; } .dbk-rows-head .rh-total{ text-align:right; }
+.dbk-row{ display:grid; grid-template-columns:54px 1fr 96px 84px; gap:9px; align-items:center; padding:6px 0; }
 .dbk-row-tag{ font-size:12px; font-weight:800; color:var(--ink); }
 .dbk-row-total{ text-align:right; font-size:14px; font-weight:800; color:var(--carrot-dark); white-space:nowrap; }
 /* info dot + hover/focus bubble (matches the goals screen pattern) */
@@ -525,7 +514,6 @@ const CSS = `
 .dbk-mic{ flex:none; display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:7px; border:none;
   background:var(--carrot-light); color:var(--carrot-dark); cursor:pointer; }
 .dbk-mic:hover{ background:#F8D5BD; }
-.dbk-typ{ text-align:center; padding:9px 6px; font-weight:600; }
 .dbk-step{ display:flex; align-items:center; justify-content:space-between; gap:4px; border:1.5px solid var(--border); border-radius:10px; background:#fff; padding:3px; }
 .dbk-step button{ width:30px; height:30px; border:none; border-radius:8px; background:var(--cream); color:var(--carrot-dark); font-size:20px; font-weight:700;
   line-height:1; cursor:pointer; font-family:'DM Sans',sans-serif; }
@@ -557,7 +545,7 @@ const CSS = `
   .dbk-target-inp{ font-size:30px; }
 }
 @media(max-width:520px){
-  .dbk-rows-head, .dbk-row{ grid-template-columns:40px minmax(66px,1fr) 50px 80px 64px; gap:5px; }
+  .dbk-rows-head, .dbk-row{ grid-template-columns:40px minmax(66px,1fr) 80px 64px; gap:5px; }
   .dbk-field-size input{ font-size:14px; }
   .dbk-row-total{ font-size:13px; }
 }
