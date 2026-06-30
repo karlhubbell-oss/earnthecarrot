@@ -806,6 +806,8 @@ export default function App() {
   // Gentle unconfirmed-file reminder (session-scoped, never a hard block).
   const [railCollapsed, setRailCollapsed] = useState(false); // left nav rail collapsed (session)
   const [reminder, setReminder] = useState(null);          // { fileName, proceed } or null
+  const [usageNotice, setUsageNotice] = useState(null);    // { level: "half"|"threeq"|"blocked", used, limit } or null
+  const usageShownRef = useRef(new Set());                 // thresholds already shown this session (dedup)
   const [remindDontAsk, setRemindDontAsk] = useState(false);
   const [remindSuppressed, setRemindSuppressed] = useState(false);
   const [remindedFiles, setRemindedFiles] = useState({});  // filename -> already nudged this session
@@ -1028,11 +1030,19 @@ export default function App() {
       const pdfBase64 = await fileToBase64(file);
       const res = await fetch("/api/ingest", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify({ pdfBase64, filename: file.name }),
       });
       let data = null;
       try { data = await res.json(); } catch (e) { data = null; }
+      // Daily usage limit reached: surface the friendly block, stop here.
+      if (res.status === 429) {
+        noteUsageBlocked(data && data.usage);
+        setIngestError("You've reached your daily usage limit. It resets at midnight Pacific.");
+        setReadProgress(0);
+        setIngesting(false);
+        return;
+      }
       if (!res.ok || !data || !data.ok) {
         // A 422 means the model could not read this as a comp plan, so retrying the
         // same file will not help. Anything else is a server or timeout problem.
@@ -1043,6 +1053,7 @@ export default function App() {
         setIngesting(false);
         return; // keep the file row so the message shows with a way to dismiss
       }
+      noteUsage(data.usage); // reflect the true server count in the usage popups
       setReadProgress(100);
       setCompPlan(data.plan);
       await savePlanToDb(data.plan, file.name); // persist now so confirm sees plan_id (no later double-write)
@@ -1100,6 +1111,49 @@ export default function App() {
     setRemindDontAsk(false);
     goFlow("plan_summary");
   };
+  // Usage popups read the TRUE server count from API responses (used/limit/remaining).
+  // Gentle "heads up" at 50% and 75% (once each per session), clear block at 100%.
+  const noteUsage = (usage) => {
+    if (!usage || !usage.limit) return;
+    if (usage.remaining <= 0) { setUsageNotice({ level: "blocked", used: usage.used, limit: usage.limit }); return; }
+    const pct = usage.used / usage.limit;
+    if (pct >= 0.75 && !usageShownRef.current.has("threeq")) {
+      usageShownRef.current.add("threeq");
+      setUsageNotice({ level: "threeq", used: usage.used, limit: usage.limit });
+    } else if (pct >= 0.5 && !usageShownRef.current.has("half")) {
+      usageShownRef.current.add("half");
+      setUsageNotice({ level: "half", used: usage.used, limit: usage.limit });
+    }
+  };
+  // Called when an op is blocked server-side (HTTP 429). Surfaces the friendly block.
+  const noteUsageBlocked = (usage) => {
+    setUsageNotice({ level: "blocked", used: usage && usage.used != null ? usage.used : null, limit: usage && usage.limit != null ? usage.limit : null });
+  };
+  const renderUsageNotice = () => {
+    if (!usageNotice) return null;
+    const blocked = usageNotice.level === "blocked";
+    const { used, limit } = usageNotice;
+    const accent = blocked ? "#B91C1C" : "var(--carrot)";
+    const bg = blocked ? "#FEF2F2" : "#FFF6EF";
+    const border = blocked ? "#FCA5A5" : "#F0D9C6";
+    const title = blocked ? "That's your day on Coach" : "Heads up";
+    const body = blocked
+      ? `You've used all ${limit != null ? limit : "your"} of today's Coach actions. It resets at midnight Pacific. Tomorrow's a fresh batch.`
+      : `You've used ${used} of your ${limit} Coach actions today.${usageNotice.level === "threeq" ? " A few left before it resets at midnight Pacific." : " Plenty left for today."}`;
+    return (
+      <div style={{ position: "fixed", left: 0, right: 0, bottom: 24, zIndex: 210, display: "flex", justifyContent: "center", padding: "0 16px", pointerEvents: "none" }}>
+        <div style={{ pointerEvents: "auto", width: "100%", maxWidth: 460, background: bg, border: `1.5px solid ${border}`, borderRadius: 16, padding: "16px 18px", boxShadow: "0 18px 44px -18px rgba(26,18,8,0.4)", display: "flex", gap: 12, alignItems: "flex-start" }}>
+          <div style={{ flex: "none", fontSize: 22, lineHeight: 1 }}>🥕</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "'Playfair Display',serif", fontWeight: 800, fontSize: 18, color: accent, marginBottom: 3 }}>{title}</div>
+            <div style={{ fontSize: 15, color: "var(--ink)", lineHeight: 1.5 }}>{body}</div>
+          </div>
+          <button onClick={() => setUsageNotice(null)} aria-label="Dismiss" style={{ flex: "none", background: "none", border: "none", color: "var(--muted)", fontSize: 20, lineHeight: 1, cursor: "pointer", padding: 2 }}>×</button>
+        </div>
+      </div>
+    );
+  };
+
   const renderReminder = () => {
     if (!reminder) return null;
     return (
@@ -1583,12 +1637,22 @@ export default function App() {
       }
       const r = await fetch("/api/coach-read", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify(priorPlan ? { plan, priorPlan } : { plan }),
       });
       const data = await r.json().catch(() => null);
       if (reqId !== coachReqRef.current) return; // a newer run superseded this one
+      if (r.status === 429) {
+        // Daily usage limit reached: surface the friendly block, clear the spinner.
+        noteUsageBlocked(data && data.usage);
+        setCoachRead(null);
+        coachReadForRef.current = null;
+        setCoachProgress(100);
+        setCoachReadLoading(false);
+        return;
+      }
       if (data && data.ok && data.read) {
+        noteUsage(data.usage); // reflect the true server count in the usage popups
         setCoachRead(data.read);
         // Persist onto this plan version so reopening shows it instantly. Best-effort.
         if (planId) {
@@ -1943,6 +2007,7 @@ export default function App() {
         <style>{HOME_STYLES}</style>
         <style>{`@keyframes azspin{to{transform:rotate(360deg);}}@keyframes confirmpulse{0%{box-shadow:0 0 0 0 rgba(244,113,26,0.45);}70%{box-shadow:0 0 0 10px rgba(244,113,26,0);}100%{box-shadow:0 0 0 0 rgba(244,113,26,0);}}`}</style>
         {renderReminder()}
+        {renderUsageNotice()}
         {renderTopBar(true)}
         {renderRail()}
         <div className="hb-main">
@@ -2086,6 +2151,7 @@ export default function App() {
         <style>{S}</style>
         <style>{OB_STYLES}</style>
         <style>{HOME_STYLES}</style>
+        {renderUsageNotice()}
         {renderTopBar(true)}
         {renderRail()}
         {/* Center in the viewport with a max readable width; never underlap the fixed rail. */}
