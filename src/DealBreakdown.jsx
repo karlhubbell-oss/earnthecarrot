@@ -2,27 +2,25 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { toEarningsPlan } from "./lib/planAdapter.js";
 
 /*
-  DealBreakdown - Strategy Step 2, tier setup.
+  DealBreakdown - Strategy Step 2, deal tiers as a compact table.
 
-  The evolution of the old big/medium/small deal breakdown. Tiers are now flexible
-  (1 to many), a tier is defined by SIZE plus CYCLE, and deal type (New Logo /
-  Expansion / Renewal) is a tag a tier carries, not the axis that organizes tiers.
+  One row per tier (a tier is a deal type: New Logo, Expansion, Renewal, and so on).
+  Rows stay compact so every tier is visible together with the running stretch total.
+  Four columns per row: Deal Size (a single dollar amount), Deal Quantity (a stepper),
+  Sales Cycle Length (whole months, stored for a later build), and Total Revenue
+  (Deal Size times Deal Quantity).
 
-  We reuse the real plan and engine: totalQuota comes from toEarningsPlan (the same
-  adapter the payout curve and goals screens use), and everything measures toward the
-  rep's STRETCH quota (totalQuota x stretch%), with TARGET shown as a milestone.
+  We reuse the real plan and engine: totalQuota comes from toEarningsPlan, and
+  everything measures toward the rep's STRETCH quota (totalQuota times stretch %), with
+  TARGET shown as a milestone tick.
 
-  This build is the clean data foundation the planning timeline sits on later. It does
-  NOT build the timeline, quarter placement, or deal dependencies.
+  This is planning data, not the penny exact comp math, and it feeds a later timeline.
 
   Props:
-    plan        -> the rep's real comp plan (get-plan shape)
-    targetPct   -> rep's target attainment %  (default 110)
-    stretchPct  -> rep's stretch attainment % (default 150), the finish line
-    stored      -> the persisted deal_plan (v2 tiers, or old v1 component/band blob)
-    onPersist(obj) -> save the structured deal_plan (debounced by the caller pattern)
-    onBack()    -> back to Step 1 (goals)
-    onContinue()-> the "place these deals across the year" CTA (planner, a later build)
+    plan, targetPct, stretchPct   -> the rep's real plan and goals
+    stored                        -> persisted deal_plan (v3 tiers, or an older blob)
+    onPersist(obj)                -> save the structured deal_plan
+    onBack(), onContinue()        -> navigation
 */
 
 // ── formatting: all money routes through fmt, no hardcoded currency ─────────
@@ -34,8 +32,8 @@ const moneyDisplay = (s) => {
   return d ? fmt(Number(d)) : "";
 };
 
-// Round to a sensible planning step for its magnitude. These are estimates, so a
-// derived range reads as "$280k to $420k", never "$281,930 to $418,070".
+// Round to a sensible planning step for its magnitude (used only when we have to
+// collapse an old range down to a single midpoint size).
 function niceRound(v) {
   if (!v || v <= 0) return 0;
   let step;
@@ -48,16 +46,14 @@ function niceRound(v) {
 }
 
 // ── visual system: ONE config map, so a different plan's tiers and components flow
-// through with no code change. Icon is chosen by tier RANK (size), color by type. ──
+// through with no code change. Icon by tier RANK (size), color by type tag. ─────────
 const VISUAL = {
-  // size buckets, assigned by a tier's rank among its siblings (largest -> "large").
   sizeIcon: {
-    solo: { paths: ["M12 2 22 8.5v7L12 22 2 15.5v-7Z", "M12 2v20", "M2 8.5 12 15l10-6.5"], box: 24 }, // hexagon prism, lone tier
-    large: { paths: ["M6 3h12l3.5 5.5L12 22 2.5 8.5Z", "M2.5 8.5h19", "M9.5 3 7 8.5 12 22l5-13.5L14.5 3"], box: 24 }, // gem
-    medium: { paths: ["M12 2 21 12l-9 10L3 12Z"], box: 22 }, // diamond
-    small: { paths: ["M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14Z"], box: 18 }, // circle
+    solo: { paths: ["M12 2 22 8.5v7L12 22 2 15.5v-7Z"], box: 18 },
+    large: { paths: ["M6 3h12l3.5 5.5L12 22 2.5 8.5Z", "M2.5 8.5h19"], box: 18 },
+    medium: { paths: ["M12 2 21 12l-9 10L3 12Z"], box: 16 },
+    small: { paths: ["M12 6a6 6 0 1 0 0 12 6 6 0 0 0 0-12Z"], box: 13 },
   },
-  // type colors, legible + distinct. Unknown types fall to _default. Karl adjusts live.
   typeColor: {
     "New Logo": { fg: "#2D6A4F", chipBg: "#E4F3EA", chipBd: "#B7E0C5" },
     "New Business": { fg: "#2D6A4F", chipBg: "#E4F3EA", chipBd: "#B7E0C5" },
@@ -70,11 +66,9 @@ const VISUAL = {
   },
 };
 const typeStyle = (type) => VISUAL.typeColor[type] || VISUAL.typeColor._default;
-// Bucket a tier by its rank (0 = largest) among `total` tiers. Any tier count flows
-// through: a lone tier is "solo", otherwise the rank position picks large/medium/small.
 function sizeBucket(rank, total) {
   if (total <= 1) return "solo";
-  const q = rank / (total - 1); // 0 (largest) .. 1 (smallest)
+  const q = rank / (total - 1);
   if (q <= 0.34) return "large";
   if (q <= 0.67) return "medium";
   return "small";
@@ -83,7 +77,7 @@ function sizeBucket(rank, total) {
 function SizeIcon({ bucket, color }) {
   const spec = VISUAL.sizeIcon[bucket] || VISUAL.sizeIcon.medium;
   return (
-    <svg width={spec.box} height={spec.box} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+    <svg width={spec.box} height={spec.box} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       {spec.paths.map((d, i) => <path key={i} d={d} />)}
     </svg>
   );
@@ -98,81 +92,76 @@ function InfoDot({ text }) {
 }
 
 // ── tier models ────────────────────────────────────────────────────────────
-// A tier's UI shape. Money fields carry raw digit strings (for the input display);
-// quantity is a number; cycle is a string ("" means not yet set).
 function freshTier(id, type) {
-  return { id, type: type || "", low: "", high: "", typical: "", quantity: 0, cycle: "", typicalTouched: false };
+  return { id, type: type || "", size: "", quantity: 0, cycle: "" };
 }
 
-// Build the editable tier list, preferring the rep's SAVED plan. Three paths:
-//  1. v2 blob with tiers -> load directly (fill any missing fields).
-//  2. old v1 blob with components/bands -> convert each real band (size > 0) into a
-//     tier tagged with its component. Range derived from the single size; cycle unset
-//     so we can surface it as needing input. Backward compatible, nothing crashes.
-//  3. nothing usable -> propose only if the plan grounds tiers; today it does not, so
-//     we start blank and let the rep build tiers. No invented defaults.
+// Resolve a stored tier of any past shape down to a single size. v3 carries `size`
+// directly; the older range shape carried typical_size (or size_low/size_high, which
+// we collapse to their midpoint).
+function sizeFromStored(t) {
+  if (t.size != null && t.size !== "") return num(t.size);
+  if (t.typical_size != null) return num(t.typical_size);
+  const lo = t.size_low, hi = t.size_high;
+  if (lo != null && hi != null) return niceRound((num(lo) + num(hi)) / 2);
+  if (lo != null) return num(lo);
+  if (hi != null) return num(hi);
+  return 0;
+}
+
+// Build the editable tier list, preferring the rep's SAVED plan. Paths:
+//  1. blob with tiers -> load, collapsing any old range to a single size. When the
+//     blob is the older range shape we treat the load as a conversion and drop
+//     zero-quantity tiers; a native v3 blob keeps the rep's rows as they are.
+//  2. old v1 blob with components/bands -> one tier per real band (size and quantity
+//     both present), tagged with its component. Drops zero-quantity bands.
+//  3. nothing usable -> start blank. We do not invent tiers the plan cannot ground.
 function buildTiers(plan, targetPct, stretchPct, stored) {
   if (stored && Array.isArray(stored.tiers)) {
-    return stored.tiers.map((t, i) => ({
-      id: t.id || `tier-${i}`,
-      type: t.type || "",
-      low: t.size_low != null ? String(t.size_low) : "",
-      high: t.size_high != null ? String(t.size_high) : "",
-      typical: t.typical_size != null ? String(t.typical_size) : "",
-      quantity: Number.isFinite(Number(t.quantity)) ? Number(t.quantity) : 0,
-      cycle: t.cycle_months == null ? "" : String(t.cycle_months),
-      typicalTouched: true,
-    }));
+    const isRangeBlob = stored.tiers.some((t) => t.size == null && (t.typical_size != null || t.size_low != null || t.size_high != null));
+    const out = [];
+    for (const t of stored.tiers) {
+      const size = sizeFromStored(t);
+      const qty = Number.isFinite(Number(t.quantity)) ? Number(t.quantity) : 0;
+      if (isRangeBlob && qty <= 0) continue;
+      out.push({
+        id: `tier-${out.length}`,
+        type: t.type || "",
+        size: size ? String(size) : "",
+        quantity: qty,
+        cycle: t.cycle_months == null ? "" : String(t.cycle_months),
+      });
+    }
+    return out;
   }
   if (stored && Array.isArray(stored.components)) {
-    const tiers = [];
-    let i = 0;
+    const out = [];
     for (const c of stored.components) {
       for (const b of Array.isArray(c.bands) ? c.bands : []) {
         const s = num(b.quota_per_deal);
         const qty = num(b.count);
-        // Only carry bands that were real deals: a size AND a quantity. A zero-quantity
-        // band is a stale size definition not worth keeping as a $0 tier.
         if (s <= 0 || qty <= 0) continue;
-        tiers.push({
-          id: `tier-${i++}`,
-          type: c.name || "",
-          low: String(niceRound(s * 0.8)),
-          high: String(niceRound(s * 1.2)),
-          typical: String(s),
-          quantity: qty,
-          cycle: "", // old blobs have no cycle; surfaced as needing input
-          typicalTouched: true,
-        });
+        out.push({ id: `tier-${out.length}`, type: c.name || "", size: String(s), quantity: qty, cycle: "" });
       }
     }
-    return tiers;
+    return out;
   }
-  return proposeTiers(plan, targetPct, stretchPct);
-}
-
-// Propose tiers ONLY when the plan grounds them (real deal-size data). The structured
-// facts we have today carry component quotas and rates, not deal sizes, so there is
-// nothing to ground a tier's size or count. We return blank rather than invent numbers.
-function proposeTiers(/* plan, targetPct, stretchPct */) {
   return [];
 }
 
-// The persisted shape (v2). A flat tier list, each tier standing on its own. Structured
-// so a later timeline can expand each tier into `quantity` individual deals carrying
-// size (typical), cycle, and type.
+// The persisted shape (v3). A flat tier list; each tier is { id, type, size, quantity,
+// cycle_months }. Structured so a later timeline can expand each tier into `quantity`
+// individual deals carrying size, cycle, and type.
 function serialize(tiers, ctx) {
   return {
-    version: 2,
+    version: 3,
     target_pct: ctx.targetPct,
     stretch_pct: ctx.stretchPct,
     total_quota: ctx.totalQuota,
     tiers: tiers.map((t) => ({
       id: t.id,
       type: t.type || null,
-      size_low: t.low === "" ? null : num(t.low),
-      size_high: t.high === "" ? null : num(t.high),
-      typical_size: num(t.typical),
+      size: t.size === "" ? null : num(t.size),
       quantity: t.quantity,
       cycle_months: t.cycle === "" ? null : num(t.cycle),
     })),
@@ -190,31 +179,6 @@ function Stepper({ value, onChange }) {
   );
 }
 
-// Draggable "typical" thumb bounded by the tier's low and high. Typical is the number
-// all the deal count math runs on; the range is display and agreement only.
-function TypicalSlider({ low, high, value, onChange }) {
-  const trackRef = useRef(null);
-  const active = high > low;
-  const frac = active ? Math.min(Math.max((value - low) / (high - low), 0), 1) : 0;
-  const fromX = (clientX) => {
-    const r = trackRef.current.getBoundingClientRect();
-    let f = (clientX - r.left) / r.width;
-    f = Math.min(Math.max(f, 0), 1);
-    return niceRound(low + f * (high - low));
-  };
-  const dragging = useRef(false);
-  const down = (e) => { if (!active) return; e.currentTarget.setPointerCapture(e.pointerId); dragging.current = true; onChange(fromX(e.clientX)); };
-  const move = (e) => { if (dragging.current) onChange(fromX(e.clientX)); };
-  const up = (e) => { dragging.current = false; try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {} };
-  return (
-    <div className={`dbk-slider${active ? "" : " off"}`} ref={trackRef} onPointerDown={down} onPointerMove={move} onPointerUp={up}>
-      <div className="dbk-slider-fill" style={{ width: frac * 100 + "%" }} />
-      <div className="dbk-slider-thumb" style={{ left: frac * 100 + "%" }} />
-    </div>
-  );
-}
-
-// ── meter ──────────────────────────────────────────────────────────────────
 function Meter({ booked, target, tickFrac }) {
   const met = target > 0 && booked >= target - 0.5;
   const fillFrac = target > 0 ? Math.min(booked / target, 1) : 0;
@@ -249,7 +213,6 @@ export default function DealBreakdown({
   const targetQuota = totalQuota * targetMult;
   const tickFrac = stretchPct > 0 ? Math.min(Math.max(targetMult / stretchMult, 0), 1) : 0;
 
-  // Type options come from the plan's own components, so tagging flows through per plan.
   const typeOptions = useMemo(() => {
     const names = (plan && plan.quota && Array.isArray(plan.quota.components) ? plan.quota.components : [])
       .map((c) => c && c.name).filter(Boolean);
@@ -259,9 +222,9 @@ export default function DealBreakdown({
   const [tiers, setTiers] = useState(() => buildTiers(plan, targetPct, stretchPct, stored));
   const idCounter = useRef(tiers.length);
 
-  // ── persistence: same pattern as before. Debounced save on change, flush on
-  // navigate away, backward compatible loads. We do NOT auto-save an empty first
-  // render, and we do NOT overwrite a stored blob until the rep actually edits. ──
+  // ── persistence: debounced save on change, flush on navigate away, backward
+  // compatible loads. No auto-save of a blank first render, and no overwrite of a
+  // stored blob until the rep actually edits. ──
   const onPersistRef = useRef(onPersist);
   onPersistRef.current = onPersist;
   const saveTimer = useRef(null);
@@ -274,8 +237,6 @@ export default function DealBreakdown({
     pendingSave.current = obj;
     if (firstRender.current) {
       firstRender.current = false;
-      // Skip the initial save when we loaded stored data (nothing new) or when there is
-      // nothing to save yet (a fresh, blank screen).
       if (hadStored.current || tiers.length === 0) { pendingSave.current = null; return; }
     }
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -292,19 +253,6 @@ export default function DealBreakdown({
 
   // ── edit helpers ───────────────────────────────────────────────────────
   const patchTier = (id, patch) => setTiers((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-  const editBound = (id, field, rawDigits) => {
-    setTiers((ts) => ts.map((t) => {
-      if (t.id !== id) return t;
-      const next = { ...t, [field]: rawDigits };
-      // Typical defaults to the midpoint until the rep sets it themselves.
-      if ((field === "low" || field === "high") && !next.typicalTouched) {
-        const lo = num(next.low), hi = num(next.high);
-        if (lo > 0 && hi > 0) next.typical = String(niceRound((lo + hi) / 2));
-      }
-      return next;
-    }));
-  };
-  const setTypical = (id, v) => patchTier(id, { typical: String(v), typicalTouched: true });
   const addTier = () => {
     const id = `tier-${idCounter.current++}`;
     setTiers((ts) => [...ts, freshTier(id, typeOptions[0] || "")]);
@@ -312,14 +260,13 @@ export default function DealBreakdown({
   const removeTier = (id) => setTiers((ts) => ts.filter((t) => t.id !== id));
 
   // ── derived math ───────────────────────────────────────────────────────
-  const retiresOf = (t) => num(t.typical) * t.quantity;
-  const grandBooked = tiers.reduce((s, t) => s + retiresOf(t), 0);
+  const revenueOf = (t) => num(t.size) * t.quantity;
+  const grandBooked = tiers.reduce((s, t) => s + revenueOf(t), 0);
   const grandMet = stretchQuota > 0 && grandBooked >= stretchQuota - 0.5;
   const gap = stretchQuota - grandBooked;
 
-  // Ranks for the size icon: largest typical size -> rank 0.
   const rankById = useMemo(() => {
-    const order = [...tiers].sort((a, b) => num(b.typical) - num(a.typical));
+    const order = [...tiers].sort((a, b) => num(b.size) - num(a.size));
     const m = {};
     order.forEach((t, i) => { m[t.id] = i; });
     return m;
@@ -333,13 +280,13 @@ export default function DealBreakdown({
         <div className="dbk-crumb">Strategy · Step 2</div>
         <h1 className="dbk-title">Set Up Your Deal Tiers</h1>
         <p className="dbk-sub">
-          Let's shape the deals behind your stretch number. Group them into tiers by size, tell us how many of each you
-          expect to close, and roughly how long each one takes. We measure it all against your stretch quota, with your
-          target marked along the way. These are planning estimates, not penny exact comp math.
+          Let's lay out the deals behind your stretch number. Add a row for each kind of deal you run, set the size, how
+          many you expect, and roughly how long each takes to close. We keep the running total against your stretch quota
+          in view, with your target marked along the way. These are planning estimates, not penny exact comp math.
         </p>
       </div>
 
-      {/* GRAND TOTAL: sum of all tiers vs the rep's stretch quota */}
+      {/* GRAND TOTAL: sum of all tiers vs the rep's stretch quota, kept in view */}
       <div className="dbk-grand">
         <div className="dbk-grand-top">
           <div>
@@ -357,7 +304,7 @@ export default function DealBreakdown({
         <Meter booked={grandBooked} target={stretchQuota} tickFrac={tickFrac} />
         <div className="dbk-recon">
           {tiers.length === 0 ? (
-            <>Add your tiers below and we will track them against your stretch quota of <b>{fmt(stretchQuota)}</b>.</>
+            <>Add your rows below and we will track them against your stretch quota of <b>{fmt(stretchQuota)}</b>.</>
           ) : grandMet ? (
             <>Your tiers cover your stretch quota, with <b>{fmt(grandBooked - stretchQuota)}</b> to spare.</>
           ) : (
@@ -366,84 +313,62 @@ export default function DealBreakdown({
         </div>
       </div>
 
-      {/* TIERS */}
+      {/* TIER TABLE */}
       {tiers.length === 0 ? (
         <div className="dbk-empty">
           <div className="dbk-empty-h">No tiers yet</div>
-          <p>
-            We do not have enough in your plan to guess your deal tiers, so let's build them together. Add a tier for each
-            size of deal you tend to run, from your biggest to your smallest.
-          </p>
+          <p>We do not have enough in your plan to fill these in for you, so let's build them together. Add a row for each size of deal you tend to run.</p>
           <button className="dbk-add big" type="button" onClick={addTier}>Add your first tier</button>
         </div>
       ) : (
-        <div className="dbk-tiers">
+        <div className="dbk-tbl">
+          <div className="dbk-tbl-head">
+            <span className="c-type">Deal type</span>
+            <span className="c-size">Deal Size <InfoDot text="The amount of each deal that counts toward your quota, not necessarily the full contract value. All of the deal count math runs on this number." /></span>
+            <span className="c-qty">Deal Quantity</span>
+            <span className="c-cycle">Sales Cycle Length</span>
+            <span className="c-rev">Total Revenue</span>
+            <span className="c-rm" />
+          </div>
+
           {tiers.map((t) => {
             const st = typeStyle(t.type);
             const bucket = sizeBucket(rankById[t.id] || 0, tiers.length);
-            const cycleUnset = t.cycle === "";
             return (
-              <div key={t.id} className="dbk-tier" style={{ borderLeft: `4px solid ${st.fg}` }}>
-                <div className="dbk-tier-head">
-                  <span className="dbk-tier-ico" style={{ color: st.fg }}><SizeIcon bucket={bucket} color={st.fg} /></span>
-                  <select
-                    className="dbk-type"
-                    value={t.type}
-                    onChange={(e) => patchTier(t.id, { type: e.target.value })}
-                    style={{ color: st.fg, background: st.chipBg, borderColor: st.chipBd }}
-                  >
+              <div key={t.id} className="dbk-row" style={{ borderLeft: `3px solid ${st.fg}` }}>
+                <div className="dbk-typecell">
+                  <span className="dbk-ico"><SizeIcon bucket={bucket} color={st.fg} /></span>
+                  <select className="dbk-type" value={t.type} onChange={(e) => patchTier(t.id, { type: e.target.value })}
+                    style={{ color: st.fg, background: st.chipBg, borderColor: st.chipBd }}>
                     <option value="">Untagged</option>
                     {typeOptions.map((name) => <option key={name} value={name}>{name}</option>)}
                     {t.type && !typeOptions.includes(t.type) ? <option value={t.type}>{t.type}</option> : null}
                   </select>
-                  <span className="dbk-tier-cap" style={{ color: st.fg }}>{bucket === "solo" ? "Your deals" : `${bucket[0].toUpperCase()}${bucket.slice(1)} deals`}</span>
-                  <button type="button" className="dbk-remove" aria-label="Remove this tier" onClick={() => removeTier(t.id)}>Remove</button>
                 </div>
 
-                {/* deal size: range plus draggable typical (typical drives the math) */}
-                <div className="dbk-size">
-                  <div className="dbk-size-lbl">
-                    Deal size range
-                    <span className="dbk-size-help">the low and high of a deal in this tier</span>
-                  </div>
-                  <div className="dbk-range">
-                    <input className="dbk-field money" type="text" inputMode="numeric" placeholder="Low"
-                      value={moneyDisplay(t.low)} onChange={(e) => editBound(t.id, "low", digitsOf(e.target.value))} />
-                    <span className="dbk-range-to">to</span>
-                    <input className="dbk-field money" type="text" inputMode="numeric" placeholder="High"
-                      value={moneyDisplay(t.high)} onChange={(e) => editBound(t.id, "high", digitsOf(e.target.value))} />
-                  </div>
-                  <div className="dbk-typical">
-                    <TypicalSlider low={num(t.low)} high={num(t.high)} value={num(t.typical)} onChange={(v) => setTypical(t.id, v)} />
-                    <div className="dbk-typical-side">
-                      <label className="dbk-typical-lbl">
-                        Typical <InfoDot text="Typical is the amount of a deal in this tier that counts toward your quota, not necessarily the full contract value. All of the deal count math runs on this number." />
-                      </label>
-                      <input className="dbk-field money typical" type="text" inputMode="numeric" placeholder="Typical"
-                        value={moneyDisplay(t.typical)} onChange={(e) => setTypical(t.id, digitsOf(e.target.value))} />
-                    </div>
+                <div className="c-size">
+                  <input className="dbk-field money" type="text" inputMode="numeric" placeholder="Deal size"
+                    value={moneyDisplay(t.size)} onChange={(e) => patchTier(t.id, { size: digitsOf(e.target.value) })} />
+                </div>
+
+                <div className="c-qty">
+                  <Stepper value={t.quantity} onChange={(v) => patchTier(t.id, { quantity: v })} />
+                </div>
+
+                <div className="c-cycle">
+                  <div className="dbk-cycle">
+                    <input type="text" inputMode="numeric" placeholder="0"
+                      value={digitsOf(t.cycle)} onChange={(e) => patchTier(t.id, { cycle: digitsOf(e.target.value) })} />
+                    <span className="dbk-cycle-suf">mo</span>
                   </div>
                 </div>
 
-                {/* quantity, cycle, retires */}
-                <div className="dbk-metrics">
-                  <div className="dbk-metric">
-                    <label>Deal Quantity</label>
-                    <Stepper value={t.quantity} onChange={(v) => patchTier(t.id, { quantity: v })} />
-                  </div>
-                  <div className="dbk-metric">
-                    <label>Sales cycle</label>
-                    <div className={`dbk-cycle${cycleUnset ? " unset" : ""}`}>
-                      <input type="text" inputMode="numeric" placeholder="0"
-                        value={digitsOf(t.cycle)} onChange={(e) => patchTier(t.id, { cycle: digitsOf(e.target.value) })} />
-                      <span className="dbk-cycle-suf">months</span>
-                    </div>
-                    {cycleUnset ? <div className="dbk-cycle-hint">we will use this for your timeline</div> : null}
-                  </div>
-                  <div className="dbk-metric right">
-                    <label>Retires</label>
-                    <div className="dbk-retires" title={`${t.quantity} × ${fmt(num(t.typical))}`}>{fmt(retiresOf(t))}</div>
-                  </div>
+                <div className="c-rev">
+                  <span className="dbk-rev" title={`${t.quantity} × ${fmt(num(t.size))}`}>{fmt(revenueOf(t))}</span>
+                </div>
+
+                <div className="c-rm">
+                  <button type="button" className="dbk-rm" aria-label="Remove this tier" onClick={() => removeTier(t.id)}>×</button>
                 </div>
               </div>
             );
@@ -453,7 +378,6 @@ export default function DealBreakdown({
         </div>
       )}
 
-      {/* CTA: the planner is a later build, so this does not navigate yet */}
       <div className="dbk-cta-wrap">
         <button className="dbk-cta" onClick={() => onContinue({ tiers, grandBooked })}>
           <span className="dbk-cta-main">Place these deals across the year <span aria-hidden>→</span></span>
@@ -474,92 +398,76 @@ const CSS = `
 .dbk-title{ font-family:'Playfair Display',serif; font-size:28px; font-weight:900; line-height:1.1; margin:6px 0 0; color:var(--ink); }
 .dbk-sub{ font-size:15px; color:var(--muted); margin-top:8px; line-height:1.5; max-width:760px; }
 
-/* grand total */
-.dbk-grand{ background:linear-gradient(150deg,#1F3D2A,#2D6A4F); color:#F4FBF5; border-radius:22px; padding:20px 22px;
-  box-shadow:0 18px 40px -20px rgba(45,106,79,.6); margin-bottom:22px; }
+/* grand total, sticky so the running stretch total stays in view */
+.dbk-grand{ position:sticky; top:80px; z-index:20; background:linear-gradient(150deg,#1F3D2A,#2D6A4F); color:#F4FBF5; border-radius:18px;
+  padding:16px 20px; box-shadow:0 16px 34px -20px rgba(45,106,79,.6); margin-bottom:18px; }
 .dbk-grand-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
-.dbk-grand-lbl{ font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:#A7D6B5; font-weight:700; }
-.dbk-grand-q{ font-size:14px; color:#D7EEDD; margin-top:3px; } .dbk-grand-q b{ color:#fff; font-weight:700; }
+.dbk-grand-lbl{ font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:#A7D6B5; font-weight:700; }
+.dbk-grand-q{ font-size:13.5px; color:#D7EEDD; margin-top:3px; } .dbk-grand-q b{ color:#fff; font-weight:700; }
 .dbk-grand-tgt{ color:#9FC9AC; }
 .dbk-grand-num{ text-align:right; }
-.dbk-grand-booked{ font-family:'Playfair Display',serif; font-size:34px; font-weight:900; line-height:1; color:#fff; }
-.dbk-grand-cap{ font-size:11.5px; color:#A7D6B5; letter-spacing:.04em; text-transform:uppercase; font-weight:600; margin-top:3px; }
-.dbk-recon{ font-size:12.5px; color:#CDE7D4; margin-top:13px; line-height:1.5; } .dbk-recon b{ color:#fff; }
+.dbk-grand-booked{ font-family:'Playfair Display',serif; font-size:30px; font-weight:900; line-height:1; color:#fff; }
+.dbk-grand-cap{ font-size:11px; color:#A7D6B5; letter-spacing:.04em; text-transform:uppercase; font-weight:600; margin-top:3px; }
+.dbk-recon{ font-size:12.5px; color:#CDE7D4; margin-top:11px; line-height:1.5; } .dbk-recon b{ color:#fff; }
 
-/* meter */
-.dbk-meter{ margin-top:12px; }
-.dbk-track{ position:relative; height:16px; border-radius:999px; background:rgba(255,255,255,.18); }
+.dbk-meter{ margin-top:11px; }
+.dbk-track{ position:relative; height:14px; border-radius:999px; background:rgba(255,255,255,.18); }
 .dbk-fill{ position:absolute; left:0; top:0; bottom:0; border-radius:999px; background:linear-gradient(90deg,var(--gold),var(--carrot)); transition:width .35s ease; }
 .dbk-fill.met{ background:linear-gradient(90deg,#7BD493,#B7F0C6); }
 .dbk-tick{ position:absolute; top:-5px; bottom:-5px; width:2px; background:rgba(255,255,255,.7); transform:translateX(-50%); }
 .dbk-tick-lbl{ position:absolute; top:-16px; left:50%; transform:translateX(-50%); font-size:8.5px; letter-spacing:.06em; text-transform:uppercase; font-weight:800; color:rgba(255,255,255,.85); white-space:nowrap; }
 
 /* empty state */
-.dbk-empty{ background:#fff; border:1.5px dashed #E7C9AE; border-radius:20px; padding:26px; text-align:center; margin-bottom:22px; }
-.dbk-empty-h{ font-family:'Playfair Display',serif; font-size:21px; font-weight:700; color:var(--ink); }
+.dbk-empty{ background:#fff; border:1.5px dashed #E7C9AE; border-radius:18px; padding:24px; text-align:center; margin-bottom:20px; }
+.dbk-empty-h{ font-family:'Playfair Display',serif; font-size:20px; font-weight:700; color:var(--ink); }
 .dbk-empty p{ font-size:14px; color:var(--muted); line-height:1.55; max-width:520px; margin:8px auto 16px; }
 
-/* tiers */
-.dbk-tiers{ display:flex; flex-direction:column; gap:16px; }
-.dbk-tier{ background:#fff; border:1.5px solid var(--border); border-radius:18px; padding:16px 18px; }
-.dbk-tier-head{ display:flex; align-items:center; gap:10px; margin-bottom:14px; }
-.dbk-tier-ico{ display:flex; align-items:center; }
-.dbk-type{ font-family:'DM Sans',sans-serif; font-size:13px; font-weight:700; border:1.5px solid; border-radius:100px; padding:5px 12px; cursor:pointer; appearance:none; }
+/* table */
+.dbk-tbl{ background:#fff; border:1.5px solid var(--border); border-radius:16px; padding:6px 14px 14px; }
+.dbk-tbl-head, .dbk-row{ display:grid; grid-template-columns:minmax(150px,1.3fr) minmax(120px,1fr) 128px minmax(104px,0.8fr) minmax(112px,1fr) 34px; gap:14px; align-items:center; }
+.dbk-tbl-head{ padding:10px 6px 8px; border-bottom:1px solid var(--border); }
+.dbk-tbl-head span{ font-size:10.5px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; color:var(--muted); }
+.dbk-tbl-head .c-rev{ text-align:right; }
+.dbk-row{ padding:9px 6px; border-bottom:1px solid var(--border); }
+.dbk-row:last-of-type{ border-bottom:none; }
+
+.dbk-typecell{ display:flex; align-items:center; gap:8px; min-width:0; }
+.dbk-ico{ display:flex; align-items:center; flex:none; }
+.dbk-type{ font-family:'DM Sans',sans-serif; font-size:12.5px; font-weight:700; border:1.5px solid; border-radius:100px; padding:5px 10px; cursor:pointer; appearance:none; min-width:0; }
 .dbk-type:focus{ outline:none; }
-.dbk-tier-cap{ font-size:11px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; opacity:.85; }
-.dbk-remove{ margin-left:auto; background:none; border:1.5px solid var(--border); border-radius:9px; padding:5px 12px; font-size:12.5px;
-  font-weight:600; color:var(--muted); cursor:pointer; font-family:'DM Sans',sans-serif; }
-.dbk-remove:hover{ border-color:#C86B4B; color:#B0532A; }
 
-.dbk-size{ margin-bottom:14px; }
-.dbk-size-lbl{ font-size:11px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; color:var(--muted); margin-bottom:8px; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
-.dbk-size-help{ text-transform:none; letter-spacing:0; font-weight:500; font-size:12px; color:var(--muted); opacity:.85; }
-.dbk-range{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
-.dbk-range-to{ font-size:13px; color:var(--muted); font-weight:600; }
-.dbk-field{ border:1.5px solid var(--border); border-radius:10px; background:#fff; font-family:'DM Sans',sans-serif; font-size:15px; color:var(--ink); padding:10px 12px; }
+.dbk-field{ border:1.5px solid var(--border); border-radius:10px; background:#fff; font-family:'DM Sans',sans-serif; font-size:15px; color:var(--ink); padding:9px 11px; width:100%; }
 .dbk-field:focus{ outline:none; border-color:var(--carrot); }
-.dbk-field.money{ font-weight:700; width:150px; }
-.dbk-typical{ display:flex; align-items:center; gap:16px; }
-.dbk-slider{ position:relative; flex:1; height:8px; border-radius:999px; background:#EADBC9; cursor:pointer; touch-action:none; min-width:120px; }
-.dbk-slider.off{ opacity:.5; cursor:not-allowed; }
-.dbk-slider-fill{ position:absolute; left:0; top:0; bottom:0; border-radius:999px; background:linear-gradient(90deg,var(--gold),var(--carrot)); }
-.dbk-slider-thumb{ position:absolute; top:50%; width:20px; height:20px; border-radius:50%; transform:translate(-50%,-50%); background:var(--carrot); border:3px solid #fff; box-shadow:0 3px 8px rgba(0,0,0,.25); }
-.dbk-typical-side{ display:flex; flex-direction:column; gap:5px; }
-.dbk-typical-lbl{ font-size:11px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; color:var(--muted); display:flex; align-items:center; gap:4px; }
-.dbk-field.typical{ width:150px; color:var(--carrot-dark); }
+.dbk-field.money{ font-weight:700; }
 
-.dbk-metrics{ display:flex; align-items:flex-end; gap:24px; flex-wrap:wrap; border-top:1px solid var(--border); padding-top:14px; }
-.dbk-metric{ display:flex; flex-direction:column; gap:6px; }
-.dbk-metric.right{ margin-left:auto; text-align:right; align-items:flex-end; }
-.dbk-metric label{ font-size:11px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; color:var(--muted); }
-.dbk-step{ display:flex; align-items:center; gap:4px; border:1.5px solid var(--border); border-radius:10px; background:#fff; padding:3px; }
-.dbk-step button{ width:32px; height:32px; border:none; border-radius:8px; background:var(--cream); color:var(--carrot-dark); font-size:20px; font-weight:700; line-height:1; cursor:pointer; font-family:'DM Sans',sans-serif; }
+.dbk-step{ display:flex; align-items:center; gap:3px; border:1.5px solid var(--border); border-radius:10px; background:#fff; padding:3px; width:fit-content; }
+.dbk-step button{ width:30px; height:30px; border:none; border-radius:8px; background:var(--cream); color:var(--carrot-dark); font-size:19px; font-weight:700; line-height:1; cursor:pointer; font-family:'DM Sans',sans-serif; }
 .dbk-step button:hover{ background:var(--carrot-light); }
-.dbk-step-n{ min-width:38px; text-align:center; font-size:16px; font-weight:800; color:var(--ink); }
-.dbk-cycle{ display:flex; align-items:center; gap:7px; border:1.5px solid var(--border); border-radius:10px; background:#fff; padding:0 12px 0 12px; }
+.dbk-step-n{ min-width:34px; text-align:center; font-size:16px; font-weight:800; color:var(--ink); }
+
+.dbk-cycle{ display:flex; align-items:center; gap:6px; border:1.5px solid var(--border); border-radius:10px; background:#fff; padding:0 11px; width:fit-content; }
 .dbk-cycle:focus-within{ border-color:var(--carrot); }
-.dbk-cycle.unset{ border-color:#E0B88A; background:#FFFaf2; }
-.dbk-cycle input{ border:none; background:none; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:700; color:var(--ink); width:42px; padding:9px 0; }
+.dbk-cycle input{ border:none; background:none; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:700; color:var(--ink); width:34px; padding:9px 0; }
 .dbk-cycle input:focus{ outline:none; }
 .dbk-cycle-suf{ font-size:13px; color:var(--muted); font-weight:600; }
-.dbk-cycle-hint{ font-size:11px; color:#9A6A3E; font-style:italic; }
-.dbk-retires{ font-family:'Playfair Display',serif; font-size:22px; font-weight:900; color:var(--carrot-dark); white-space:nowrap; }
 
-.dbk-add{ align-self:flex-start; background:#fff; border:1.5px dashed #E7C9AE; border-radius:12px; padding:11px 18px; font-size:14px; font-weight:700;
-  color:var(--carrot-dark); cursor:pointer; font-family:'DM Sans',sans-serif; }
+.c-rev{ text-align:right; }
+.dbk-rev{ font-family:'Playfair Display',serif; font-size:18px; font-weight:900; color:var(--carrot-dark); white-space:nowrap; }
+.dbk-rm{ width:28px; height:28px; border:none; border-radius:8px; background:none; color:var(--muted); font-size:20px; line-height:1; cursor:pointer; }
+.dbk-rm:hover{ background:#FBEBE6; color:#B0532A; }
+
+.dbk-add{ margin-top:12px; background:#fff; border:1.5px dashed #E7C9AE; border-radius:12px; padding:10px 16px; font-size:14px; font-weight:700; color:var(--carrot-dark); cursor:pointer; font-family:'DM Sans',sans-serif; }
 .dbk-add:hover{ border-color:var(--carrot); }
 .dbk-add.big{ background:linear-gradient(135deg,var(--carrot),#FF8A4C); color:#fff; border:none; padding:13px 22px; font-size:15px; }
 
-/* info dot */
 .dbk-info{ position:relative; display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border-radius:50%;
   border:1px solid #C9B49E; color:#9A8775; font-size:9px; font-style:italic; font-weight:700; cursor:help; font-family:Georgia,serif; text-transform:none; letter-spacing:0; }
 .dbk-info .dbk-bub{ position:absolute; bottom:150%; left:0; transform:translateX(-8%); width:230px; background:var(--ink); color:#F7EFE6; font-size:11px;
   line-height:1.45; letter-spacing:0; text-transform:none; font-weight:500; padding:9px 11px; border-radius:8px; box-shadow:0 8px 20px -6px rgba(0,0,0,.5);
-  opacity:0; visibility:hidden; transition:opacity .15s; z-index:5; pointer-events:none; }
+  opacity:0; visibility:hidden; transition:opacity .15s; z-index:6; pointer-events:none; }
 .dbk-info:hover .dbk-bub, .dbk-info:focus .dbk-bub{ opacity:1; visibility:visible; }
 
-/* CTA */
-.dbk-cta-wrap{ margin-top:24px; }
+.dbk-cta-wrap{ margin-top:22px; }
 .dbk-cta{ width:100%; border:none; cursor:pointer; padding:15px 18px; border-radius:16px; color:#fff; font-family:'DM Sans',sans-serif;
   background:linear-gradient(135deg,var(--carrot),#FF8A4C); box-shadow:0 14px 30px -14px rgba(232,100,44,.7); transition:.18s;
   display:flex; flex-direction:column; align-items:center; gap:3px; }
@@ -570,12 +478,14 @@ const CSS = `
 @media(min-width:760px){
   .dbk-title{ font-size:34px; }
   .dbk-sub{ font-size:16px; }
-  .dbk-grand-booked{ font-size:42px; }
+  .dbk-grand-booked{ font-size:36px; }
 }
-@media(max-width:560px){
-  .dbk-typical{ flex-direction:column; align-items:stretch; gap:10px; }
-  .dbk-field.money, .dbk-field.typical{ width:100%; }
-  .dbk-metrics{ gap:16px; }
-  .dbk-metric.right{ margin-left:0; }
+/* phone: the grid would be too tight, so let each row wrap into a stacked block */
+@media(max-width:720px){
+  .dbk-grand{ position:static; }
+  .dbk-tbl-head{ display:none; }
+  .dbk-row{ grid-template-columns:1fr 1fr; gap:10px 14px; }
+  .dbk-typecell{ grid-column:1 / -1; }
+  .c-rev{ text-align:left; }
 }
 `;
