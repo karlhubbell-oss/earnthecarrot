@@ -1,41 +1,41 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { toEarningsPlan } from "./lib/planAdapter.js";
 
 /*
-  DealBreakdown — Strategy Step 2 for Earn The Carrot.
+  DealBreakdown - Strategy Step 2, tier setup.
 
-  Turns the rep's stretch goal into the concrete deals it takes to get there,
-  component by component. This is "Coach's adjustable answer": Coach pre-populates
-  every number from the rep's REAL comp plan (via toEarningsPlan, the same engine
-  that drives the payout curve and goals screens) and the rep nudges what's off.
+  The evolution of the old big/medium/small deal breakdown. Tiers are now flexible
+  (1 to many), a tier is defined by SIZE plus CYCLE, and deal type (New Logo /
+  Expansion / Renewal) is a tag a tier carries, not the axis that organizes tiers.
 
-  Everything measures toward the rep's STRETCH number; TARGET shows up as a
-  milestone tick along each bar. These are planning estimates (round numbers),
-  not the penny-exact comp math.
+  We reuse the real plan and engine: totalQuota comes from toEarningsPlan (the same
+  adapter the payout curve and goals screens use), and everything measures toward the
+  rep's STRETCH quota (totalQuota x stretch%), with TARGET shown as a milestone.
 
-  Pass one: UI + live math only. Persistence and the hand-off to the planner
-  come in pass two, so all edits live in local component state.
+  This build is the clean data foundation the planning timeline sits on later. It does
+  NOT build the timeline, quarter placement, or deal dependencies.
 
   Props:
     plan        -> the rep's real comp plan (get-plan shape)
     targetPct   -> rep's target attainment %  (default 110)
-    stretchPct  -> rep's stretch attainment % (default 150)  <- the finish line
+    stretchPct  -> rep's stretch attainment % (default 150), the finish line
+    stored      -> the persisted deal_plan (v2 tiers, or old v1 component/band blob)
+    onPersist(obj) -> save the structured deal_plan (debounced by the caller pattern)
     onBack()    -> back to Step 1 (goals)
-    onContinue()-> the "place these deals across the year" CTA (planner, next build)
+    onContinue()-> the "place these deals across the year" CTA (planner, a later build)
 */
 
-// ── formatting ────────────────────────────────────────────────────────────
+// ── formatting: all money routes through fmt, no hardcoded currency ─────────
 const fmt = (n) => "$" + Math.round(Number(n) || 0).toLocaleString("en-US");
 const digitsOf = (s) => String(s == null ? "" : s).replace(/[^\d]/g, "");
 const num = (s) => Number(digitsOf(s)) || 0;
-// Display a raw digit string as currency ("1500000" -> "$1,500,000"); empty stays empty.
 const moneyDisplay = (s) => {
   const d = digitsOf(s);
-  return d ? "$" + Number(d).toLocaleString("en-US") : "";
+  return d ? fmt(Number(d)) : "";
 };
 
-// Round to a sensible planning step for its magnitude. These are estimates, so
-// we never show $1,503,250 where "$1.5M" is the honest precision.
+// Round to a sensible planning step for its magnitude. These are estimates, so a
+// derived range reads as "$280k to $420k", never "$281,930 to $418,070".
 function niceRound(v) {
   if (!v || v <= 0) return 0;
   let step;
@@ -47,167 +47,176 @@ function niceRound(v) {
   return Math.max(step, Math.round(v / step) * step);
 }
 
-// A friendly one-liner for a component, inferred from its name. Falls back to a
-// generic line so an unrecognized component still reads warmly.
-function describe(name) {
-  const s = String(name || "").toLowerCase();
-  if (/new logo|new business|net.?new|acquisition/.test(s)) return "Net-new customers you win from scratch.";
-  if (/expansion|upsell|cross.?sell|growth/.test(s)) return "Growing the accounts you already have.";
-  if (/renew/.test(s)) return "Keeping current customers on board.";
-  if (/services|professional/.test(s)) return "Services and implementation revenue.";
-  if (/multi.?year|term/.test(s)) return "Longer-term commitments that lock in revenue.";
-  return "Revenue you book in this part of your plan.";
+// ── visual system: ONE config map, so a different plan's tiers and components flow
+// through with no code change. Icon is chosen by tier RANK (size), color by type. ──
+const VISUAL = {
+  // size buckets, assigned by a tier's rank among its siblings (largest -> "large").
+  sizeIcon: {
+    solo: { paths: ["M12 2 22 8.5v7L12 22 2 15.5v-7Z", "M12 2v20", "M2 8.5 12 15l10-6.5"], box: 24 }, // hexagon prism, lone tier
+    large: { paths: ["M6 3h12l3.5 5.5L12 22 2.5 8.5Z", "M2.5 8.5h19", "M9.5 3 7 8.5 12 22l5-13.5L14.5 3"], box: 24 }, // gem
+    medium: { paths: ["M12 2 21 12l-9 10L3 12Z"], box: 22 }, // diamond
+    small: { paths: ["M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14Z"], box: 18 }, // circle
+  },
+  // type colors, legible + distinct. Unknown types fall to _default. Karl adjusts live.
+  typeColor: {
+    "New Logo": { fg: "#2D6A4F", chipBg: "#E4F3EA", chipBd: "#B7E0C5" },
+    "New Business": { fg: "#2D6A4F", chipBg: "#E4F3EA", chipBd: "#B7E0C5" },
+    Expansion: { fg: "#1F5FA8", chipBg: "#E3EEFA", chipBd: "#B9D4F0" },
+    Upsell: { fg: "#1F5FA8", chipBg: "#E3EEFA", chipBd: "#B9D4F0" },
+    Renewal: { fg: "#9A6A00", chipBg: "#FBF0D6", chipBd: "#EAD6A0" },
+    "Multi-Year": { fg: "#6D4AA8", chipBg: "#EFE8FA", chipBd: "#D6C6F0" },
+    Services: { fg: "#B0532A", chipBg: "#FBE9DF", chipBd: "#EFC9B4" },
+    _default: { fg: "#7A6A55", chipBg: "#F1EADF", chipBd: "#E0D2BF" },
+  },
+};
+const typeStyle = (type) => VISUAL.typeColor[type] || VISUAL.typeColor._default;
+// Bucket a tier by its rank (0 = largest) among `total` tiers. Any tier count flows
+// through: a lone tier is "solo", otherwise the rank position picks large/medium/small.
+function sizeBucket(rank, total) {
+  if (total <= 1) return "solo";
+  const q = rank / (total - 1); // 0 (largest) .. 1 (smallest)
+  if (q <= 0.34) return "large";
+  if (q <= 0.67) return "medium";
+  return "small";
 }
 
-// Propose Big / Medium / Small deal sizes and starting counts that land a
-// component near its stretch target. Coach's opening offer, fully editable.
-function proposeSizes(target) {
-  const avg = niceRound(target / 12) || niceRound(target / 8) || 1000;
-  const big = niceRound(avg * 2) || avg * 2;
-  const medium = avg;
-  const small = niceRound(avg / 2) || Math.max(1, Math.round(avg / 2));
-  const c = (share, size) => (size > 0 ? Math.max(1, Math.round((target * share) / size)) : 0);
-  const bigCount = c(0.4, big);
-  const medCount = c(0.35, medium);
-  const smallCount = c(0.25, small);
-  return [
-    { label: "Big", size: String(big), count: bigCount },
-    { label: "Medium", size: String(medium), count: medCount },
-    { label: "Small", size: String(small), count: smallCount },
-  ];
+function SizeIcon({ bucket, color }) {
+  const spec = VISUAL.sizeIcon[bucket] || VISUAL.sizeIcon.medium;
+  return (
+    <svg width={spec.box} height={spec.box} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      {spec.paths.map((d, i) => <path key={i} d={d} />)}
+    </svg>
+  );
 }
 
-// Build the editable component models from the REAL plan. Reads the raw component
-// list (so a weight-only multi-component plan keeps all its components instead of
-// collapsing), but takes totalQuota from the engine adapter.
-function deriveComponents(plan, targetPct, stretchPct) {
-  const ep = toEarningsPlan(plan) || {};
-  const totalQuota = ep.totalQuota || 0;
-  const stretchMult = stretchPct / 100;
-  const stretchQuota = totalQuota * stretchMult;
+function InfoDot({ text }) {
+  return (
+    <span className="dbk-info" tabIndex={0} aria-label={text}>
+      i<span className="dbk-bub">{text}</span>
+    </span>
+  );
+}
 
-  let raw = plan && plan.quota && Array.isArray(plan.quota.components) ? plan.quota.components : [];
-  raw = raw.filter((c) => c && (c.name || c.quota_amount != null || c.weight_pct != null));
-  if (!raw.length) raw = [{ name: "Your Quota", quota_amount: totalQuota || null, weight_pct: 100 }];
+// ── tier models ────────────────────────────────────────────────────────────
+// A tier's UI shape. Money fields carry raw digit strings (for the input display);
+// quantity is a number; cycle is a string ("" means not yet set).
+function freshTier(id, type) {
+  return { id, type: type || "", low: "", high: "", typical: "", quantity: 0, cycle: "", typicalTouched: false };
+}
 
-  const sumQuota = raw.reduce((s, c) => s + (Number(c.quota_amount) || 0), 0);
-  const n = raw.length;
-
-  return raw.map((c, i) => {
-    const q = Number(c.quota_amount) || 0;
-    const w = c.weight_pct != null ? Number(c.weight_pct) / 100 : sumQuota > 0 ? q / sumQuota : 1 / n;
-
-    let target, source;
-    if (q > 0) {
-      target = niceRound(q * stretchMult);
-      source = "quota";
-    } else if (c.weight_pct != null) {
-      target = niceRound(w * stretchQuota);
-      source = "weight";
-    } else {
-      target = niceRound((1 / n) * stretchQuota);
-      source = "even";
+// Build the editable tier list, preferring the rep's SAVED plan. Three paths:
+//  1. v2 blob with tiers -> load directly (fill any missing fields).
+//  2. old v1 blob with components/bands -> convert each real band (size > 0) into a
+//     tier tagged with its component. Range derived from the single size; cycle unset
+//     so we can surface it as needing input. Backward compatible, nothing crashes.
+//  3. nothing usable -> propose only if the plan grounds tiers; today it does not, so
+//     we start blank and let the rep build tiers. No invented defaults.
+function buildTiers(plan, targetPct, stretchPct, stored) {
+  if (stored && Array.isArray(stored.tiers)) {
+    return stored.tiers.map((t, i) => ({
+      id: t.id || `tier-${i}`,
+      type: t.type || "",
+      low: t.size_low != null ? String(t.size_low) : "",
+      high: t.size_high != null ? String(t.size_high) : "",
+      typical: t.typical_size != null ? String(t.typical_size) : "",
+      quantity: Number.isFinite(Number(t.quantity)) ? Number(t.quantity) : 0,
+      cycle: t.cycle_months == null ? "" : String(t.cycle_months),
+      typicalTouched: true,
+    }));
+  }
+  if (stored && Array.isArray(stored.components)) {
+    const tiers = [];
+    let i = 0;
+    for (const c of stored.components) {
+      for (const b of Array.isArray(c.bands) ? c.bands : []) {
+        const s = num(b.quota_per_deal);
+        if (s <= 0) continue; // no size means it was never a real deal definition
+        tiers.push({
+          id: `tier-${i++}`,
+          type: c.name || "",
+          low: String(niceRound(s * 0.8)),
+          high: String(niceRound(s * 1.2)),
+          typical: String(s),
+          quantity: num(b.count),
+          cycle: "", // old blobs have no cycle; surfaced as needing input
+          typicalTouched: true,
+        });
+      }
     }
-
-    const sizes = proposeSizes(target);
-    const note =
-      source === "quota"
-        ? `Your 100% ${c.name || "component"} quota is ${fmt(q)}. This target is that quota scaled to your ${stretchPct}% stretch goal — higher on purpose, because everything here measures toward stretch. Adjust if you know the real number.`
-        : source === "weight"
-        ? `Estimated from this component's ${Math.round(w * 100)}% weight in your plan, scaled to your ${stretchPct}% stretch goal — that's why it runs above a 100% number. Adjust if you know the real number.`
-        : `Estimated by splitting your stretch quota evenly across components, so it's scaled to your ${stretchPct}% stretch goal. Adjust if you know the real number.`;
-
-    return {
-      key: `${c.name || "component"}-${i}`,
-      name: c.name || "Component",
-      desc: describe(c.name),
-      source,
-      sourceNote: note,
-      target: String(target),
-      sizes,
-      proposed: { big: sizes[0].count, medium: sizes[1].count, small: sizes[2].count },
-    };
-  });
+    return tiers;
+  }
+  return proposeTiers(plan, targetPct, stretchPct);
 }
 
-// Build the editable models, preferring the rep's SAVED plan when present. We always
-// re-derive the fresh defaults from the real plan (so names, descriptions, and the
-// "where this came from" source note stay accurate), then overlay the rep's stored
-// target and per-band edits on top, matched by component name. New components in the
-// plan get defaults; removed ones drop out — robust to a plan that changed since.
-function buildComps(plan, targetPct, stretchPct, stored) {
-  const base = deriveComponents(plan, targetPct, stretchPct);
-  const saved = stored && Array.isArray(stored.components) ? stored.components : null;
-  if (!saved) return base;
-  const byName = new Map(saved.map((c) => [c.name, c]));
-  return base.map((b) => {
-    const s = byName.get(b.name);
-    if (!s) return b;
-    const bands = Array.isArray(s.bands) ? s.bands : [];
-    const sizes = b.sizes.map((sz) => {
-      const sb = bands.find((x) => x.band === sz.label.toLowerCase());
-      if (!sb) return sz;
-      return {
-        ...sz,
-        size: sb.quota_per_deal != null ? String(sb.quota_per_deal) : sz.size,
-        count: Number.isFinite(Number(sb.count)) ? Number(sb.count) : sz.count,
-      };
-    });
-    return { ...b, target: s.stretch_target != null ? String(s.stretch_target) : b.target, sizes };
-  });
+// Propose tiers ONLY when the plan grounds them (real deal-size data). The structured
+// facts we have today carry component quotas and rates, not deal sizes, so there is
+// nothing to ground a tier's size or count. We return blank rather than invent numbers.
+function proposeTiers(/* plan, targetPct, stretchPct */) {
+  return [];
 }
 
-// The persisted shape. Structured and keyed so it reads back here AND feeds the quarter
-// planner: each band carries component + size band + quota-retired-per-deal + count, so
-// the planner can expand it into `count` individual deals to place across the year.
-function serialize(comps, ctx) {
+// The persisted shape (v2). A flat tier list, each tier standing on its own. Structured
+// so a later timeline can expand each tier into `quantity` individual deals carrying
+// size (typical), cycle, and type.
+function serialize(tiers, ctx) {
   return {
-    version: 1,
+    version: 2,
     target_pct: ctx.targetPct,
     stretch_pct: ctx.stretchPct,
     total_quota: ctx.totalQuota,
-    components: comps.map((c) => ({
-      name: c.name,
-      source: c.source,
-      stretch_target: num(c.target),
-      bands: c.sizes.map((s) => ({
-        band: s.label.toLowerCase(),
-        label: s.label,
-        quota_per_deal: num(s.size),
-        count: s.count,
-      })),
+    tiers: tiers.map((t) => ({
+      id: t.id,
+      type: t.type || null,
+      size_low: t.low === "" ? null : num(t.low),
+      size_high: t.high === "" ? null : num(t.high),
+      typical_size: num(t.typical),
+      quantity: t.quantity,
+      cycle_months: t.cycle === "" ? null : num(t.cycle),
     })),
   };
 }
 
-// ── icons ─────────────────────────────────────────────────────────────────
-function MicIcon({ size = 15 }) {
+// ── small controls ─────────────────────────────────────────────────────────
+function Stepper({ value, onChange }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="9" y="3" width="6" height="11" rx="3" />
-      <path d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6" />
-    </svg>
-  );
-}
-function CarrotMark({ size = 16, color = "#E8642C" }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M11 8c-3.2 1-6 4.4-7.4 9.2-.3 1 .6 1.9 1.6 1.6C10 17.4 13.4 14.6 14.4 11.4" />
-      <path d="M14.5 9.5 19 5" />
-      <path d="M14.2 7.6c.5-1.7 2-2.6 3.6-2.4M16.6 10.2c1.7-.4 2.8-1.7 2.9-3.3" />
-    </svg>
+    <div className="dbk-step">
+      <button type="button" aria-label="One fewer deal" onClick={() => onChange(Math.max(0, value - 1))}>−</button>
+      <span className="dbk-step-n">{value}</span>
+      <button type="button" aria-label="One more deal" onClick={() => onChange(value + 1)}>+</button>
+    </div>
   );
 }
 
-// ── live meter ───────────────────────────────────────────────────────────
-// Fills toward `target` (the finish line). `tickFrac` marks where the lower
-// "target" milestone sits along the way. Turns green once the fill covers target.
-function Meter({ booked, target, tickFrac, big }) {
+// Draggable "typical" thumb bounded by the tier's low and high. Typical is the number
+// all the deal count math runs on; the range is display and agreement only.
+function TypicalSlider({ low, high, value, onChange }) {
+  const trackRef = useRef(null);
+  const active = high > low;
+  const frac = active ? Math.min(Math.max((value - low) / (high - low), 0), 1) : 0;
+  const fromX = (clientX) => {
+    const r = trackRef.current.getBoundingClientRect();
+    let f = (clientX - r.left) / r.width;
+    f = Math.min(Math.max(f, 0), 1);
+    return niceRound(low + f * (high - low));
+  };
+  const dragging = useRef(false);
+  const down = (e) => { if (!active) return; e.currentTarget.setPointerCapture(e.pointerId); dragging.current = true; onChange(fromX(e.clientX)); };
+  const move = (e) => { if (dragging.current) onChange(fromX(e.clientX)); };
+  const up = (e) => { dragging.current = false; try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {} };
+  return (
+    <div className={`dbk-slider${active ? "" : " off"}`} ref={trackRef} onPointerDown={down} onPointerMove={move} onPointerUp={up}>
+      <div className="dbk-slider-fill" style={{ width: frac * 100 + "%" }} />
+      <div className="dbk-slider-thumb" style={{ left: frac * 100 + "%" }} />
+    </div>
+  );
+}
+
+// ── meter ──────────────────────────────────────────────────────────────────
+function Meter({ booked, target, tickFrac }) {
   const met = target > 0 && booked >= target - 0.5;
   const fillFrac = target > 0 ? Math.min(booked / target, 1) : 0;
-  const gap = target - booked;
   return (
-    <div className={`dbk-meter${big ? " big" : ""}`}>
+    <div className="dbk-meter">
       <div className="dbk-track">
         <div className={`dbk-fill${met ? " met" : ""}`} style={{ width: fillFrac * 100 + "%" }} />
         {tickFrac > 0 && tickFrac < 1 && (
@@ -216,25 +225,6 @@ function Meter({ booked, target, tickFrac, big }) {
           </div>
         )}
       </div>
-      <div className="dbk-meter-foot">
-        <span className="dbk-booked">{fmt(booked)} <span className="dbk-of">of {fmt(target)} stretch</span></span>
-        {met ? (
-          <span className="dbk-gap met"><CarrotMark size={13} color="#2E7D43" /> Stretch covered — {fmt(booked - target)} cushion</span>
-        ) : (
-          <span className="dbk-gap">{fmt(gap)} to go to reach stretch</span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── count stepper ──────────────────────────────────────────────────────────
-function Stepper({ value, onChange }) {
-  return (
-    <div className="dbk-step">
-      <button type="button" aria-label="One fewer" onClick={() => onChange(Math.max(0, value - 1))}>−</button>
-      <span className="dbk-step-n">{value}</span>
-      <button type="button" aria-label="One more" onClick={() => onChange(value + 1)}>+</button>
     </div>
   );
 }
@@ -254,55 +244,83 @@ export default function DealBreakdown({
   const targetMult = targetPct / 100;
   const stretchQuota = totalQuota * stretchMult;
   const targetQuota = totalQuota * targetMult;
-  // Where the target milestone sits along a stretch bar (same proportion everywhere).
   const tickFrac = stretchPct > 0 ? Math.min(Math.max(targetMult / stretchMult, 0), 1) : 0;
 
-  const [comps, setComps] = useState(() => buildComps(plan, targetPct, stretchPct, stored));
+  // Type options come from the plan's own components, so tagging flows through per plan.
+  const typeOptions = useMemo(() => {
+    const names = (plan && plan.quota && Array.isArray(plan.quota.components) ? plan.quota.components : [])
+      .map((c) => c && c.name).filter(Boolean);
+    return [...new Set(names)];
+  }, [plan]);
 
-  // ── persistence ──────────────────────────────────────────────────────────
-  // Save (debounced) whenever the plan changes, so edits survive reload and
-  // logout/login. The first render saves only when there was nothing stored yet —
-  // that captures Coach's pre-populated answer so the planner has data even if the
-  // rep never touches a control. A pending save is flushed on navigate-away.
+  const [tiers, setTiers] = useState(() => buildTiers(plan, targetPct, stretchPct, stored));
+  const idCounter = useRef(tiers.length);
+
+  // ── persistence: same pattern as before. Debounced save on change, flush on
+  // navigate away, backward compatible loads. We do NOT auto-save an empty first
+  // render, and we do NOT overwrite a stored blob until the rep actually edits. ──
   const onPersistRef = useRef(onPersist);
   onPersistRef.current = onPersist;
   const saveTimer = useRef(null);
   const pendingSave = useRef(null);
   const firstRender = useRef(true);
-  const hadStored = useRef(!!(stored && Array.isArray(stored.components) && stored.components.length));
+  const hadStored = useRef(!!(stored && (Array.isArray(stored.tiers) || Array.isArray(stored.components))));
 
   useEffect(() => {
-    const obj = serialize(comps, { targetPct, stretchPct, totalQuota });
+    const obj = serialize(tiers, { targetPct, stretchPct, totalQuota });
     pendingSave.current = obj;
     if (firstRender.current) {
       firstRender.current = false;
-      if (hadStored.current) { pendingSave.current = null; return; } // loaded as-is; nothing new to write
+      // Skip the initial save when we loaded stored data (nothing new) or when there is
+      // nothing to save yet (a fresh, blank screen).
+      if (hadStored.current || tiers.length === 0) { pendingSave.current = null; return; }
     }
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       if (pendingSave.current) { onPersistRef.current(pendingSave.current); pendingSave.current = null; }
     }, 700);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [comps, targetPct, stretchPct, totalQuota]);
+  }, [tiers, targetPct, stretchPct, totalQuota]);
 
-  // Flush any pending save when leaving the screen, so a quick edit-then-navigate sticks.
   useEffect(() => () => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     if (pendingSave.current) { onPersistRef.current(pendingSave.current); pendingSave.current = null; }
   }, []);
 
-  // Edit helpers — local state drives the live math; the effect above persists it.
-  const editComp = (ci, patch) => setComps((cs) => cs.map((c, i) => (i === ci ? { ...c, ...patch } : c)));
-  const editSize = (ci, si, patch) =>
-    setComps((cs) => cs.map((c, i) => (i === ci ? { ...c, sizes: c.sizes.map((s, j) => (j === si ? { ...s, ...patch } : s)) } : c)));
+  // ── edit helpers ───────────────────────────────────────────────────────
+  const patchTier = (id, patch) => setTiers((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  const editBound = (id, field, rawDigits) => {
+    setTiers((ts) => ts.map((t) => {
+      if (t.id !== id) return t;
+      const next = { ...t, [field]: rawDigits };
+      // Typical defaults to the midpoint until the rep sets it themselves.
+      if ((field === "low" || field === "high") && !next.typicalTouched) {
+        const lo = num(next.low), hi = num(next.high);
+        if (lo > 0 && hi > 0) next.typical = String(niceRound((lo + hi) / 2));
+      }
+      return next;
+    }));
+  };
+  const setTypical = (id, v) => patchTier(id, { typical: String(v), typicalTouched: true });
+  const addTier = () => {
+    const id = `tier-${idCounter.current++}`;
+    setTiers((ts) => [...ts, freshTier(id, typeOptions[0] || "")]);
+  };
+  const removeTier = (id) => setTiers((ts) => ts.filter((t) => t.id !== id));
 
-  const compBooked = (c) => c.sizes.reduce((s, r) => s + num(r.size) * r.count, 0);
-  const sumBooked = comps.reduce((s, c) => s + compBooked(c), 0);
-  const sumTargets = comps.reduce((s, c) => s + num(c.target), 0);
+  // ── derived math ───────────────────────────────────────────────────────
+  const retiresOf = (t) => num(t.typical) * t.quantity;
+  const grandBooked = tiers.reduce((s, t) => s + retiresOf(t), 0);
+  const grandMet = stretchQuota > 0 && grandBooked >= stretchQuota - 0.5;
+  const gap = stretchQuota - grandBooked;
 
-  const grandMet = stretchQuota > 0 && sumBooked >= stretchQuota - 0.5;
-  // How the rep's per-component targets stack up against their overall stretch quota.
-  const targetsDelta = sumTargets - stretchQuota;
+  // Ranks for the size icon: largest typical size -> rank 0.
+  const rankById = useMemo(() => {
+    const order = [...tiers].sort((a, b) => num(b.typical) - num(a.typical));
+    const m = {};
+    order.forEach((t, i) => { m[t.id] = i; });
+    return m;
+  }, [tiers]);
 
   return (
     <div className="dbk-root">
@@ -310,15 +328,15 @@ export default function DealBreakdown({
 
       <div className="dbk-head">
         <div className="dbk-crumb">Strategy · Step 2</div>
-        <h1 className="dbk-title">Turn Your Stretch Into Deals</h1>
+        <h1 className="dbk-title">Set Up Your Deal Tiers</h1>
         <p className="dbk-sub">
-          Here's what it takes to reach your stretch goal, broken down into the deals you actually have to close — Coach
-          filled it in from your real plan. Nudge the deal sizes and counts until it matches how your year really runs.
-          These are planning estimates, not penny-exact comp math.
+          Let's shape the deals behind your stretch number. Group them into tiers by size, tell us how many of each you
+          expect to close, and roughly how long each one takes. We measure it all against your stretch quota, with your
+          target marked along the way. These are planning estimates, not penny exact comp math.
         </p>
       </div>
 
-      {/* GRAND TOTAL — the headline meter, sum of all deals vs the rep's stretch quota */}
+      {/* GRAND TOTAL: sum of all tiers vs the rep's stretch quota */}
       <div className="dbk-grand">
         <div className="dbk-grand-top">
           <div>
@@ -329,112 +347,121 @@ export default function DealBreakdown({
             </div>
           </div>
           <div className="dbk-grand-num">
-            <div className="dbk-grand-booked">{fmt(sumBooked)}</div>
-            <div className="dbk-grand-cap">in planned deals</div>
+            <div className="dbk-grand-booked">{fmt(grandBooked)}</div>
+            <div className="dbk-grand-cap">across your tiers</div>
           </div>
         </div>
-        <Meter booked={sumBooked} target={stretchQuota} tickFrac={tickFrac} big />
+        <Meter booked={grandBooked} target={stretchQuota} tickFrac={tickFrac} />
         <div className="dbk-recon">
-          Your component targets add up to <b>{fmt(sumTargets)}</b>
-          {Math.abs(targetsDelta) < Math.max(1, stretchQuota * 0.01) ? (
-            <> — right in line with your stretch quota.</>
-          ) : targetsDelta > 0 ? (
-            <> — {fmt(targetsDelta)} <span className="over">above</span> your stretch quota. Ambitious; trim a component if it's too much.</>
+          {tiers.length === 0 ? (
+            <>Add your tiers below and we will track them against your stretch quota of <b>{fmt(stretchQuota)}</b>.</>
+          ) : grandMet ? (
+            <>Your tiers cover your stretch quota, with <b>{fmt(grandBooked - stretchQuota)}</b> to spare.</>
           ) : (
-            <> — {fmt(-targetsDelta)} <span className="under">below</span> your stretch quota. Raise a component target to close the gap.</>
+            <>Your tiers add up to <b>{fmt(grandBooked)}</b>. That leaves <b>{fmt(gap)}</b> to go before we reach stretch.</>
           )}
         </div>
       </div>
 
-      {/* PER COMPONENT */}
-      <div className="dbk-grid">
-        {comps.map((c, ci) => {
-          const booked = compBooked(c);
-          const target = num(c.target);
-          return (
-            <div key={c.key} className="dbk-card">
-              <div className="dbk-card-head">
-                <div className="dbk-c-name">{c.name}</div>
-                <div className="dbk-c-desc">{c.desc}</div>
-              </div>
-
-              {/* editable stretch target + where it came from */}
-              <div className="dbk-target">
-                <label className="dbk-target-lbl">Stretch target</label>
-                <input
-                  className="dbk-target-inp"
-                  type="text"
-                  inputMode="numeric"
-                  value={moneyDisplay(c.target)}
-                  onChange={(e) => editComp(ci, { target: digitsOf(e.target.value) })}
-                />
-                <div className="dbk-source">{c.sourceNote}</div>
-              </div>
-
-              {/* deal-size rows: Big on top → Small on the bottom */}
-              <div className="dbk-rows">
-                <div className="dbk-rows-head">
-                  <span className="rh-size">
-                    Quota retired per deal
-                    <span className="dbk-info" tabIndex={0} aria-label="The amount of each deal that counts toward your quota, not necessarily the full contract value.">
-                      i<span className="dbk-bub">The amount of each deal that counts toward your quota — not necessarily the full contract value.</span>
-                    </span>
-                  </span>
-                  <span className="rh-cnt">In your plan</span>
-                  <span className="rh-total">Retires</span>
+      {/* TIERS */}
+      {tiers.length === 0 ? (
+        <div className="dbk-empty">
+          <div className="dbk-empty-h">No tiers yet</div>
+          <p>
+            We do not have enough in your plan to guess your deal tiers, so let's build them together. Add a tier for each
+            size of deal you tend to run, from your biggest to your smallest.
+          </p>
+          <button className="dbk-add big" type="button" onClick={addTier}>Add your first tier</button>
+        </div>
+      ) : (
+        <div className="dbk-tiers">
+          {tiers.map((t) => {
+            const st = typeStyle(t.type);
+            const bucket = sizeBucket(rankById[t.id] || 0, tiers.length);
+            const cycleUnset = t.cycle === "";
+            return (
+              <div key={t.id} className="dbk-tier" style={{ borderLeft: `4px solid ${st.fg}` }}>
+                <div className="dbk-tier-head">
+                  <span className="dbk-tier-ico" style={{ color: st.fg }}><SizeIcon bucket={bucket} color={st.fg} /></span>
+                  <select
+                    className="dbk-type"
+                    value={t.type}
+                    onChange={(e) => patchTier(t.id, { type: e.target.value })}
+                    style={{ color: st.fg, background: st.chipBg, borderColor: st.chipBd }}
+                  >
+                    <option value="">Untagged</option>
+                    {typeOptions.map((name) => <option key={name} value={name}>{name}</option>)}
+                    {t.type && !typeOptions.includes(t.type) ? <option value={t.type}>{t.type}</option> : null}
+                  </select>
+                  <span className="dbk-tier-cap" style={{ color: st.fg }}>{bucket === "solo" ? "Your deals" : `${bucket[0].toUpperCase()}${bucket.slice(1)} deals`}</span>
+                  <button type="button" className="dbk-remove" aria-label="Remove this tier" onClick={() => removeTier(t.id)}>Remove</button>
                 </div>
-                {c.sizes.map((r, si) => (
-                  <div key={r.label} className="dbk-row">
-                    <span className="dbk-row-tag">{r.label}</span>
-                    <div className="dbk-field dbk-field-size">
-                      <button type="button" className="dbk-mic" title="Voice entry coming soon" aria-label="Voice entry coming soon">
-                        <MicIcon />
-                      </button>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={moneyDisplay(r.size)}
-                        onChange={(e) => editSize(ci, si, { size: digitsOf(e.target.value) })}
-                      />
-                    </div>
-                    <Stepper value={r.count} onChange={(v) => editSize(ci, si, { count: v })} />
-                    <div className="dbk-row-total" title={`${r.count} × ${fmt(num(r.size))}`}>{fmt(num(r.size) * r.count)}</div>
+
+                {/* deal size: range plus draggable typical (typical drives the math) */}
+                <div className="dbk-size">
+                  <div className="dbk-size-lbl">
+                    Deal size range
+                    <span className="dbk-size-help">the low and high of a deal in this tier</span>
                   </div>
-                ))}
+                  <div className="dbk-range">
+                    <input className="dbk-field money" type="text" inputMode="numeric" placeholder="Low"
+                      value={moneyDisplay(t.low)} onChange={(e) => editBound(t.id, "low", digitsOf(e.target.value))} />
+                    <span className="dbk-range-to">to</span>
+                    <input className="dbk-field money" type="text" inputMode="numeric" placeholder="High"
+                      value={moneyDisplay(t.high)} onChange={(e) => editBound(t.id, "high", digitsOf(e.target.value))} />
+                  </div>
+                  <div className="dbk-typical">
+                    <TypicalSlider low={num(t.low)} high={num(t.high)} value={num(t.typical)} onChange={(v) => setTypical(t.id, v)} />
+                    <div className="dbk-typical-side">
+                      <label className="dbk-typical-lbl">
+                        Typical <InfoDot text="Typical is the amount of a deal in this tier that counts toward your quota, not necessarily the full contract value. All of the deal count math runs on this number." />
+                      </label>
+                      <input className="dbk-field money typical" type="text" inputMode="numeric" placeholder="Typical"
+                        value={moneyDisplay(t.typical)} onChange={(e) => setTypical(t.id, digitsOf(e.target.value))} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* quantity, cycle, retires */}
+                <div className="dbk-metrics">
+                  <div className="dbk-metric">
+                    <label>Deal Quantity</label>
+                    <Stepper value={t.quantity} onChange={(v) => patchTier(t.id, { quantity: v })} />
+                  </div>
+                  <div className="dbk-metric">
+                    <label>Sales cycle</label>
+                    <div className={`dbk-cycle${cycleUnset ? " unset" : ""}`}>
+                      <input type="text" inputMode="numeric" placeholder="0"
+                        value={digitsOf(t.cycle)} onChange={(e) => patchTier(t.id, { cycle: digitsOf(e.target.value) })} />
+                      <span className="dbk-cycle-suf">months</span>
+                    </div>
+                    {cycleUnset ? <div className="dbk-cycle-hint">we will use this for your timeline</div> : null}
+                  </div>
+                  <div className="dbk-metric right">
+                    <label>Retires</label>
+                    <div className="dbk-retires" title={`${t.quantity} × ${fmt(num(t.typical))}`}>{fmt(retiresOf(t))}</div>
+                  </div>
+                </div>
               </div>
+            );
+          })}
 
-              <div className="dbk-coachmix">
-                <CarrotMark size={14} color="#C25A28" />
-                <span>
-                  Coach started you at <b>{c.proposed.big} big · {c.proposed.medium} medium · {c.proposed.small} small</b> — a
-                  mix that lands near your stretch target. Nudge it toward how your deals really break out.
-                </span>
-              </div>
+          <button className="dbk-add" type="button" onClick={addTier}>Add a tier</button>
+        </div>
+      )}
 
-              <Meter booked={booked} target={target} tickFrac={tickFrac} />
-            </div>
-          );
-        })}
-      </div>
-
-      {/* CTA — planner is the next build, so this doesn't navigate yet */}
+      {/* CTA: the planner is a later build, so this does not navigate yet */}
       <div className="dbk-cta-wrap">
-        <button className="dbk-cta" onClick={() => onContinue({ comps, sumBooked })}>
+        <button className="dbk-cta" onClick={() => onContinue({ tiers, grandBooked })}>
           <span className="dbk-cta-main">Place these deals across the year <span aria-hidden>→</span></span>
-          <span className="dbk-cta-sub">Coach will help you slot each deal into a month and build your plan of attack</span>
+          <span className="dbk-cta-sub">Next we will lay these deals across your year</span>
         </button>
-        {grandMet ? (
-          <div className="dbk-cta-note met">Your planned deals already cover your stretch quota. 🥕</div>
-        ) : (
-          <div className="dbk-cta-note">{fmt(stretchQuota - sumBooked)} of planned deals still to add to cover your stretch quota.</div>
-        )}
       </div>
     </div>
   );
 }
 
-// ── scoped styles (laptop-first; the base rules are the phone fallback and the
-// min-width:760px block is the laptop layout, matching the goals screen) ─────
+// ── scoped styles (laptop-first; base rules are the phone fallback) ─────────
 const CSS = `
 .dbk-root{ font-family:'DM Sans',sans-serif; color:var(--ink); }
 .dbk-root *{ box-sizing:border-box; }
@@ -454,75 +481,79 @@ const CSS = `
 .dbk-grand-num{ text-align:right; }
 .dbk-grand-booked{ font-family:'Playfair Display',serif; font-size:34px; font-weight:900; line-height:1; color:#fff; }
 .dbk-grand-cap{ font-size:11.5px; color:#A7D6B5; letter-spacing:.04em; text-transform:uppercase; font-weight:600; margin-top:3px; }
-.dbk-recon{ font-size:12.5px; color:#CDE7D4; margin-top:13px; line-height:1.5; }
-.dbk-recon b{ color:#fff; } .dbk-recon .over{ color:#FFD9A8; font-weight:700; } .dbk-recon .under{ color:#FFC59A; font-weight:700; }
+.dbk-recon{ font-size:12.5px; color:#CDE7D4; margin-top:13px; line-height:1.5; } .dbk-recon b{ color:#fff; }
 
-/* meter (shared) */
+/* meter */
 .dbk-meter{ margin-top:12px; }
-.dbk-track{ position:relative; height:12px; border-radius:999px; background:rgba(0,0,0,.10); overflow:visible; }
-.dbk-grand .dbk-track{ background:rgba(255,255,255,.18); }
+.dbk-track{ position:relative; height:16px; border-radius:999px; background:rgba(255,255,255,.18); }
 .dbk-fill{ position:absolute; left:0; top:0; bottom:0; border-radius:999px; background:linear-gradient(90deg,var(--gold),var(--carrot)); transition:width .35s ease; }
-.dbk-fill.met{ background:linear-gradient(90deg,#5AA66E,#2D6A4F); }
-.dbk-grand .dbk-fill.met{ background:linear-gradient(90deg,#7BD493,#B7F0C6); }
-.dbk-meter.big .dbk-track{ height:16px; }
-.dbk-tick{ position:absolute; top:-5px; bottom:-5px; width:2px; background:rgba(26,18,8,.45); transform:translateX(-50%); }
-.dbk-grand .dbk-tick{ background:rgba(255,255,255,.7); }
-.dbk-tick-lbl{ position:absolute; top:-16px; left:50%; transform:translateX(-50%); font-size:8.5px; letter-spacing:.06em; text-transform:uppercase;
-  font-weight:800; color:rgba(26,18,8,.55); white-space:nowrap; }
-.dbk-grand .dbk-tick-lbl{ color:rgba(255,255,255,.85); }
-.dbk-meter-foot{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:9px; flex-wrap:wrap; }
-.dbk-booked{ font-size:13px; font-weight:700; color:var(--ink); } .dbk-grand .dbk-booked{ color:#fff; }
-.dbk-of{ font-weight:500; color:var(--muted); } .dbk-grand .dbk-of{ color:#A7D6B5; }
-.dbk-gap{ font-size:12.5px; font-weight:700; color:var(--carrot-dark); display:inline-flex; align-items:center; gap:5px; }
-.dbk-grand .dbk-gap{ color:#FFE7D5; }
-.dbk-gap.met{ color:var(--green); } .dbk-grand .dbk-gap.met{ color:#B7F0C6; }
+.dbk-fill.met{ background:linear-gradient(90deg,#7BD493,#B7F0C6); }
+.dbk-tick{ position:absolute; top:-5px; bottom:-5px; width:2px; background:rgba(255,255,255,.7); transform:translateX(-50%); }
+.dbk-tick-lbl{ position:absolute; top:-16px; left:50%; transform:translateX(-50%); font-size:8.5px; letter-spacing:.06em; text-transform:uppercase; font-weight:800; color:rgba(255,255,255,.85); white-space:nowrap; }
 
-/* component cards */
-.dbk-grid{ display:flex; flex-direction:column; gap:18px; }
-.dbk-card{ background:#fff; border:1.5px solid var(--border); border-radius:20px; padding:18px 18px 16px; }
-.dbk-card-head{ margin-bottom:14px; }
-.dbk-c-name{ font-family:'Playfair Display',serif; font-size:20px; font-weight:700; color:var(--ink); }
-.dbk-c-desc{ font-size:13px; color:var(--muted); margin-top:2px; }
+/* empty state */
+.dbk-empty{ background:#fff; border:1.5px dashed #E7C9AE; border-radius:20px; padding:26px; text-align:center; margin-bottom:22px; }
+.dbk-empty-h{ font-family:'Playfair Display',serif; font-size:21px; font-weight:700; color:var(--ink); }
+.dbk-empty p{ font-size:14px; color:var(--muted); line-height:1.55; max-width:520px; margin:8px auto 16px; }
 
-.dbk-target{ background:var(--carrot-light); border:1px solid #F0CBB4; border-radius:14px; padding:12px 14px; margin-bottom:14px; }
-.dbk-target-lbl{ display:block; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:800; color:var(--carrot-dark); margin-bottom:5px; }
-.dbk-target-inp{ width:100%; max-width:220px; font-family:'Playfair Display',serif; font-size:26px; font-weight:900; color:var(--ink);
-  border:1.5px solid transparent; border-radius:9px; background:rgba(255,255,255,.7); padding:4px 10px; }
-.dbk-target-inp:focus{ outline:none; border-color:var(--carrot); background:#fff; }
-.dbk-source{ font-size:11.5px; color:#9A6A3E; line-height:1.45; margin-top:7px; font-style:italic; }
+/* tiers */
+.dbk-tiers{ display:flex; flex-direction:column; gap:16px; }
+.dbk-tier{ background:#fff; border:1.5px solid var(--border); border-radius:18px; padding:16px 18px; }
+.dbk-tier-head{ display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.dbk-tier-ico{ display:flex; align-items:center; }
+.dbk-type{ font-family:'DM Sans',sans-serif; font-size:13px; font-weight:700; border:1.5px solid; border-radius:100px; padding:5px 12px; cursor:pointer; appearance:none; }
+.dbk-type:focus{ outline:none; }
+.dbk-tier-cap{ font-size:11px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; opacity:.85; }
+.dbk-remove{ margin-left:auto; background:none; border:1.5px solid var(--border); border-radius:9px; padding:5px 12px; font-size:12.5px;
+  font-weight:600; color:var(--muted); cursor:pointer; font-family:'DM Sans',sans-serif; }
+.dbk-remove:hover{ border-color:#C86B4B; color:#B0532A; }
 
-.dbk-rows{ margin-bottom:12px; }
-.dbk-rows-head{ display:grid; grid-template-columns:54px 1fr 96px 84px; gap:9px; align-items:center; padding:0 2px 6px; }
-.dbk-rows-head span{ font-size:10px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; color:var(--muted); }
-.dbk-rows-head .rh-size{ grid-column:1 / 3; } .dbk-rows-head .rh-cnt{ text-align:center; } .dbk-rows-head .rh-total{ text-align:right; }
-.dbk-row{ display:grid; grid-template-columns:54px 1fr 96px 84px; gap:9px; align-items:center; padding:6px 0; }
-.dbk-row-tag{ font-size:12px; font-weight:800; color:var(--ink); }
-.dbk-row-total{ text-align:right; font-size:14px; font-weight:800; color:var(--carrot-dark); white-space:nowrap; }
-/* info dot + hover/focus bubble (matches the goals screen pattern) */
-.dbk-info{ position:relative; display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border-radius:50%;
-  border:1px solid #C9B49E; color:#9A8775; font-size:9px; font-style:italic; font-weight:700; cursor:help; font-family:Georgia,serif;
-  vertical-align:middle; margin-left:5px; text-transform:none; letter-spacing:0; }
-.dbk-info .dbk-bub{ position:absolute; bottom:150%; left:0; transform:translateX(-8%); width:220px; background:var(--ink); color:#F7EFE6;
-  font-size:11px; line-height:1.45; letter-spacing:0; text-transform:none; font-weight:500; padding:9px 11px; border-radius:8px;
-  box-shadow:0 8px 20px -6px rgba(0,0,0,.5); opacity:0; visibility:hidden; transition:opacity .15s; z-index:5; pointer-events:none; }
-.dbk-info:hover .dbk-bub, .dbk-info:focus .dbk-bub{ opacity:1; visibility:visible; }
-.dbk-field{ border:1.5px solid var(--border); border-radius:10px; background:#fff; font-family:'DM Sans',sans-serif; font-size:15px; color:var(--ink); }
-.dbk-field:focus-within, .dbk-field:focus{ outline:none; border-color:var(--carrot); }
-.dbk-field-size{ display:flex; align-items:center; gap:6px; padding:0 8px; }
-.dbk-field-size input{ border:none; background:none; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:700; color:var(--ink); width:100%; padding:9px 0; }
-.dbk-field-size input:focus{ outline:none; }
-.dbk-mic{ flex:none; display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:7px; border:none;
-  background:var(--carrot-light); color:var(--carrot-dark); cursor:pointer; }
-.dbk-mic:hover{ background:#F8D5BD; }
-.dbk-step{ display:flex; align-items:center; justify-content:space-between; gap:4px; border:1.5px solid var(--border); border-radius:10px; background:#fff; padding:3px; }
-.dbk-step button{ width:30px; height:30px; border:none; border-radius:8px; background:var(--cream); color:var(--carrot-dark); font-size:20px; font-weight:700;
-  line-height:1; cursor:pointer; font-family:'DM Sans',sans-serif; }
+.dbk-size{ margin-bottom:14px; }
+.dbk-size-lbl{ font-size:11px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; color:var(--muted); margin-bottom:8px; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.dbk-size-help{ text-transform:none; letter-spacing:0; font-weight:500; font-size:12px; color:var(--muted); opacity:.85; }
+.dbk-range{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.dbk-range-to{ font-size:13px; color:var(--muted); font-weight:600; }
+.dbk-field{ border:1.5px solid var(--border); border-radius:10px; background:#fff; font-family:'DM Sans',sans-serif; font-size:15px; color:var(--ink); padding:10px 12px; }
+.dbk-field:focus{ outline:none; border-color:var(--carrot); }
+.dbk-field.money{ font-weight:700; width:150px; }
+.dbk-typical{ display:flex; align-items:center; gap:16px; }
+.dbk-slider{ position:relative; flex:1; height:8px; border-radius:999px; background:#EADBC9; cursor:pointer; touch-action:none; min-width:120px; }
+.dbk-slider.off{ opacity:.5; cursor:not-allowed; }
+.dbk-slider-fill{ position:absolute; left:0; top:0; bottom:0; border-radius:999px; background:linear-gradient(90deg,var(--gold),var(--carrot)); }
+.dbk-slider-thumb{ position:absolute; top:50%; width:20px; height:20px; border-radius:50%; transform:translate(-50%,-50%); background:var(--carrot); border:3px solid #fff; box-shadow:0 3px 8px rgba(0,0,0,.25); }
+.dbk-typical-side{ display:flex; flex-direction:column; gap:5px; }
+.dbk-typical-lbl{ font-size:11px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; color:var(--muted); display:flex; align-items:center; gap:4px; }
+.dbk-field.typical{ width:150px; color:var(--carrot-dark); }
+
+.dbk-metrics{ display:flex; align-items:flex-end; gap:24px; flex-wrap:wrap; border-top:1px solid var(--border); padding-top:14px; }
+.dbk-metric{ display:flex; flex-direction:column; gap:6px; }
+.dbk-metric.right{ margin-left:auto; text-align:right; align-items:flex-end; }
+.dbk-metric label{ font-size:11px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; color:var(--muted); }
+.dbk-step{ display:flex; align-items:center; gap:4px; border:1.5px solid var(--border); border-radius:10px; background:#fff; padding:3px; }
+.dbk-step button{ width:32px; height:32px; border:none; border-radius:8px; background:var(--cream); color:var(--carrot-dark); font-size:20px; font-weight:700; line-height:1; cursor:pointer; font-family:'DM Sans',sans-serif; }
 .dbk-step button:hover{ background:var(--carrot-light); }
-.dbk-step-n{ flex:1; text-align:center; font-size:16px; font-weight:800; color:var(--ink); }
+.dbk-step-n{ min-width:38px; text-align:center; font-size:16px; font-weight:800; color:var(--ink); }
+.dbk-cycle{ display:flex; align-items:center; gap:7px; border:1.5px solid var(--border); border-radius:10px; background:#fff; padding:0 12px 0 12px; }
+.dbk-cycle:focus-within{ border-color:var(--carrot); }
+.dbk-cycle.unset{ border-color:#E0B88A; background:#FFFaf2; }
+.dbk-cycle input{ border:none; background:none; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:700; color:var(--ink); width:42px; padding:9px 0; }
+.dbk-cycle input:focus{ outline:none; }
+.dbk-cycle-suf{ font-size:13px; color:var(--muted); font-weight:600; }
+.dbk-cycle-hint{ font-size:11px; color:#9A6A3E; font-style:italic; }
+.dbk-retires{ font-family:'Playfair Display',serif; font-size:22px; font-weight:900; color:var(--carrot-dark); white-space:nowrap; }
 
-.dbk-coachmix{ display:flex; gap:8px; align-items:flex-start; background:#FBF4EC; border:1px solid #EFE0CF; border-radius:12px; padding:10px 12px; margin-bottom:6px; }
-.dbk-coachmix svg{ flex:none; margin-top:2px; }
-.dbk-coachmix span{ font-size:12px; color:#5C4A3A; line-height:1.5; } .dbk-coachmix b{ color:var(--ink); }
+.dbk-add{ align-self:flex-start; background:#fff; border:1.5px dashed #E7C9AE; border-radius:12px; padding:11px 18px; font-size:14px; font-weight:700;
+  color:var(--carrot-dark); cursor:pointer; font-family:'DM Sans',sans-serif; }
+.dbk-add:hover{ border-color:var(--carrot); }
+.dbk-add.big{ background:linear-gradient(135deg,var(--carrot),#FF8A4C); color:#fff; border:none; padding:13px 22px; font-size:15px; }
+
+/* info dot */
+.dbk-info{ position:relative; display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border-radius:50%;
+  border:1px solid #C9B49E; color:#9A8775; font-size:9px; font-style:italic; font-weight:700; cursor:help; font-family:Georgia,serif; text-transform:none; letter-spacing:0; }
+.dbk-info .dbk-bub{ position:absolute; bottom:150%; left:0; transform:translateX(-8%); width:230px; background:var(--ink); color:#F7EFE6; font-size:11px;
+  line-height:1.45; letter-spacing:0; text-transform:none; font-weight:500; padding:9px 11px; border-radius:8px; box-shadow:0 8px 20px -6px rgba(0,0,0,.5);
+  opacity:0; visibility:hidden; transition:opacity .15s; z-index:5; pointer-events:none; }
+.dbk-info:hover .dbk-bub, .dbk-info:focus .dbk-bub{ opacity:1; visibility:visible; }
 
 /* CTA */
 .dbk-cta-wrap{ margin-top:24px; }
@@ -532,21 +563,16 @@ const CSS = `
 .dbk-cta:hover{ transform:translateY(-1px); }
 .dbk-cta-main{ font-size:17px; font-weight:700; display:flex; align-items:center; gap:8px; }
 .dbk-cta-sub{ font-size:12.5px; font-weight:500; color:#FFE7D5; }
-.dbk-cta-note{ text-align:center; font-size:12.5px; color:var(--muted); margin-top:10px; }
-.dbk-cta-note.met{ color:var(--green); font-weight:700; }
 
-/* laptop layout: component cards go two-up and type steps up */
 @media(min-width:760px){
   .dbk-title{ font-size:34px; }
   .dbk-sub{ font-size:16px; }
   .dbk-grand-booked{ font-size:42px; }
-  .dbk-grid{ display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; }
-  .dbk-c-name{ font-size:22px; }
-  .dbk-target-inp{ font-size:30px; }
 }
-@media(max-width:520px){
-  .dbk-rows-head, .dbk-row{ grid-template-columns:40px minmax(66px,1fr) 80px 64px; gap:5px; }
-  .dbk-field-size input{ font-size:14px; }
-  .dbk-row-total{ font-size:13px; }
+@media(max-width:560px){
+  .dbk-typical{ flex-direction:column; align-items:stretch; gap:10px; }
+  .dbk-field.money, .dbk-field.typical{ width:100%; }
+  .dbk-metrics{ gap:16px; }
+  .dbk-metric.right{ margin-left:0; }
 }
 `;
