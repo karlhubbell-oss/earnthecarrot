@@ -130,14 +130,17 @@ function buildTiers(plan, targetPct, stretchPct, stored) {
     for (const c of stored.components) {
       for (const b of Array.isArray(c.bands) ? c.bands : []) {
         const s = num(b.quota_per_deal);
-        if (s <= 0) continue; // no size means it was never a real deal definition
+        const qty = num(b.count);
+        // Only carry bands that were real deals: a size AND a quantity. A zero-quantity
+        // band is a stale size definition not worth keeping as a $0 tier.
+        if (s <= 0 || qty <= 0) continue;
         tiers.push({
           id: `tier-${i++}`,
           type: c.name || "",
           low: String(niceRound(s * 0.8)),
           high: String(niceRound(s * 1.2)),
           typical: String(s),
-          quantity: num(b.count),
+          quantity: qty,
           cycle: "", // old blobs have no cycle; surfaced as needing input
           typicalTouched: true,
         });
