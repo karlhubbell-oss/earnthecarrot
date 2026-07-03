@@ -159,7 +159,7 @@ function buildSections(plan, stored) {
 
   const sections = [];
   let sid = 0, rid = 0;
-  const withRowIds = (rows) => rows.map((r) => ({ id: `row-${rid++}`, label: r.label || "", size: r.size === "0" ? "" : r.size, quantity: r.quantity, cycle: r.cycle }));
+  const withRowIds = (rows) => rows.map((r) => ({ id: `row-${rid++}`, label: r.label || "", size: r.size === "0" ? "" : r.size, quantity: r.quantity == null ? "" : String(num(r.quantity)), cycle: r.cycle }));
 
   const planNames = new Set(planComps.map((c) => c.name));
   for (const pc of planComps) {
@@ -183,18 +183,27 @@ function serialize(sections, ctx) {
       type: s.type || null,
       origin: s.origin,
       quota: s.origin === "plan" ? s.quota : null,
-      sizes: s.sizes.map((r) => ({ id: r.id, label: r.label || "", size: r.size === "" ? null : num(r.size), quantity: r.quantity, cycle_months: r.cycle === "" ? null : num(r.cycle) })),
+      sizes: s.sizes.map((r) => ({ id: r.id, label: r.label || "", size: r.size === "" ? null : num(r.size), quantity: num(r.quantity), cycle_months: r.cycle === "" ? null : num(r.cycle) })),
     })),
   };
 }
 
 // ── small controls ─────────────────────────────────────────────────────────
-function Stepper({ value, onChange }) {
+// Type-or-step numeric control: the rep can type a number OR nudge with the -/+
+// buttons. `value` is a string; "" means unset (rendered blank, never as a "0"),
+// so a field that needs input reads as empty rather than a real zero.
+function StepInput({ value, onChange, suffix = null, unset = false, minusLabel, plusLabel }) {
+  const n = num(value);
+  const dec = () => onChange(value === "" ? "" : String(Math.max(0, n - 1)));
+  const inc = () => onChange(String(n + 1));
   return (
-    <div className="dbk-step">
-      <button type="button" aria-label="One fewer deal" onClick={() => onChange(Math.max(0, value - 1))}>−</button>
-      <span className="dbk-step-n">{value}</span>
-      <button type="button" aria-label="One more deal" onClick={() => onChange(value + 1)}>+</button>
+    <div className={`dbk-stepinput${unset ? " unset" : ""}`}>
+      <button type="button" className="si-btn" aria-label={minusLabel} onClick={dec}>−</button>
+      <div className="si-mid">
+        <input type="text" inputMode="numeric" value={digitsOf(value)} onChange={(e) => onChange(digitsOf(e.target.value))} />
+        {suffix ? <span className="si-suf">{suffix}</span> : null}
+      </div>
+      <button type="button" className="si-btn" aria-label={plusLabel} onClick={inc}>+</button>
     </div>
   );
 }
@@ -230,48 +239,68 @@ export default function DealBreakdown({
   const targetQuota = totalQuota * targetMult;
   const tickFrac = stretchPct > 0 ? Math.min(Math.max(targetMult / stretchMult, 0), 1) : 0;
 
-  const [sections, setSections] = useState(() => buildSections(plan, stored));
+  // A genuinely new rep (no saved deal_plan) gets a render-only teaching scaffold:
+  // the first plan component seeded with Big/Medium/Small label-only rows, every
+  // other plan component seeded with one blank row. No numbers are fabricated, and
+  // none of this is persisted until the rep actually edits (see the `edited` gate).
+  const hadStoredInit = !!(stored && (Array.isArray(stored.components) || Array.isArray(stored.tiers)));
+  const [sections, setSections] = useState(() => {
+    const base = buildSections(plan, stored);
+    if (hadStoredInit) return base;
+    let rc = 0;
+    const rid = () => `srow-${rc++}`;
+    const firstPlan = base.find((s) => s.origin === "plan");
+    return base.map((s) => {
+      if (s.origin !== "plan") return s;
+      if (firstPlan && s.id === firstPlan.id) {
+        return { ...s, sizes: [
+          { id: rid(), label: "Big", size: "", quantity: "", cycle: "" },
+          { id: rid(), label: "Medium", size: "", quantity: "", cycle: "" },
+          { id: rid(), label: "Small", size: "", quantity: "", cycle: "" },
+        ] };
+      }
+      return { ...s, sizes: [{ id: rid(), label: "", size: "", quantity: "", cycle: "" }] };
+    });
+  });
   const ids = useRef({ sec: sections.length, row: 0 });
+  // First-run state ends the moment the rep touches anything. It gates BOTH the
+  // helper/scaffold framing and persistence, so land-and-leave never saves a blob.
+  const [edited, setEdited] = useState(false);
+  const firstRun = !hadStoredInit && !edited;
 
-  // ── persistence: debounced save on change, flush on navigate, no save of the
-  // pristine plan-only-empty first render, no overwrite of a stored blob on load. ──
+  // ── persistence: debounced save, flush on navigate. Only ever runs once the rep
+  // has edited, so the first-run scaffold is never written to storage on its own. ──
   const onPersistRef = useRef(onPersist);
   onPersistRef.current = onPersist;
   const saveTimer = useRef(null);
   const pendingSave = useRef(null);
-  const firstRender = useRef(true);
-  const hadStored = useRef(!!(stored && (Array.isArray(stored.components) || Array.isArray(stored.tiers))));
 
-  const totalRows = sections.reduce((n, s) => n + s.sizes.length, 0);
   useEffect(() => {
+    if (!edited) return;
     const obj = serialize(sections, { targetPct, stretchPct, totalQuota });
     pendingSave.current = obj;
-    if (firstRender.current) {
-      firstRender.current = false;
-      if (hadStored.current || totalRows === 0) { pendingSave.current = null; return; }
-    }
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       if (pendingSave.current) { onPersistRef.current(pendingSave.current); pendingSave.current = null; }
     }, 700);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [sections, targetPct, stretchPct, totalQuota]);
+  }, [sections, edited, targetPct, stretchPct, totalQuota]);
 
   useEffect(() => () => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     if (pendingSave.current) { onPersistRef.current(pendingSave.current); pendingSave.current = null; }
   }, []);
 
-  // ── edit helpers ───────────────────────────────────────────────────────
-  const patchSection = (sid, patch) => setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, ...patch } : s)));
-  const patchRow = (sid, rid, patch) => setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: s.sizes.map((r) => (r.id === rid ? { ...r, ...patch } : r)) } : s)));
-  const addRow = (sid) => setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: [...s.sizes, { id: `row-${ids.current.row++}`, label: "", size: "", quantity: 0, cycle: "" }] } : s)));
-  const removeRow = (sid, rid) => setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: s.sizes.filter((r) => r.id !== rid) } : s)));
-  const addComponent = () => setSections((ss) => [...ss, { id: `sec-${ids.current.sec++}`, type: "", origin: "custom", quota: null, sizes: [] }]);
-  const removeComponent = (sid) => setSections((ss) => ss.filter((s) => s.id !== sid));
+  // ── edit helpers (each marks the screen edited, which unlocks persistence) ──
+  const patchSection = (sid, patch) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, ...patch } : s))); };
+  const patchRow = (sid, rid, patch) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: s.sizes.map((r) => (r.id === rid ? { ...r, ...patch } : r)) } : s))); };
+  const addRow = (sid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: [...s.sizes, { id: `row-${ids.current.row++}`, label: "", size: "", quantity: "", cycle: "" }] } : s))); };
+  const removeRow = (sid, rid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: s.sizes.filter((r) => r.id !== rid) } : s))); };
+  const addComponent = () => { setEdited(true); setSections((ss) => [...ss, { id: `sec-${ids.current.sec++}`, type: "", origin: "custom", quota: null, sizes: [] }]); };
+  const removeComponent = (sid) => { setEdited(true); setSections((ss) => ss.filter((s) => s.id !== sid)); };
 
   // ── derived math ───────────────────────────────────────────────────────
-  const rowRevenue = (r) => num(r.size) * r.quantity;
+  const rowRevenue = (r) => num(r.size) * num(r.quantity);
   const sectionRevenue = (s) => s.sizes.reduce((n, r) => n + rowRevenue(r), 0);
   // Plan revenue drives the meter and reconciliation. Custom revenue is tracked
   // separately so it never breaks the plan based math.
@@ -329,14 +358,13 @@ export default function DealBreakdown({
               <input className="dbk-field money" type="text" inputMode="numeric" placeholder="Typical deal size"
                 value={moneyDisplay(r.size)} onChange={(e) => patchRow(s.id, r.id, { size: digitsOf(e.target.value) })} />
             </div>
-            <div className="c-qty"><Stepper value={r.quantity} onChange={(v) => patchRow(s.id, r.id, { quantity: v })} /></div>
-            <div className="c-cycle">
-              <div className="dbk-cycle">
-                <input type="text" inputMode="numeric" placeholder="0" value={digitsOf(r.cycle)} onChange={(e) => patchRow(s.id, r.id, { cycle: digitsOf(e.target.value) })} />
-                <span className="dbk-cycle-suf">mo</span>
-              </div>
+            <div className="c-qty">
+              <StepInput value={r.quantity} onChange={(v) => patchRow(s.id, r.id, { quantity: v })} minusLabel="One fewer deal" plusLabel="One more deal" />
             </div>
-            <div className="c-rev"><span className="dbk-rev" title={`${r.quantity} × ${fmt(num(r.size))}`}>{fmt(rowRevenue(r))}</span></div>
+            <div className="c-cycle">
+              <StepInput value={r.cycle} onChange={(v) => patchRow(s.id, r.id, { cycle: v })} suffix="mo" unset={r.cycle === ""} minusLabel="One fewer month" plusLabel="One more month" />
+            </div>
+            <div className="c-rev"><span className="dbk-rev" title={`${num(r.quantity)} × ${fmt(num(r.size))}`}>{fmt(rowRevenue(r))}</span></div>
             <div className="c-rm"><button type="button" className="dbk-rm" aria-label="Remove this size" onClick={() => removeRow(s.id, r.id)}>×</button></div>
           </div>
         ))}
@@ -392,6 +420,18 @@ export default function DealBreakdown({
         )}
       </div>
 
+      {/* FIRST-RUN helper: supporting text only, appears and disappears with the scaffold */}
+      {firstRun && (
+        <div className="dbk-helper">
+          <p>
+            Most reps close a mix of deal sizes over a year. A few big ones, some in the middle, a handful of small. Each
+            size tends to have its own rhythm: a big deal might close once or twice a year after a long cycle, while
+            smaller deals close faster and more often. We've set up your first component with a big, medium, and small
+            example to show the idea. Rename them, change the numbers, or delete any you don't need.
+          </p>
+        </div>
+      )}
+
       {/* SECTIONS */}
       <div className="dbk-secs">
         {sections.map(renderSection)}
@@ -429,6 +469,10 @@ const CSS = `
 .dbk-recon{ font-size:12.5px; color:#CDE7D4; margin-top:11px; line-height:1.5; } .dbk-recon b{ color:#fff; }
 .dbk-custom-line{ font-size:12px; color:#EAD9C4; margin-top:9px; padding-top:9px; border-top:1px solid rgba(255,255,255,.16); line-height:1.5; } .dbk-custom-line b{ color:#FFE7C7; }
 
+/* first-run helper: soft supporting text, deliberately lighter than the cards */
+.dbk-helper{ background:#FBF6EF; border:1px solid #EFE3D2; border-radius:12px; padding:13px 16px; margin-bottom:16px; }
+.dbk-helper p{ font-size:13px; line-height:1.55; color:var(--muted); margin:0; }
+
 .dbk-meter{ margin-top:11px; }
 .dbk-track{ position:relative; height:14px; border-radius:999px; background:rgba(255,255,255,.18); }
 .dbk-fill{ position:absolute; left:0; top:0; bottom:0; border-radius:999px; background:linear-gradient(90deg,var(--gold),var(--carrot)); transition:width .35s ease; }
@@ -460,15 +504,16 @@ const CSS = `
 .dbk-field{ border:1.5px solid var(--border); border-radius:10px; background:#fff; font-family:'DM Sans',sans-serif; font-size:15px; color:var(--ink); padding:9px 11px; width:100%; }
 .dbk-field:focus{ outline:none; border-color:var(--carrot); }
 .dbk-field.money{ font-weight:700; }
-.dbk-step{ display:flex; align-items:center; gap:3px; border:1.5px solid var(--border); border-radius:10px; background:#fff; padding:3px; width:fit-content; }
-.dbk-step button{ width:30px; height:30px; border:none; border-radius:8px; background:var(--cream); color:var(--carrot-dark); font-size:19px; font-weight:700; line-height:1; cursor:pointer; font-family:'DM Sans',sans-serif; }
-.dbk-step button:hover{ background:var(--carrot-light); }
-.dbk-step-n{ min-width:34px; text-align:center; font-size:16px; font-weight:800; color:var(--ink); }
-.dbk-cycle{ display:flex; align-items:center; gap:6px; border:1.5px solid var(--border); border-radius:10px; background:#fff; padding:0 11px; width:fit-content; }
-.dbk-cycle:focus-within{ border-color:var(--carrot); }
-.dbk-cycle input{ border:none; background:none; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:700; color:var(--ink); width:34px; padding:9px 0; }
-.dbk-cycle input:focus{ outline:none; }
-.dbk-cycle-suf{ font-size:13px; color:var(--muted); font-weight:600; }
+.dbk-stepinput{ display:inline-flex; align-items:center; gap:2px; border:1.5px solid var(--border); border-radius:10px; background:#fff; padding:3px; width:fit-content; }
+.dbk-stepinput:focus-within{ border-color:var(--carrot); }
+.dbk-stepinput.unset{ border-color:#E6C79E; background:#FFFBF3; }
+.dbk-stepinput .si-btn{ width:28px; height:30px; border:none; border-radius:8px; background:var(--cream); color:var(--carrot-dark); font-size:19px; font-weight:700; line-height:1; cursor:pointer; font-family:'DM Sans',sans-serif; }
+.dbk-stepinput .si-btn:hover{ background:var(--carrot-light); }
+.dbk-stepinput .si-mid{ display:flex; align-items:center; gap:3px; padding:0 4px; }
+.dbk-stepinput .si-mid input{ width:34px; border:none; background:none; text-align:center; font-family:'DM Sans',sans-serif; font-size:16px; font-weight:800; color:var(--ink); padding:0; }
+.dbk-stepinput .si-mid input:focus{ outline:none; }
+.dbk-stepinput .si-suf{ font-size:12.5px; color:var(--muted); font-weight:600; }
+.dbk-stepinput.unset .si-suf{ color:#C39A5F; }
 .c-rev{ text-align:right; }
 .dbk-rev{ font-family:'Playfair Display',serif; font-size:18px; font-weight:900; color:var(--carrot-dark); white-space:nowrap; }
 .dbk-rm{ width:26px; height:26px; border:none; border-radius:8px; background:none; color:var(--muted); font-size:19px; line-height:1; cursor:pointer; }
