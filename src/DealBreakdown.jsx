@@ -280,7 +280,9 @@ function defaultArrangement(deals, period, todayIdx) {
   const lastClose = period.P - 1;
   const firstClose = Math.min(Math.max(Math.ceil(todayIdx), 0), lastClose);
   const byComp = {};
-  for (const d of deals) (byComp[d.componentId] = byComp[d.componentId] || []).push(d);
+  // Only deals with a real cycle can be laid on the axis. A cycle-less deal has no bar
+  // length, so it is never auto-spread; it waits on the bench until a cycle is set.
+  for (const d of deals) { if (d.cycle <= 0) continue; (byComp[d.componentId] = byComp[d.componentId] || []).push(d); }
   for (const cid of Object.keys(byComp)) {
     const list = byComp[cid].slice().sort((a, b) => a.cycle - b.cycle);
     const n = list.length;
@@ -391,7 +393,7 @@ export default function DealBreakdown({
   const arrangedRef = useRef(Object.keys(placements).length > 0);
   useEffect(() => {
     if (arrangedRef.current) return;
-    if (deals.length === 0) return;
+    if (!deals.some((d) => d.cycle > 0)) return; // wait until something is placeable
     arrangedRef.current = true;
     setEdited(true);
     setPlacements(defaultArrangement(deals, period, todayIdx));
@@ -454,8 +456,12 @@ export default function DealBreakdown({
     const span = Math.max(1, period.P - axisLo);
     const x = (pos) => ((pos - axisLo) / span) * 100;
     const months = []; for (let m = axisLo; m < period.P; m++) months.push(m);
-    const placed = compDeals.filter((d) => closeOf(d.id) != null);
-    const bench = compDeals.filter((d) => closeOf(d.id) == null);
+    // Only deals with a real cycle can be bars; a cycle-less deal has no bar length and
+    // waits on the bench (never scattered on the axis) until a cycle is set on its row.
+    const cycled = compDeals.filter((d) => d.cycle > 0);
+    const noCycle = compDeals.filter((d) => d.cycle <= 0);
+    const placed = cycled.filter((d) => closeOf(d.id) != null);
+    const bench = cycled.filter((d) => closeOf(d.id) == null);
     const lateCount = placed.filter((d) => dealBar(closeOf(d.id), d.cycle).startPos < todayIdx).length;
     const minClose = Math.floor(todayIdx); // cannot close before the current month
     const localSel = compDeals.some((d) => d.id === selChip) ? selChip : null;
@@ -475,13 +481,19 @@ export default function DealBreakdown({
         ) : (
           <div className="dbk-selbar muted">Tap a deal, then tap a month to place it.</div>
         )}
-        {bench.length > 0 && (
+        {(bench.length > 0 || noCycle.length > 0) && (
           <div className="dbk-bench">
             <span className="dbk-bench-lbl">Bench</span>
             {bench.map((d) => (
               <button key={d.id} type="button" className={`dbk-pill${selChip === d.id ? " sel" : ""}`} style={{ borderColor: d.color, color: d.color }} onClick={() => setSelChip(selChip === d.id ? null : d.id)}>{d.sizeLabel} {fmt(d.size)}</button>
             ))}
+            {noCycle.map((d) => (
+              <span key={d.id} className="dbk-pill nocycle" title="Add a sales cycle length to place this deal">{d.sizeLabel} {fmt(d.size)}</span>
+            ))}
           </div>
+        )}
+        {noCycle.length > 0 && (
+          <div className="dbk-nocycle-note">Add a sales cycle length to these rows to place them on your calendar.</div>
         )}
         <div className="dbk-months">
           {months.map((m) => (
@@ -742,6 +754,8 @@ const CSS = `
 .dbk-bench-lbl{ font-size:10.5px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; color:var(--muted); }
 .dbk-pill{ font-family:'DM Sans',sans-serif; font-size:12px; font-weight:700; background:#fff; border:1.5px solid; border-radius:100px; padding:5px 11px; cursor:pointer; }
 .dbk-pill.sel{ box-shadow:0 0 0 2px rgba(232,100,44,.35); }
+.dbk-pill.nocycle{ border-color:var(--border) !important; color:var(--muted) !important; background:#F6F0E8; border-style:dashed; cursor:default; }
+.dbk-nocycle-note{ font-size:12px; color:var(--muted); font-style:italic; margin-bottom:10px; line-height:1.5; }
 .dbk-months{ display:flex; gap:2px; }
 .dbk-cell{ flex:1; min-width:0; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:700; color:var(--ink); background:var(--cream); border:1px solid var(--border); border-radius:7px; padding:6px 2px; text-align:center; cursor:default; }
 .dbk-cell.target:not(.past):not(:disabled){ cursor:pointer; border-color:#E7C9AE; }
