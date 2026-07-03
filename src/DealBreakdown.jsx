@@ -262,7 +262,10 @@ function monthLabel(period, idx) {
   const total = (period.startMo || 0) + idx;
   const y = (period.startY || 0) + Math.floor(total / 12);
   const m = ((total % 12) + 12) % 12;
-  return MON[m] + (period.P > 12 ? " '" + String(y).slice(2) : "");
+  // Show the year whenever a month falls outside the plan year (a long-cycle deal can
+  // start in a prior year, a negative index), so it never reads as wrapping forward.
+  const showYear = period.P > 12 || y !== period.startY;
+  return MON[m] + (showYear ? " '" + String(y).slice(2) : "");
 }
 
 // Bar geometry. A deal closes at the END of its close month and runs backward by its
@@ -723,7 +726,7 @@ export default function DealBreakdown({
           <Fact label="Typical size" value={fmt(d.size)} />
           <Fact label="Sales cycle" value={d.cycle > 0 ? `${d.cycle} months` : "not set"} />
           <Fact label="Closes" value={cp != null ? monthLabel(period, cp) : "unplaced"} />
-          <Fact label="Starts" value={bar ? monthLabel(period, ((Math.floor(bar.startPos) % 12) + 12) % 12) : "n/a"} />
+          <Fact label="Starts" value={bar ? monthLabel(period, bar.startPos) : "n/a"} />
           <Fact label="Status" value={<span className={late ? "dbk-fact-late" : ""}>{status}</span>} />
         </div>
         <label className="dbk-panel-namelbl">Name this deal</label>
