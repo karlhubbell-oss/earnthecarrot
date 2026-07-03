@@ -48,12 +48,6 @@ function niceRound(v) {
 // ── visual system: ONE config map. Size icon by row RANK within its section, color
 // by component type. Custom components use the neutral _default entry. ──────────────
 const VISUAL = {
-  sizeIcon: {
-    solo: { paths: ["M12 2 22 8.5v7L12 22 2 15.5v-7Z"], box: 18 },
-    large: { paths: ["M6 3h12l3.5 5.5L12 22 2.5 8.5Z", "M2.5 8.5h19"], box: 18 },
-    medium: { paths: ["M12 2 21 12l-9 10L3 12Z"], box: 16 },
-    small: { paths: ["M12 6a6 6 0 1 0 0 12 6 6 0 0 0 0-12Z"], box: 13 },
-  },
   typeColor: {
     "New Logo": { fg: "#2D6A4F", chipBg: "#E4F3EA", chipBd: "#B7E0C5" },
     "New Business": { fg: "#2D6A4F", chipBg: "#E4F3EA", chipBd: "#B7E0C5" },
@@ -73,14 +67,12 @@ function sizeBucket(rank, total) {
   if (q <= 0.67) return "medium";
   return "small";
 }
-
-function SizeIcon({ bucket, color }) {
-  const spec = VISUAL.sizeIcon[bucket] || VISUAL.sizeIcon.medium;
-  return (
-    <svg width={spec.box} height={spec.box} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      {spec.paths.map((d, i) => <path key={i} d={d} />)}
-    </svg>
-  );
+// Default size-tier label from a row's rank within its component (largest size = Big).
+// Used only when a row has no rep-set label, so it stays live until the rep renames it.
+function labelByRank(rank, total) {
+  if (total <= 1) return "Big";
+  const b = sizeBucket(rank, total);
+  return b === "large" ? "Big" : b === "medium" ? "Medium" : "Small";
 }
 function CustomIcon({ color }) {
   return (
@@ -120,6 +112,7 @@ function extractStored(stored) {
       type: c.type || c.name || "",
       origin: c.origin || null,
       sizes: (Array.isArray(c.sizes) ? c.sizes : []).map((s) => ({
+        label: typeof s.label === "string" ? s.label : "",
         size: String(sizeFromStored(s)),
         quantity: num(s.quantity),
         cycle: s.cycle_months == null ? "" : String(s.cycle_months),
@@ -133,7 +126,7 @@ function extractStored(stored) {
       origin: null,
       sizes: (Array.isArray(c.bands) ? c.bands : [])
         .filter((b) => num(b.quota_per_deal) > 0 && num(b.count) > 0)
-        .map((b) => ({ size: String(num(b.quota_per_deal)), quantity: num(b.count), cycle: "" })),
+        .map((b) => ({ label: "", size: String(num(b.quota_per_deal)), quantity: num(b.count), cycle: "" })),
     }));
   }
   // v2/v3 flat tiers -> group by type. Drop zero-quantity rows only for the older
@@ -146,7 +139,7 @@ function extractStored(stored) {
       if (isRangeBlob && qty <= 0) continue;
       const key = t.type || "";
       if (!byType.has(key)) byType.set(key, []);
-      byType.get(key).push({ size: String(sizeFromStored(t)), quantity: qty, cycle: t.cycle_months == null ? "" : String(t.cycle_months) });
+      byType.get(key).push({ label: typeof t.label === "string" ? t.label : "", size: String(sizeFromStored(t)), quantity: qty, cycle: t.cycle_months == null ? "" : String(t.cycle_months) });
     }
     return [...byType.entries()].map(([type, sizes]) => ({ type, origin: null, sizes }));
   }
@@ -166,7 +159,7 @@ function buildSections(plan, stored) {
 
   const sections = [];
   let sid = 0, rid = 0;
-  const withRowIds = (rows) => rows.map((r) => ({ id: `row-${rid++}`, size: r.size === "0" ? "" : r.size, quantity: r.quantity, cycle: r.cycle }));
+  const withRowIds = (rows) => rows.map((r) => ({ id: `row-${rid++}`, label: r.label || "", size: r.size === "0" ? "" : r.size, quantity: r.quantity, cycle: r.cycle }));
 
   const planNames = new Set(planComps.map((c) => c.name));
   for (const pc of planComps) {
@@ -190,7 +183,7 @@ function serialize(sections, ctx) {
       type: s.type || null,
       origin: s.origin,
       quota: s.origin === "plan" ? s.quota : null,
-      sizes: s.sizes.map((r) => ({ id: r.id, size: r.size === "" ? null : num(r.size), quantity: r.quantity, cycle_months: r.cycle === "" ? null : num(r.cycle) })),
+      sizes: s.sizes.map((r) => ({ id: r.id, label: r.label || "", size: r.size === "" ? null : num(r.size), quantity: r.quantity, cycle_months: r.cycle === "" ? null : num(r.cycle) })),
     })),
   };
 }
@@ -272,7 +265,7 @@ export default function DealBreakdown({
   // ── edit helpers ───────────────────────────────────────────────────────
   const patchSection = (sid, patch) => setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, ...patch } : s)));
   const patchRow = (sid, rid, patch) => setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: s.sizes.map((r) => (r.id === rid ? { ...r, ...patch } : r)) } : s)));
-  const addRow = (sid) => setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: [...s.sizes, { id: `row-${ids.current.row++}`, size: "", quantity: 0, cycle: "" }] } : s)));
+  const addRow = (sid) => setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: [...s.sizes, { id: `row-${ids.current.row++}`, label: "", size: "", quantity: 0, cycle: "" }] } : s)));
   const removeRow = (sid, rid) => setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: s.sizes.filter((r) => r.id !== rid) } : s)));
   const addComponent = () => setSections((ss) => [...ss, { id: `sec-${ids.current.sec++}`, type: "", origin: "custom", quota: null, sizes: [] }]);
   const removeComponent = (sid) => setSections((ss) => ss.filter((s) => s.id !== sid));
@@ -316,8 +309,8 @@ export default function DealBreakdown({
 
         {s.sizes.length > 0 && (
           <div className="dbk-rowhead">
-            <span className="c-ic" />
-            <span className="c-size">Deal Size <InfoDot text="The amount of each deal that counts toward your quota, not necessarily the full contract value. All of the deal count math runs on this number." /></span>
+            <span className="c-label">Size Label</span>
+            <span className="c-size">Typical Deal Size <InfoDot text="Roughly what one deal in this tier is worth. We do the exact math from here." /></span>
             <span className="c-qty">Deal Quantity</span>
             <span className="c-cycle">Sales Cycle Length</span>
             <span className="c-rev">Total Revenue</span>
@@ -327,9 +320,13 @@ export default function DealBreakdown({
 
         {s.sizes.map((r) => (
           <div key={r.id} className="dbk-row">
-            <span className="c-ic"><SizeIcon bucket={sizeBucket(rank[r.id] || 0, s.sizes.length)} color={st.fg} /></span>
+            <div className="c-label">
+              <input className="dbk-label-inp" type="text" placeholder="Label"
+                value={r.label && r.label.trim() ? r.label : labelByRank(rank[r.id] || 0, s.sizes.length)}
+                onChange={(e) => patchRow(s.id, r.id, { label: e.target.value })} />
+            </div>
             <div className="c-size">
-              <input className="dbk-field money" type="text" inputMode="numeric" placeholder="Deal size"
+              <input className="dbk-field money" type="text" inputMode="numeric" placeholder="Typical deal size"
                 value={moneyDisplay(r.size)} onChange={(e) => patchRow(s.id, r.id, { size: digitsOf(e.target.value) })} />
             </div>
             <div className="c-qty"><Stepper value={r.quantity} onChange={(v) => patchRow(s.id, r.id, { quantity: v })} /></div>
@@ -451,12 +448,14 @@ const CSS = `
 .dbk-sec-remove{ margin-left:auto; background:none; border:1.5px solid var(--border); border-radius:9px; padding:5px 12px; font-size:12.5px; font-weight:600; color:var(--muted); cursor:pointer; font-family:'DM Sans',sans-serif; }
 .dbk-sec-remove:hover{ border-color:#C86B4B; color:#B0532A; }
 
-.dbk-rowhead, .dbk-row{ display:grid; grid-template-columns:26px minmax(120px,1fr) 126px minmax(104px,0.8fr) minmax(110px,1fr) 32px; gap:12px; align-items:center; }
+.dbk-rowhead, .dbk-row{ display:grid; grid-template-columns:minmax(104px,0.85fr) minmax(120px,1fr) 126px minmax(104px,0.8fr) minmax(110px,1fr) 32px; gap:12px; align-items:center; }
 .dbk-rowhead{ padding:8px 4px 6px; border-bottom:1px solid var(--border); margin-top:6px; }
 .dbk-rowhead span{ font-size:10px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; color:var(--muted); }
 .dbk-rowhead .c-rev{ text-align:right; }
 .dbk-row{ padding:8px 4px; border-bottom:1px solid var(--border); }
-.c-ic{ display:flex; align-items:center; justify-content:center; }
+.dbk-label-inp{ width:100%; border:1.5px solid var(--border); border-radius:9px; background:#fff; font-family:'DM Sans',sans-serif; font-size:13.5px; font-weight:700; color:var(--ink); padding:8px 10px; }
+.dbk-label-inp:focus{ outline:none; border-color:var(--carrot); }
+.dbk-label-inp::placeholder{ color:#C0AE97; font-weight:600; }
 
 .dbk-field{ border:1.5px solid var(--border); border-radius:10px; background:#fff; font-family:'DM Sans',sans-serif; font-size:15px; color:var(--ink); padding:9px 11px; width:100%; }
 .dbk-field:focus{ outline:none; border-color:var(--carrot); }
@@ -499,7 +498,8 @@ const CSS = `
 @media(max-width:720px){
   .dbk-grand{ position:static; }
   .dbk-rowhead{ display:none; }
-  .dbk-row{ grid-template-columns:26px 1fr 1fr; gap:9px 12px; }
+  .dbk-row{ grid-template-columns:1fr 1fr; gap:9px 12px; }
+  .c-label{ grid-column:1 / -1; }
   .c-rev{ text-align:left; }
 }
 `;
