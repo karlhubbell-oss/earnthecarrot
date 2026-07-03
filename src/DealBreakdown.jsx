@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { toEarningsPlan } from "./lib/planAdapter.js";
 
 /*
@@ -262,7 +262,10 @@ function monthLabel(period, idx) {
   const total = (period.startMo || 0) + idx;
   const y = (period.startY || 0) + Math.floor(total / 12);
   const m = ((total % 12) + 12) % 12;
-  return MON[m] + (period.P > 12 ? " '" + String(y).slice(2) : "");
+  // Show the year whenever a month falls outside the plan year (a long-cycle deal can
+  // start in a prior year, a negative index), so it never reads as wrapping forward.
+  const showYear = period.P > 12 || y !== period.startY;
+  return MON[m] + (showYear ? " '" + String(y).slice(2) : "");
 }
 
 // Bar geometry. A deal closes at the END of its close month and runs backward by its
@@ -280,7 +283,9 @@ function defaultArrangement(deals, period, todayIdx) {
   const lastClose = period.P - 1;
   const firstClose = Math.min(Math.max(Math.ceil(todayIdx), 0), lastClose);
   const byComp = {};
-  for (const d of deals) (byComp[d.componentId] = byComp[d.componentId] || []).push(d);
+  // Only deals with a real cycle can be laid on the axis. A cycle-less deal has no bar
+  // length, so it is never auto-spread; it waits on the bench until a cycle is set.
+  for (const d of deals) { if (d.cycle <= 0) continue; (byComp[d.componentId] = byComp[d.componentId] || []).push(d); }
   for (const cid of Object.keys(byComp)) {
     const list = byComp[cid].slice().sort((a, b) => a.cycle - b.cycle);
     const n = list.length;
@@ -391,38 +396,87 @@ export default function DealBreakdown({
   const arrangedRef = useRef(Object.keys(placements).length > 0);
   useEffect(() => {
     if (arrangedRef.current) return;
-    if (deals.length === 0) return;
+    if (!deals.some((d) => d.cycle > 0)) return; // wait until something is placeable
     arrangedRef.current = true;
     setEdited(true);
     setPlacements(defaultArrangement(deals, period, todayIdx));
   }, [deals, period, todayIdx]);
 
   const closeOf = (chipId) => { const p = placements[chipId]; return p && p.close_point != null ? p.close_point : null; };
-  const setClose = (chipId, cp) => { setEdited(true); setSelChip(null); setPlacements((p) => ({ ...p, [chipId]: { close_point: cp, name: (p[chipId] && p[chipId].name) || "" } })); };
+  const nameOf = (chipId) => { const p = placements[chipId]; return p && p.name ? p.name : ""; };
+  const setClose = (chipId, cp) => { setEdited(true); setPlacements((p) => ({ ...p, [chipId]: { close_point: cp, name: (p[chipId] && p[chipId].name) || "" } })); };
   const benchChip = (chipId) => { setEdited(true); setPlacements((p) => ({ ...p, [chipId]: { close_point: null, name: (p[chipId] && p[chipId].name) || "" } })); };
+  const setName = (chipId, name) => { setEdited(true); setPlacements((p) => ({ ...p, [chipId]: { close_point: (p[chipId] && p[chipId].close_point != null) ? p[chipId].close_point : null, name } })); };
 
-  // ── persistence: debounced save, flush on navigate. Only ever runs once the rep
-  // has edited, so the first-run scaffold is never written to storage on its own. ──
+  // Combined-timeline scroll geometry, so the today marker can stay fixed while scrolling.
+  const combScrollRef = useRef(null);
+  const combTodayRef = useRef(null);
+  const combGeomRef = useRef(null);
+  const combInitRef = useRef(false);
+  const positionCombToday = () => {
+    const sc = combScrollRef.current, tm = combTodayRef.current, g = combGeomRef.current;
+    if (!sc || !tm || !g) return;
+    const vis = g.todayX - sc.scrollLeft;
+    tm.style.left = Math.max(0, Math.min(sc.clientWidth, vis)) + "px";
+    tm.classList.toggle("off", vis < -1 || vis > sc.clientWidth + 1);
+  };
+
+  // ── persistence + save polish: one save path used by the debounce, the 60s autosave,
+  // the Save button, and unmount. Only ever runs after the rep has edited, so the
+  // first-run scaffold is never written to storage on its own. ──
   const onPersistRef = useRef(onPersist);
   onPersistRef.current = onPersist;
   const saveTimer = useRef(null);
-  const pendingSave = useRef(null);
+  const dirtyRef = useRef(false);
+  const [dirty, setDirty] = useState(false);
+  const [savedAt, setSavedAt] = useState(null);
 
+  const doSave = () => {
+    if (!dirtyRef.current) return;
+    onPersistRef.current(serialize(sections, { targetPct, stretchPct, totalQuota, placements }));
+    dirtyRef.current = false;
+    setDirty(false);
+    setSavedAt(new Date());
+  };
+  const doSaveRef = useRef(doSave);
+  doSaveRef.current = doSave;
+
+  // Debounced save on any edit.
   useEffect(() => {
     if (!edited) return;
-    const obj = serialize(sections, { targetPct, stretchPct, totalQuota, placements });
-    pendingSave.current = obj;
+    dirtyRef.current = true;
+    setDirty(true);
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      if (pendingSave.current) { onPersistRef.current(pendingSave.current); pendingSave.current = null; }
-    }, 700);
+    saveTimer.current = setTimeout(() => doSaveRef.current(), 700);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [sections, placements, edited, targetPct, stretchPct, totalQuota]);
 
-  useEffect(() => () => {
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    if (pendingSave.current) { onPersistRef.current(pendingSave.current); pendingSave.current = null; }
+  // Autosave every 60 seconds when there are unsaved changes.
+  useEffect(() => {
+    const iv = setInterval(() => doSaveRef.current(), 60000);
+    return () => clearInterval(iv);
   }, []);
+
+  // Warn on leave with unsaved changes; flush on unmount.
+  useEffect(() => {
+    const warn = (e) => { if (dirtyRef.current) { e.preventDefault(); e.returnValue = ""; } };
+    window.addEventListener("beforeunload", warn);
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      doSaveRef.current();
+    };
+  }, []);
+
+  // Keep the combined-timeline today marker positioned, and scroll today into view once.
+  useLayoutEffect(() => {
+    const sc = combScrollRef.current, g = combGeomRef.current;
+    if (sc && g && !combInitRef.current) {
+      combInitRef.current = true;
+      sc.scrollLeft = Math.max(0, g.todayX - sc.clientWidth * 0.3);
+    }
+    positionCombToday();
+  });
 
   // ── edit helpers (each marks the screen edited, which unlocks persistence) ──
   const patchSection = (sid, patch) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, ...patch } : s))); };
@@ -454,34 +508,39 @@ export default function DealBreakdown({
     const span = Math.max(1, period.P - axisLo);
     const x = (pos) => ((pos - axisLo) / span) * 100;
     const months = []; for (let m = axisLo; m < period.P; m++) months.push(m);
-    const placed = compDeals.filter((d) => closeOf(d.id) != null);
-    const bench = compDeals.filter((d) => closeOf(d.id) == null);
+    // Only deals with a real cycle can be bars; a cycle-less deal has no bar length and
+    // waits on the bench (never scattered on the axis) until a cycle is set on its row.
+    const cycled = compDeals.filter((d) => d.cycle > 0);
+    const noCycle = compDeals.filter((d) => d.cycle <= 0);
+    const placed = cycled.filter((d) => closeOf(d.id) != null);
+    const bench = cycled.filter((d) => closeOf(d.id) == null);
     const lateCount = placed.filter((d) => dealBar(closeOf(d.id), d.cycle).startPos < todayIdx).length;
     const minClose = Math.floor(todayIdx); // cannot close before the current month
     const localSel = compDeals.some((d) => d.id === selChip) ? selChip : null;
-    const selDeal = localSel ? compDeals.find((d) => d.id === localSel) : null;
     return (
       <div className="dbk-mini">
         <div className="dbk-mini-head">
           <span className="dbk-mini-title">These deals on your calendar</span>
           {lateCount > 0 && <span className="dbk-mini-late">{lateCount === 1 ? "1 already late" : `${lateCount} already late`}</span>}
         </div>
-        {selDeal ? (
-          <div className="dbk-selbar">
-            <span>Selected <b style={{ color: selDeal.color }}>{selDeal.sizeLabel} {fmt(selDeal.size)}</b>. Tap a month to set its close.</span>
-            {closeOf(selDeal.id) != null && <button type="button" className="dbk-selbench" onClick={() => benchChip(selDeal.id)}>Send to bench</button>}
-            <button type="button" className="dbk-selcancel" onClick={() => setSelChip(null)}>Cancel</button>
-          </div>
+        {localSel ? (
+          <div className="dbk-selbar">Tap a highlighted month to set the close for the deal you picked. Its details are open below.</div>
         ) : (
           <div className="dbk-selbar muted">Tap a deal, then tap a month to place it.</div>
         )}
-        {bench.length > 0 && (
+        {(bench.length > 0 || noCycle.length > 0) && (
           <div className="dbk-bench">
             <span className="dbk-bench-lbl">Bench</span>
             {bench.map((d) => (
               <button key={d.id} type="button" className={`dbk-pill${selChip === d.id ? " sel" : ""}`} style={{ borderColor: d.color, color: d.color }} onClick={() => setSelChip(selChip === d.id ? null : d.id)}>{d.sizeLabel} {fmt(d.size)}</button>
             ))}
+            {noCycle.map((d) => (
+              <span key={d.id} className="dbk-pill nocycle" title="Add a sales cycle length to place this deal">{d.sizeLabel} {fmt(d.size)}</span>
+            ))}
           </div>
+        )}
+        {noCycle.length > 0 && (
+          <div className="dbk-nocycle-note">Add a sales cycle length to these rows to place them on your calendar.</div>
         )}
         <div className="dbk-months">
           {months.map((m) => (
@@ -578,6 +637,109 @@ export default function DealBreakdown({
     );
   };
 
+  // Combined timeline (Block 4): all placeable chips on one shared, scrolling axis with
+  // a fixed today marker. The bar mechanic is the same as the per-component view.
+  const renderCombinedTimeline = () => {
+    if (deals.length === 0) return null;
+    const cycled = deals.filter((d) => d.cycle > 0);
+    const placed = cycled.filter((d) => closeOf(d.id) != null);
+    const noCycleCount = deals.filter((d) => d.cycle <= 0).length;
+    const benchCount = cycled.filter((d) => closeOf(d.id) == null).length;
+    const off = noCycleCount + benchCount;
+    const maxCycle = Math.max(1, ...cycled.map((d) => d.cycle));
+    const starts = placed.map((d) => dealBar(closeOf(d.id), d.cycle).startPos);
+    const axisLo = Math.floor(Math.min(todayIdx - 1, period.P - maxCycle - 1, ...(starts.length ? starts : [0]), 0));
+    const PXM = 66; // pixels per month
+    const totalPx = (period.P - axisLo) * PXM;
+    const xpx = (pos) => (pos - axisLo) * PXM;
+    combGeomRef.current = { todayX: xpx(todayIdx) };
+    const months = []; for (let m = axisLo; m < period.P; m++) months.push(m);
+    const minClose = Math.floor(todayIdx);
+    const maxSize = Math.max(1, ...cycled.map((d) => d.size));
+    const localSel = cycled.some((d) => d.id === selChip) ? selChip : null;
+    return (
+      <div className="dbk-combined">
+        <div className="dbk-combined-head">
+          <h2 className="dbk-combined-title">Your whole year on one calendar</h2>
+          <p className="dbk-combined-sub">Every deal from every component competes for the same months. Scroll to see the longer deals reach back in time, and watch the today line.</p>
+        </div>
+        {off > 0 && (
+          <div className="dbk-offcal">
+            {off === 1 ? "1 deal is not on your calendar yet." : `${off} deals are not on your calendar yet.`}
+            {noCycleCount > 0 ? ` Add a sales cycle length to those rows to place them.` : ""}
+            {benchCount > 0 ? ` ${benchCount === 1 ? "One is" : `${benchCount} are`} waiting on a component bench for a close month.` : ""}
+          </div>
+        )}
+        <div className="dbk-cscroll" ref={combScrollRef} onScroll={positionCombToday}>
+          <div className="dbk-ccanvas" style={{ width: totalPx }}>
+            <div className="dbk-cmonths">
+              {months.map((m) => (
+                <button key={m} type="button" style={{ width: PXM }} className={`dbk-ccell${localSel ? " target" : ""}${m < minClose ? " past" : ""}`}
+                  disabled={!localSel || m < minClose} onClick={() => localSel && setClose(localSel, m)}>{monthLabel(period, m)}</button>
+              ))}
+            </div>
+            <div className="dbk-cbars" style={{ height: Math.max(placed.length, 1) * 30 + 8 }}>
+              {placed.map((d, i) => {
+                const cp = closeOf(d.id);
+                const { startPos, closePos } = dealBar(cp, d.cycle);
+                const late = startPos < todayIdx;
+                const left = xpx(startPos), right = xpx(closePos);
+                const mk = 8 + Math.round(12 * (d.size / maxSize)); // literal graduated size marker
+                return (
+                  <button key={d.id} type="button" className={`dbk-cbar${late ? " late" : ""}${selChip === d.id ? " sel" : ""}`}
+                    style={{ top: i * 30, left, width: Math.max(right - left, 8), ...(late ? {} : { background: d.color }), borderColor: late ? undefined : d.color }}
+                    onClick={() => setSelChip(selChip === d.id ? null : d.id)}
+                    title={`${d.componentType}, ${d.sizeLabel} ${fmt(d.size)}, ${d.cycle} month cycle, closes ${monthLabel(period, cp)}`}>
+                    <span className="dbk-cmk" style={{ width: mk, height: mk, borderColor: late ? "#8E2A20" : d.color }} />
+                    <span className="dbk-cbar-lbl">{d.sizeLabel} {fmt(d.size)}</span>
+                    {late && <span className="dbk-cbar-late">late</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="dbk-ctoday" ref={combTodayRef}><span>Today</span></div>
+        </div>
+      </div>
+    );
+  };
+
+  // Chip panel (Block 5): facts read-only, one editable name. Opens for the selected chip
+  // from either timeline. Numbers are never edited here; the tiers stay source of truth.
+  const renderChipPanel = () => {
+    const d = deals.find((x) => x.id === selChip);
+    if (!d) return null;
+    const cp = closeOf(d.id);
+    const bar = cp != null && d.cycle > 0 ? dealBar(cp, d.cycle) : null;
+    const late = bar ? bar.startPos < todayIdx : false;
+    const status = d.cycle <= 0 ? "Needs a sales cycle length" : cp == null ? "On the bench" : late ? "Already late to start" : "On track";
+    const Fact = ({ label, value }) => (<div className="dbk-fact"><span className="dbk-fact-l">{label}</span><span className="dbk-fact-v">{value}</span></div>);
+    return (
+      <div className="dbk-panel">
+        <div className="dbk-panel-head">
+          <span className="dbk-panel-title" style={{ color: d.color }}>{d.sizeLabel} {fmt(d.size)}</span>
+          <button type="button" className="dbk-panel-x" aria-label="Close" onClick={() => setSelChip(null)}>×</button>
+        </div>
+        <div className="dbk-panel-facts">
+          <Fact label="Component" value={d.componentType} />
+          <Fact label="Size label" value={d.sizeLabel} />
+          <Fact label="Typical size" value={fmt(d.size)} />
+          <Fact label="Sales cycle" value={d.cycle > 0 ? `${d.cycle} months` : "not set"} />
+          <Fact label="Closes" value={cp != null ? monthLabel(period, cp) : "unplaced"} />
+          <Fact label="Starts" value={bar ? monthLabel(period, bar.startPos) : "n/a"} />
+          <Fact label="Status" value={<span className={late ? "dbk-fact-late" : ""}>{status}</span>} />
+        </div>
+        <label className="dbk-panel-namelbl">Name this deal</label>
+        <input className="dbk-panel-name" type="text" placeholder="TBD" value={nameOf(d.id)} onChange={(e) => setName(d.id, e.target.value)} />
+        <div className="dbk-panel-note">A name is just a label to help you find this deal. The size, cycle, and count live in the tier above.</div>
+        <div className="dbk-panel-actions">
+          {cp != null && <button type="button" className="dbk-panel-bench" onClick={() => benchChip(d.id)}>Send to bench</button>}
+          <button type="button" className="dbk-panel-done" onClick={() => setSelChip(null)}>Done</button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="dbk-root">
       <style>{CSS}</style>
@@ -622,6 +784,10 @@ export default function DealBreakdown({
             Plus <b>{fmt(customRevenue)}</b> planned in custom components. We track it here, but it sits outside your plan quota, so it does not count toward stretch.
           </div>
         )}
+        <div className="dbk-savebar">
+          <span className="dbk-saveinfo">{dirty ? "Unsaved changes" : savedAt ? `Saved at ${savedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Your work saves as you go"}</span>
+          <button type="button" className="dbk-savebtn" onClick={() => doSaveRef.current()} disabled={!dirty}>Save</button>
+        </div>
       </div>
 
       {/* FIRST-RUN helper: supporting text only, appears and disappears with the scaffold */}
@@ -642,12 +808,16 @@ export default function DealBreakdown({
         <button className="dbk-add-comp" type="button" onClick={addComponent}>Add a component</button>
       </div>
 
+      {renderCombinedTimeline()}
+
       <div className="dbk-cta-wrap">
         <button className="dbk-cta" onClick={() => onContinue({ sections, planRevenue, customRevenue })}>
-          <span className="dbk-cta-main">Place these deals across the year <span aria-hidden>→</span></span>
-          <span className="dbk-cta-sub">Next we will lay these deals across your year</span>
+          <span className="dbk-cta-main">Save your plan of attack <span aria-hidden>→</span></span>
+          <span className="dbk-cta-sub">Your deals and their timing are saved as you go</span>
         </button>
       </div>
+
+      {renderChipPanel()}
     </div>
   );
 }
@@ -742,6 +912,8 @@ const CSS = `
 .dbk-bench-lbl{ font-size:10.5px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; color:var(--muted); }
 .dbk-pill{ font-family:'DM Sans',sans-serif; font-size:12px; font-weight:700; background:#fff; border:1.5px solid; border-radius:100px; padding:5px 11px; cursor:pointer; }
 .dbk-pill.sel{ box-shadow:0 0 0 2px rgba(232,100,44,.35); }
+.dbk-pill.nocycle{ border-color:var(--border) !important; color:var(--muted) !important; background:#F6F0E8; border-style:dashed; cursor:default; }
+.dbk-nocycle-note{ font-size:12px; color:var(--muted); font-style:italic; margin-bottom:10px; line-height:1.5; }
 .dbk-months{ display:flex; gap:2px; }
 .dbk-cell{ flex:1; min-width:0; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:700; color:var(--ink); background:var(--cream); border:1px solid var(--border); border-radius:7px; padding:6px 2px; text-align:center; cursor:default; }
 .dbk-cell.target:not(.past):not(:disabled){ cursor:pointer; border-color:#E7C9AE; }
@@ -756,6 +928,54 @@ const CSS = `
 .dbk-bar.offleft{ border-top-left-radius:0; border-bottom-left-radius:0; border-left:3px dashed #F6B7AD; }
 .dbk-bar.sel{ box-shadow:0 0 0 2px rgba(26,18,8,.55); }
 .dbk-bar-late{ font-size:8.5px; font-weight:800; letter-spacing:.03em; text-transform:uppercase; margin-left:7px; color:#FFE3DE; white-space:nowrap; }
+
+/* save bar (inside the sticky header) */
+.dbk-savebar{ display:flex; align-items:center; justify-content:flex-end; gap:12px; margin-top:11px; padding-top:10px; border-top:1px solid rgba(255,255,255,.16); }
+.dbk-saveinfo{ font-size:12px; color:#CDE7D4; }
+.dbk-savebtn{ font-family:'DM Sans',sans-serif; font-size:12.5px; font-weight:800; color:#1F3D2A; background:#EAF6ED; border:none; border-radius:9px; padding:6px 16px; cursor:pointer; }
+.dbk-savebtn:disabled{ opacity:.5; cursor:default; }
+
+/* combined timeline */
+.dbk-combined{ margin-top:24px; background:#fff; border:1.5px solid var(--border); border-radius:18px; padding:18px; }
+.dbk-combined-title{ font-family:'Playfair Display',serif; font-size:22px; font-weight:700; color:var(--ink); margin:0; }
+.dbk-combined-sub{ font-size:13.5px; color:var(--muted); margin:5px 0 0; line-height:1.5; max-width:640px; }
+.dbk-offcal{ margin-top:12px; font-size:13px; font-weight:600; color:#9A5B00; background:#FBF0D6; border:1px solid #EAD6A0; border-radius:12px; padding:10px 14px; line-height:1.5; }
+.dbk-cscroll{ position:relative; margin-top:14px; overflow-x:auto; overflow-y:hidden; padding-bottom:6px; }
+.dbk-cmonths{ display:flex; }
+.dbk-ccell{ flex:none; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:700; color:var(--ink); background:var(--cream); border:1px solid var(--border); border-radius:7px; margin-right:2px; padding:6px 2px; text-align:center; cursor:default; }
+.dbk-ccell.target:not(.past):not(:disabled){ cursor:pointer; border-color:#E7C9AE; }
+.dbk-ccell.target:not(.past):not(:disabled):hover{ background:var(--carrot-light); border-color:var(--carrot); }
+.dbk-ccell.past{ color:#B8A88F; background:#F6F0E8; }
+.dbk-cbars{ position:relative; margin-top:14px; }
+.dbk-cbar{ position:absolute; height:26px; border:1.5px solid; border-radius:7px; color:#fff; font-family:'DM Sans',sans-serif; cursor:pointer; display:flex; align-items:center; gap:6px; padding:0 8px; overflow:hidden; box-shadow:0 2px 6px -3px rgba(0,0,0,.35); }
+.dbk-cbar.late{ background:repeating-linear-gradient(45deg,#C0392B,#C0392B 6px,#A93226 6px,#A93226 12px); border-color:#8E2A20; }
+.dbk-cbar.sel{ box-shadow:0 0 0 2px rgba(26,18,8,.55); }
+.dbk-cmk{ flex:none; border:2px solid; border-radius:3px; background:rgba(255,255,255,.92); }
+.dbk-cbar-lbl{ font-size:11px; font-weight:700; white-space:nowrap; text-shadow:0 1px 1px rgba(0,0,0,.25); }
+.dbk-cbar-late{ font-size:8.5px; font-weight:800; letter-spacing:.03em; text-transform:uppercase; color:#FFE3DE; white-space:nowrap; }
+.dbk-ctoday{ position:absolute; top:0; bottom:6px; width:2px; background:#1F3D2A; z-index:5; pointer-events:none; }
+.dbk-ctoday span{ position:absolute; top:0; left:3px; font-size:8.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#fff; background:#1F3D2A; padding:1px 4px; border-radius:4px; white-space:nowrap; }
+.dbk-ctoday.off{ opacity:.4; }
+
+/* chip naming panel */
+.dbk-panel{ position:fixed; right:20px; bottom:20px; width:300px; max-width:calc(100vw - 40px); background:#fff; border:1.5px solid var(--border); border-radius:16px; box-shadow:0 20px 50px -18px rgba(0,0,0,.45); padding:16px; z-index:80; }
+.dbk-panel-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }
+.dbk-panel-title{ font-family:'Playfair Display',serif; font-size:18px; font-weight:700; }
+.dbk-panel-x{ border:none; background:none; font-size:22px; line-height:1; color:var(--muted); cursor:pointer; }
+.dbk-panel-facts{ border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:12px; }
+.dbk-fact{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 12px; border-bottom:1px solid var(--border); }
+.dbk-fact:last-child{ border-bottom:none; }
+.dbk-fact-l{ font-size:10.5px; letter-spacing:.04em; text-transform:uppercase; font-weight:700; color:var(--muted); }
+.dbk-fact-v{ font-size:13px; font-weight:700; color:var(--ink); text-align:right; }
+.dbk-fact-late{ color:#C0392B; }
+.dbk-panel-namelbl{ display:block; font-size:10.5px; letter-spacing:.05em; text-transform:uppercase; font-weight:800; color:var(--carrot-dark); margin-bottom:5px; }
+.dbk-panel-name{ width:100%; border:1.5px solid var(--border); border-radius:10px; background:#fff; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:700; color:var(--ink); padding:9px 11px; }
+.dbk-panel-name:focus{ outline:none; border-color:var(--carrot); }
+.dbk-panel-note{ font-size:11px; color:var(--muted); font-style:italic; line-height:1.45; margin-top:8px; }
+.dbk-panel-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+.dbk-panel-bench, .dbk-panel-done{ font-family:'DM Sans',sans-serif; font-size:12.5px; font-weight:700; border-radius:9px; padding:7px 14px; cursor:pointer; }
+.dbk-panel-bench{ background:#fff; border:1.5px solid #D9C3AC; color:#9A6A3E; }
+.dbk-panel-done{ background:linear-gradient(135deg,var(--carrot),#FF8A4C); border:none; color:#fff; }
 
 .dbk-info{ position:relative; display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border-radius:50%;
   border:1px solid #C9B49E; color:#9A8775; font-size:9px; font-style:italic; font-weight:700; cursor:help; font-family:Georgia,serif; text-transform:none; letter-spacing:0; }
