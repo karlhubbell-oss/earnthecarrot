@@ -112,6 +112,7 @@ function extractStored(stored) {
       type: c.type || c.name || "",
       origin: c.origin || null,
       sizes: (Array.isArray(c.sizes) ? c.sizes : []).map((s) => ({
+        id: s.id,
         label: typeof s.label === "string" ? s.label : "",
         size: String(sizeFromStored(s)),
         quantity: num(s.quantity),
@@ -159,7 +160,9 @@ function buildSections(plan, stored) {
 
   const sections = [];
   let sid = 0, rid = 0;
-  const withRowIds = (rows) => rows.map((r) => ({ id: `row-${rid++}`, label: r.label || "", size: r.size === "0" ? "" : r.size, quantity: r.quantity == null ? "" : String(num(r.quantity)), cycle: r.cycle }));
+  // Reuse a row's stored id so chip ids stay stable across reloads. Only rows that never
+  // had one (v1/v2/v3 conversions, scaffold) get a fresh sequential id.
+  const withRowIds = (rows) => rows.map((r) => ({ id: r.id || `row-${rid++}`, label: r.label || "", size: r.size === "0" ? "" : r.size, quantity: r.quantity == null ? "" : String(num(r.quantity)), cycle: r.cycle }));
 
   const planNames = new Set(planComps.map((c) => c.name));
   for (const pc of planComps) {
@@ -173,9 +176,18 @@ function buildSections(plan, stored) {
   return sections;
 }
 
+// Largest numeric suffix across all section and row ids. New ids are seeded above this,
+// so a fresh id can never collide with a loaded one regardless of prefix.
+function maxIdNum(sections) {
+  let m = 0;
+  const scan = (id) => { const g = String(id).match(/(\d+)\s*$/); if (g) m = Math.max(m, Number(g[1])); };
+  for (const s of sections) { scan(s.id); for (const r of s.sizes) scan(r.id); }
+  return m;
+}
+
 function serialize(sections, ctx) {
   return {
-    version: 4,
+    version: 5,
     target_pct: ctx.targetPct,
     stretch_pct: ctx.stretchPct,
     total_quota: ctx.totalQuota,
@@ -185,7 +197,100 @@ function serialize(sections, ctx) {
       quota: s.origin === "plan" ? s.quota : null,
       sizes: s.sizes.map((r) => ({ id: r.id, label: r.label || "", size: r.size === "" ? null : num(r.size), quantity: num(r.quantity), cycle_months: r.cycle === "" ? null : num(r.cycle) })),
     })),
+    // Timeline placements keyed by stable chip id. Missing = unplaced, missing name = TBD.
+    placements: ctx.placements || {},
   };
+}
+
+// ── timeline model (Blocks 1 and 3) ─────────────────────────────────────────
+// The timeline READS tiers and never writes deal economics back. Each size row expands
+// into individual deal chips; a chip is a bar whose length is its cycle and whose start
+// is computed backward from a rep-set close point; a start before today is late.
+
+// Expand every size row into its individual deal chips with STABLE ids, so an unchanged
+// chip keeps its id (and therefore its placement and name) when tiers re-expand.
+function expandDeals(sections) {
+  const deals = [];
+  for (const comp of sections) {
+    const color = typeStyle(comp.type, comp.origin).fg;
+    const order = [...comp.sizes].sort((a, b) => num(b.size) - num(a.size));
+    const rank = {}; order.forEach((r, i) => { rank[r.id] = i; });
+    for (const row of comp.sizes) {
+      const q = num(row.quantity);
+      const sizeLabel = row.label && row.label.trim() ? row.label : labelByRank(rank[row.id] || 0, comp.sizes.length);
+      for (let i = 0; i < q; i++) {
+        deals.push({
+          id: `${comp.id}#${row.id}#${i}`,
+          componentId: comp.id,
+          componentType: comp.type || "Untagged",
+          origin: comp.origin,
+          color,
+          sizeLabel,
+          size: num(row.size),
+          cycle: num(row.cycle),
+        });
+      }
+    }
+  }
+  return deals;
+}
+
+// The plan's period as month math. Month index 0 is the first month of the period.
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function planPeriod(plan) {
+  const meta = (plan && plan.meta) || {};
+  const pp = meta.plan_period || {};
+  const parse = (d) => { const m = /^(\d{4})-(\d{2})/.exec(String(d || "")); return m ? { y: +m[1], mo: +m[2] - 1 } : null; };
+  const s = parse(pp.start_date);
+  const e = parse(pp.end_date);
+  const year = meta.plan_year != null ? Number(meta.plan_year) : (s ? s.y : null);
+  const startY = s ? s.y : year;
+  const startMo = s ? s.mo : 0;
+  const endY = e ? e.y : year;
+  const endMo = e ? e.mo : 11;
+  const P = startY != null && endY != null ? (endY - startY) * 12 + (endMo - startMo) + 1 : 12;
+  return { startY: startY == null ? null : startY, startMo, P: Math.max(1, P), quarterly: /quarter/i.test(pp.type || "") };
+}
+// Fractional month index of a date within the period (by day for a smooth today line).
+function monthIndexOf(period, date) {
+  if (period.startY == null) return 0;
+  const idx = (date.getFullYear() - period.startY) * 12 + (date.getMonth() - period.startMo);
+  const dim = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  return idx + (date.getDate() - 1) / dim;
+}
+function monthLabel(period, idx) {
+  const total = (period.startMo || 0) + idx;
+  const y = (period.startY || 0) + Math.floor(total / 12);
+  const m = ((total % 12) + 12) % 12;
+  return MON[m] + (period.P > 12 ? " '" + String(y).slice(2) : "");
+}
+
+// Bar geometry. A deal closes at the END of its close month and runs backward by its
+// cycle. Positions are month units (0 = period start). Late when start is before today.
+function dealBar(closePoint, cycle) {
+  const closePos = closePoint + 1;
+  const startPos = closePos - Math.max(cycle, 0);
+  return { startPos, closePos };
+}
+
+// Deterministic opening spread of close points across the remaining window, per component
+// (shorter cycles close earlier). NOT Coach. Named so smarter placement can replace it.
+function defaultArrangement(deals, period, todayIdx) {
+  const placements = {};
+  const lastClose = period.P - 1;
+  const firstClose = Math.min(Math.max(Math.ceil(todayIdx), 0), lastClose);
+  const byComp = {};
+  for (const d of deals) (byComp[d.componentId] = byComp[d.componentId] || []).push(d);
+  for (const cid of Object.keys(byComp)) {
+    const list = byComp[cid].slice().sort((a, b) => a.cycle - b.cycle);
+    const n = list.length;
+    list.forEach((d, i) => {
+      const cp = n <= 1 ? Math.round((firstClose + lastClose) / 2)
+        : Math.round(firstClose + (i / (n - 1)) * (lastClose - firstClose));
+      placements[d.id] = { close_point: Math.min(Math.max(cp, firstClose), lastClose), name: "" };
+    });
+  }
+  return placements;
 }
 
 // ── small controls ─────────────────────────────────────────────────────────
@@ -262,11 +367,39 @@ export default function DealBreakdown({
       return { ...s, sizes: [{ id: rid(), label: "", size: "", quantity: "", cycle: "" }] };
     });
   });
-  const ids = useRef({ sec: sections.length, row: 0 });
+  // Monotonic id source seeded above every loaded id, so new rows/components never
+  // collide with a stored id and chip ids stay stable across reloads.
+  const seq = useRef(1 + maxIdNum(sections));
+  const newId = () => `d-${seq.current++}`;
   // First-run state ends the moment the rep touches anything. It gates BOTH the
   // helper/scaffold framing and persistence, so land-and-leave never saves a blob.
   const [edited, setEdited] = useState(false);
   const firstRun = !hadStoredInit && !edited;
+
+  // ── timeline (Blocks 1-3): read-only expansion of tiers into deal chips ──
+  const period = useMemo(() => planPeriod(plan), [plan]);
+  const today = useMemo(() => new Date(), []);
+  const todayIdx = monthIndexOf(period, today);
+  const deals = useMemo(() => expandDeals(sections), [sections]);
+
+  // placements: chipId -> { close_point (null = bench), name }. Loaded from v5.
+  const [placements, setPlacements] = useState(() => (stored && stored.placements && typeof stored.placements === "object" ? { ...stored.placements } : {}));
+  const [selChip, setSelChip] = useState(null);
+
+  // Default opening arrangement: materialize ONCE, the first time chips exist with no
+  // stored placements, so the timeline looks built. New chips after that go to the bench.
+  const arrangedRef = useRef(Object.keys(placements).length > 0);
+  useEffect(() => {
+    if (arrangedRef.current) return;
+    if (deals.length === 0) return;
+    arrangedRef.current = true;
+    setEdited(true);
+    setPlacements(defaultArrangement(deals, period, todayIdx));
+  }, [deals, period, todayIdx]);
+
+  const closeOf = (chipId) => { const p = placements[chipId]; return p && p.close_point != null ? p.close_point : null; };
+  const setClose = (chipId, cp) => { setEdited(true); setSelChip(null); setPlacements((p) => ({ ...p, [chipId]: { close_point: cp, name: (p[chipId] && p[chipId].name) || "" } })); };
+  const benchChip = (chipId) => { setEdited(true); setPlacements((p) => ({ ...p, [chipId]: { close_point: null, name: (p[chipId] && p[chipId].name) || "" } })); };
 
   // ── persistence: debounced save, flush on navigate. Only ever runs once the rep
   // has edited, so the first-run scaffold is never written to storage on its own. ──
@@ -277,14 +410,14 @@ export default function DealBreakdown({
 
   useEffect(() => {
     if (!edited) return;
-    const obj = serialize(sections, { targetPct, stretchPct, totalQuota });
+    const obj = serialize(sections, { targetPct, stretchPct, totalQuota, placements });
     pendingSave.current = obj;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       if (pendingSave.current) { onPersistRef.current(pendingSave.current); pendingSave.current = null; }
     }, 700);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [sections, edited, targetPct, stretchPct, totalQuota]);
+  }, [sections, placements, edited, targetPct, stretchPct, totalQuota]);
 
   useEffect(() => () => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -294,9 +427,9 @@ export default function DealBreakdown({
   // ── edit helpers (each marks the screen edited, which unlocks persistence) ──
   const patchSection = (sid, patch) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, ...patch } : s))); };
   const patchRow = (sid, rid, patch) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: s.sizes.map((r) => (r.id === rid ? { ...r, ...patch } : r)) } : s))); };
-  const addRow = (sid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: [...s.sizes, { id: `row-${ids.current.row++}`, label: "", size: "", quantity: "", cycle: "" }] } : s))); };
+  const addRow = (sid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: [...s.sizes, { id: newId(), label: "", size: "", quantity: "", cycle: "" }] } : s))); };
   const removeRow = (sid, rid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: s.sizes.filter((r) => r.id !== rid) } : s))); };
-  const addComponent = () => { setEdited(true); setSections((ss) => [...ss, { id: `sec-${ids.current.sec++}`, type: "", origin: "custom", quota: null, sizes: [] }]); };
+  const addComponent = () => { setEdited(true); setSections((ss) => [...ss, { id: newId(), type: "", origin: "custom", quota: null, sizes: [] }]); };
   const removeComponent = (sid) => { setEdited(true); setSections((ss) => ss.filter((s) => s.id !== sid)); };
 
   // ── derived math ───────────────────────────────────────────────────────
@@ -310,6 +443,75 @@ export default function DealBreakdown({
   const gap = stretchQuota - planRevenue;
 
   const typeOptions = useMemo(() => sections.filter((s) => s.origin === "plan").map((s) => s.type), [sections]);
+
+  // Per-component mini-timeline (Blocks 2-3): the component's own chips on a small month
+  // axis. Bars run backward from a close point; a start before today is loud late.
+  const renderMiniTimeline = (s) => {
+    const compDeals = deals.filter((d) => d.componentId === s.id);
+    if (compDeals.length === 0) return null;
+    const maxCycle = Math.max(1, ...compDeals.map((d) => d.cycle || 0));
+    const axisLo = Math.min(Math.floor(todayIdx) - 1, period.P - maxCycle - 1);
+    const span = Math.max(1, period.P - axisLo);
+    const x = (pos) => ((pos - axisLo) / span) * 100;
+    const months = []; for (let m = axisLo; m < period.P; m++) months.push(m);
+    const placed = compDeals.filter((d) => closeOf(d.id) != null);
+    const bench = compDeals.filter((d) => closeOf(d.id) == null);
+    const lateCount = placed.filter((d) => dealBar(closeOf(d.id), d.cycle).startPos < todayIdx).length;
+    const minClose = Math.floor(todayIdx); // cannot close before the current month
+    const localSel = compDeals.some((d) => d.id === selChip) ? selChip : null;
+    const selDeal = localSel ? compDeals.find((d) => d.id === localSel) : null;
+    return (
+      <div className="dbk-mini">
+        <div className="dbk-mini-head">
+          <span className="dbk-mini-title">These deals on your calendar</span>
+          {lateCount > 0 && <span className="dbk-mini-late">{lateCount === 1 ? "1 already late" : `${lateCount} already late`}</span>}
+        </div>
+        {selDeal ? (
+          <div className="dbk-selbar">
+            <span>Selected <b style={{ color: selDeal.color }}>{selDeal.sizeLabel} {fmt(selDeal.size)}</b>. Tap a month to set its close.</span>
+            {closeOf(selDeal.id) != null && <button type="button" className="dbk-selbench" onClick={() => benchChip(selDeal.id)}>Send to bench</button>}
+            <button type="button" className="dbk-selcancel" onClick={() => setSelChip(null)}>Cancel</button>
+          </div>
+        ) : (
+          <div className="dbk-selbar muted">Tap a deal, then tap a month to place it.</div>
+        )}
+        {bench.length > 0 && (
+          <div className="dbk-bench">
+            <span className="dbk-bench-lbl">Bench</span>
+            {bench.map((d) => (
+              <button key={d.id} type="button" className={`dbk-pill${selChip === d.id ? " sel" : ""}`} style={{ borderColor: d.color, color: d.color }} onClick={() => setSelChip(selChip === d.id ? null : d.id)}>{d.sizeLabel} {fmt(d.size)}</button>
+            ))}
+          </div>
+        )}
+        <div className="dbk-months">
+          {months.map((m) => (
+            <button key={m} type="button" className={`dbk-cell${localSel ? " target" : ""}${m < minClose ? " past" : ""}`} disabled={!localSel || m < minClose} onClick={() => localSel && setClose(localSel, m)}>{monthLabel(period, m)}</button>
+          ))}
+        </div>
+        <div className="dbk-bars" style={{ height: Math.max(placed.length, 1) * 32 + 4 }}>
+          <div className="dbk-today2" style={{ left: Math.max(0, Math.min(100, x(todayIdx))) + "%" }}><span>Today</span></div>
+          {placed.map((d, i) => {
+            const cp = closeOf(d.id);
+            const { startPos, closePos } = dealBar(cp, d.cycle);
+            const late = startPos < todayIdx;
+            const leftRaw = x(startPos), rightRaw = x(closePos);
+            const left = Math.max(0, leftRaw), right = Math.min(100, rightRaw);
+            const offLeft = leftRaw < -0.01;
+            return (
+              <button key={d.id} type="button"
+                className={`dbk-bar${late ? " late" : ""}${offLeft ? " offleft" : ""}${selChip === d.id ? " sel" : ""}`}
+                style={{ top: i * 32, left: left + "%", width: Math.max(right - left, 3) + "%", ...(late ? {} : { background: d.color }), borderColor: late ? undefined : d.color }}
+                onClick={() => setSelChip(selChip === d.id ? null : d.id)}
+                title={`${d.sizeLabel} ${fmt(d.size)}, ${d.cycle || 0} month cycle, closes ${monthLabel(period, cp)}`}>
+                <span className="dbk-bar-lbl">{d.sizeLabel} {fmt(d.size)}</span>
+                {late && <span className="dbk-bar-late">late</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   const renderSection = (s) => {
     const st = typeStyle(s.type, s.origin);
@@ -370,6 +572,8 @@ export default function DealBreakdown({
         ))}
 
         <button className="dbk-add-size" type="button" onClick={() => addRow(s.id)}>Add a size</button>
+
+        {renderMiniTimeline(s)}
       </div>
     );
   };
@@ -523,6 +727,35 @@ const CSS = `
 .dbk-add-size:hover{ text-decoration:underline; }
 .dbk-add-comp{ align-self:flex-start; background:#fff; border:1.5px dashed #E7C9AE; border-radius:12px; padding:11px 18px; font-size:14px; font-weight:700; color:var(--carrot-dark); cursor:pointer; font-family:'DM Sans',sans-serif; }
 .dbk-add-comp:hover{ border-color:var(--carrot); }
+
+/* per-component mini-timeline */
+.dbk-mini{ margin-top:14px; border-top:1px dashed var(--border); padding-top:12px; }
+.dbk-mini-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:8px; flex-wrap:wrap; }
+.dbk-mini-title{ font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
+.dbk-mini-late{ font-size:11px; font-weight:800; letter-spacing:.03em; text-transform:uppercase; color:#fff; background:#C0392B; border-radius:100px; padding:3px 10px; }
+.dbk-selbar{ font-size:12.5px; color:var(--ink); background:var(--carrot-light); border:1px solid #F0CBB4; border-radius:10px; padding:8px 12px; margin-bottom:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.dbk-selbar.muted{ background:var(--cream); border-color:var(--border); color:var(--muted); }
+.dbk-selbench, .dbk-selcancel{ font-family:'DM Sans',sans-serif; font-size:12px; font-weight:700; border-radius:8px; padding:4px 11px; cursor:pointer; background:#fff; }
+.dbk-selbench{ border:1.5px solid #D9C3AC; color:#9A6A3E; } .dbk-selbench:hover{ border-color:var(--carrot); color:var(--carrot-dark); }
+.dbk-selcancel{ border:1.5px solid var(--border); color:var(--muted); }
+.dbk-bench{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-bottom:10px; }
+.dbk-bench-lbl{ font-size:10.5px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; color:var(--muted); }
+.dbk-pill{ font-family:'DM Sans',sans-serif; font-size:12px; font-weight:700; background:#fff; border:1.5px solid; border-radius:100px; padding:5px 11px; cursor:pointer; }
+.dbk-pill.sel{ box-shadow:0 0 0 2px rgba(232,100,44,.35); }
+.dbk-months{ display:flex; gap:2px; }
+.dbk-cell{ flex:1; min-width:0; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:700; color:var(--ink); background:var(--cream); border:1px solid var(--border); border-radius:7px; padding:6px 2px; text-align:center; cursor:default; }
+.dbk-cell.target:not(.past):not(:disabled){ cursor:pointer; border-color:#E7C9AE; }
+.dbk-cell.target:not(.past):not(:disabled):hover{ background:var(--carrot-light); border-color:var(--carrot); }
+.dbk-cell.past{ color:#B8A88F; background:#F6F0E8; }
+.dbk-bars{ position:relative; margin-top:14px; }
+.dbk-today2{ position:absolute; top:-4px; bottom:-4px; width:2px; background:#1F3D2A; z-index:3; }
+.dbk-today2 span{ position:absolute; top:-13px; left:50%; transform:translateX(-50%); font-size:8px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#1F3D2A; background:#fff; padding:0 3px; white-space:nowrap; }
+.dbk-bar{ position:absolute; height:28px; border:1.5px solid; border-radius:7px; color:#fff; font-family:'DM Sans',sans-serif; cursor:pointer; display:flex; align-items:center; padding:0 8px; overflow:hidden; box-shadow:0 2px 6px -3px rgba(0,0,0,.35); }
+.dbk-bar-lbl{ font-size:11px; font-weight:700; white-space:nowrap; text-shadow:0 1px 1px rgba(0,0,0,.25); }
+.dbk-bar.late{ background:repeating-linear-gradient(45deg,#C0392B,#C0392B 6px,#A93226 6px,#A93226 12px); border-color:#8E2A20; color:#fff; }
+.dbk-bar.offleft{ border-top-left-radius:0; border-bottom-left-radius:0; border-left:3px dashed #F6B7AD; }
+.dbk-bar.sel{ box-shadow:0 0 0 2px rgba(26,18,8,.55); }
+.dbk-bar-late{ font-size:8.5px; font-weight:800; letter-spacing:.03em; text-transform:uppercase; margin-left:7px; color:#FFE3DE; white-space:nowrap; }
 
 .dbk-info{ position:relative; display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border-radius:50%;
   border:1px solid #C9B49E; color:#9A8775; font-size:9px; font-style:italic; font-weight:700; cursor:help; font-family:Georgia,serif; text-transform:none; letter-spacing:0; }
