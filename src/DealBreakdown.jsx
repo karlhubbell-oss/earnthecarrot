@@ -100,6 +100,9 @@ function extractStored(stored) {
       sizes: (Array.isArray(c.deals) ? c.deals : []).map((d) => ({
         id: d.id,
         label: typeof d.name === "string" ? d.name : "",
+        // Read the touched flag when present (a cleared-but-touched name must stay
+        // cleared); older blobs infer it from a non-empty name.
+        nameTouched: d.name_touched != null ? !!d.name_touched : !!(d.name && String(d.name).trim()),
         size: d.value == null ? "" : String(num(d.value)),
         quantity: num(d.quantity),
         cycle: d.cycle_months == null ? "" : String(d.cycle_months),
@@ -115,6 +118,7 @@ function extractStored(stored) {
       sizes: (Array.isArray(c.sizes) ? c.sizes : []).map((s) => ({
         id: s.id,
         label: typeof s.label === "string" ? s.label : "",
+        nameTouched: !!(s.label && String(s.label).trim()),
         size: String(sizeFromStored(s)),
         quantity: num(s.quantity),
         cycle: s.cycle_months == null ? "" : String(s.cycle_months),
@@ -128,7 +132,7 @@ function extractStored(stored) {
       origin: null,
       sizes: (Array.isArray(c.bands) ? c.bands : [])
         .filter((b) => num(b.quota_per_deal) > 0 && num(b.count) > 0)
-        .map((b) => ({ label: "", size: String(num(b.quota_per_deal)), quantity: num(b.count), cycle: "" })),
+        .map((b) => ({ label: "", nameTouched: false, size: String(num(b.quota_per_deal)), quantity: num(b.count), cycle: "" })),
     }));
   }
   // v2/v3 flat tiers -> group by type. Drop zero-quantity rows only for the older
@@ -141,7 +145,7 @@ function extractStored(stored) {
       if (isRangeBlob && qty <= 0) continue;
       const key = t.type || "";
       if (!byType.has(key)) byType.set(key, []);
-      byType.get(key).push({ label: typeof t.label === "string" ? t.label : "", size: String(sizeFromStored(t)), quantity: qty, cycle: t.cycle_months == null ? "" : String(t.cycle_months) });
+      byType.get(key).push({ label: typeof t.label === "string" ? t.label : "", nameTouched: !!(t.label && String(t.label).trim()), size: String(sizeFromStored(t)), quantity: qty, cycle: t.cycle_months == null ? "" : String(t.cycle_months) });
     }
     return [...byType.entries()].map(([type, sizes]) => ({ type, origin: null, sizes }));
   }
@@ -163,7 +167,7 @@ function buildSections(plan, stored) {
   let sid = 0, rid = 0;
   // Reuse a row's stored id so chip ids stay stable across reloads. Only rows that never
   // had one (v1/v2/v3 conversions, scaffold) get a fresh sequential id.
-  const withRowIds = (rows) => rows.map((r) => ({ id: r.id || `row-${rid++}`, label: r.label || "", size: r.size === "0" ? "" : r.size, quantity: r.quantity == null ? "" : String(num(r.quantity)), cycle: r.cycle, closePeriod: r.closePeriod || "" }));
+  const withRowIds = (rows) => rows.map((r) => ({ id: r.id || `row-${rid++}`, label: r.label || "", nameTouched: !!r.nameTouched, size: r.size === "0" ? "" : r.size, quantity: r.quantity == null ? "" : String(num(r.quantity)), cycle: r.cycle, closePeriod: r.closePeriod || "" }));
 
   const planNames = new Set(planComps.map((c) => c.name));
   for (const pc of planComps) {
@@ -208,6 +212,7 @@ function serialize(sections, ctx) {
       deals: s.sizes.filter((r) => !isPristineExample(r)).map((r) => ({
         id: r.id,
         name: r.label || "",
+        name_touched: !!r.nameTouched, // once true, name sticks and is never re-derived
         value: r.size === "" ? null : num(r.size),
         quantity: num(r.quantity),
         cycle_months: r.cycle === "" ? null : num(r.cycle),
@@ -263,10 +268,11 @@ function expandDeals(sections, bands) {
     const color = typeStyle(comp.type, comp.origin).fg;
     for (const row of comp.sizes) {
       const q = num(row.quantity);
-      const band = (bands && bands[row.id]) || null; // derived, plan-wide (for color/marker)
-      // Display label: the rep's name if set, else the derived size word, else blank (a
-      // solo-band deal with no name shows just its value, never a generic word).
-      const sizeLabel = row.label && row.label.trim() ? row.label : sizeWord(band);
+      const band = (bands && bands[row.id]) || null; // derived from VALUE, plan-wide (for marker/grouping/color)
+      // Display label is decoupled from size: once the rep touches the name it sticks
+      // (even if cleared); until then it shows the derived size word. The band above is
+      // always from value, so a renamed deal keeps its size marker and grouping.
+      const sizeLabel = row.nameTouched ? (row.label || "") : sizeWord(band);
       const lineClose = row.closePeriod === "" || row.closePeriod == null ? null : num(row.closePeriod);
       for (let i = 0; i < q; i++) {
         deals.push({
@@ -328,18 +334,19 @@ function dealBar(closePoint, cycle) {
   return { startPos, closePos };
 }
 // Close-period choices for a deal line's dropdown, at the plan's tracking cadence
-// (quarters if the plan tracks quarterly, otherwise months). A close is stored as the
-// month index of the period; you cannot close in a month that has already passed.
-function periodOptions(period, todayIdx) {
-  const startM = Math.max(0, Math.floor(todayIdx));
+// (quarters if the plan tracks quarterly, otherwise months). The FULL plan period is
+// selectable regardless of today (a deal may already be in flight, closing earlier than
+// today, or be planned across the whole year); today is only a marker on the calendar.
+// A close is stored as the month index. Current plan period only, no prior years.
+function periodOptions(period) {
   const opts = [];
   if (period.quarterly) {
     for (const qe of [2, 5, 8, 11]) {
-      if (qe < startM || qe >= period.P) continue;
+      if (qe >= period.P) continue;
       opts.push({ value: qe, label: "Q" + (Math.floor(qe / 3) + 1) + (period.P > 12 ? " '" + String((period.startY || 0) + Math.floor((period.startMo + qe) / 12)).slice(2) : "") });
     }
   } else {
-    for (let m = startM; m < period.P; m++) opts.push({ value: m, label: monthLabel(period, m) });
+    for (let m = 0; m < period.P; m++) opts.push({ value: m, label: monthLabel(period, m) });
   }
   return opts;
 }
@@ -408,13 +415,13 @@ export default function DealBreakdown({
     const firstPlan = base.find((s) => s.origin === "plan");
     return base.map((s) => {
       if (s.origin !== "plan") return s;
-      const ex = (name, value, quantity, cycle) => ({ id: rid(), label: "", size: "", quantity: "", cycle: "", closePeriod: "", example: { name, value, quantity, cycle } });
+      const ex = (name, value, quantity, cycle) => ({ id: rid(), label: "", nameTouched: false, size: "", quantity: "", cycle: "", closePeriod: "", example: { name, value, quantity, cycle } });
       if (firstPlan && s.id === firstPlan.id) {
         // Gray example deal lines (placeholders only): they teach the model but carry no
         // real values, so they never count toward the total and never persist.
         return { ...s, sizes: [ex("ABC", "1000000", "2", "10"), ex("XYZ", "500000", "4", "6"), ex("", "100000", "5", "4")] };
       }
-      return { ...s, sizes: [{ id: rid(), label: "", size: "", quantity: "", cycle: "", closePeriod: "", example: null }] };
+      return { ...s, sizes: [{ id: rid(), label: "", nameTouched: false, size: "", quantity: "", cycle: "", closePeriod: "", example: null }] };
     });
   });
   // Monotonic id source seeded above every loaded id, so new rows/components never
@@ -534,7 +541,7 @@ export default function DealBreakdown({
   // ── edit helpers (each marks the screen edited, which unlocks persistence) ──
   const patchSection = (sid, patch) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, ...patch } : s))); };
   const patchRow = (sid, rid, patch) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: s.sizes.map((r) => (r.id === rid ? { ...r, ...patch } : r)) } : s))); };
-  const addRow = (sid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: [...s.sizes, { id: newId(), label: "", size: "", quantity: "", cycle: "", closePeriod: "" }] } : s))); };
+  const addRow = (sid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: [...s.sizes, { id: newId(), label: "", nameTouched: false, size: "", quantity: "", cycle: "", closePeriod: "" }] } : s))); };
   const removeRow = (sid, rid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: s.sizes.filter((r) => r.id !== rid) } : s))); };
   // Copy a deal line right below it: value, quantity, cycle, and close period carry over;
   // the NAME resets (a copy must never inherit a real name, which would collide on the
@@ -547,7 +554,7 @@ export default function DealBreakdown({
     setSections((ss) => ss.map((s) => {
       if (s.id !== sid) return s;
       const idx = s.sizes.findIndex((r) => r.id === rid);
-      const copy = { id: newId(), label: "", size: orig.size, quantity: orig.quantity, cycle: orig.cycle, closePeriod: orig.closePeriod };
+      const copy = { id: newId(), label: "", nameTouched: false, size: orig.size, quantity: orig.quantity, cycle: orig.cycle, closePeriod: orig.closePeriod };
       return { ...s, sizes: [...s.sizes.slice(0, idx + 1), copy, ...s.sizes.slice(idx + 1)] };
     }));
   };
@@ -660,9 +667,10 @@ export default function DealBreakdown({
           return (
           <div key={r.id} className={`dbk-row${isPristineExample(r) ? " example" : ""}`}>
             <div className="c-label">
-              <input className="dbk-label-inp" type="text" placeholder={ex && ex.name ? ex.name : "Name"}
-                value={r.label && r.label.trim() ? r.label : sizeWord(bands[r.id])}
-                onChange={(e) => patchRow(s.id, r.id, { label: e.target.value })} />
+              <input className="dbk-label-inp" type="text"
+                placeholder={r.nameTouched ? "Name" : ex && ex.name ? ex.name : sizeWord(bands[r.id]) || "Name"}
+                value={r.label}
+                onChange={(e) => patchRow(s.id, r.id, { label: e.target.value, nameTouched: true })} />
             </div>
             <div className="c-size">
               <input className="dbk-field money" type="text" inputMode="numeric" placeholder={ex && ex.value ? moneyDisplay(ex.value) : "Deal value"}
@@ -678,8 +686,7 @@ export default function DealBreakdown({
               <select className={`dbk-cp-select${r.closePeriod === "" ? " unset" : ""}`} value={r.closePeriod}
                 onChange={(e) => patchRow(s.id, r.id, { closePeriod: e.target.value })}>
                 <option value="">Pick a period</option>
-                {periodOptions(period, todayIdx).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                {r.closePeriod !== "" && !periodOptions(period, todayIdx).some((o) => String(o.value) === String(r.closePeriod)) ? <option value={r.closePeriod}>{monthLabel(period, num(r.closePeriod))}</option> : null}
+                {periodOptions(period).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
             <div className="c-rev"><span className="dbk-rev" title={`${num(r.quantity)} × ${fmt(num(r.size))}`}>{fmt(rowRevenue(r))}</span></div>
