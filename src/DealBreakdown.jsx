@@ -186,6 +186,12 @@ function maxIdNum(sections) {
   return m;
 }
 
+// A pristine example row is a first-run gray placeholder the rep never touched. It has
+// example placeholder data but no real values, and must never be saved or summed.
+function isPristineExample(r) {
+  return !!r.example && !r.label && !r.size && (r.quantity === "" || r.quantity == null) && !r.cycle && (r.closePeriod === "" || r.closePeriod == null);
+}
+
 function serialize(sections, ctx) {
   return {
     version: 6,
@@ -199,7 +205,7 @@ function serialize(sections, ctx) {
       type: s.type || null,
       origin: s.origin,
       quota: s.origin === "plan" ? s.quota : null,
-      deals: s.sizes.map((r) => ({
+      deals: s.sizes.filter((r) => !isPristineExample(r)).map((r) => ({
         id: r.id,
         name: r.label || "",
         value: r.size === "" ? null : num(r.size),
@@ -342,7 +348,7 @@ function periodOptions(period, todayIdx) {
 // Type-or-step numeric control: the rep can type a number OR nudge with the -/+
 // buttons. `value` is a string; "" means unset (rendered blank, never as a "0"),
 // so a field that needs input reads as empty rather than a real zero.
-function StepInput({ value, onChange, suffix = null, unset = false, minusLabel, plusLabel }) {
+function StepInput({ value, onChange, suffix = null, unset = false, placeholder = "", minusLabel, plusLabel }) {
   const n = num(value);
   const dec = () => onChange(value === "" ? "" : String(Math.max(0, n - 1)));
   const inc = () => onChange(String(n + 1));
@@ -350,7 +356,7 @@ function StepInput({ value, onChange, suffix = null, unset = false, minusLabel, 
     <div className={`dbk-stepinput${unset ? " unset" : ""}`}>
       <button type="button" className="si-btn" aria-label={minusLabel} onClick={dec}>−</button>
       <div className="si-mid">
-        <input type="text" inputMode="numeric" value={digitsOf(value)} onChange={(e) => onChange(digitsOf(e.target.value))} />
+        <input type="text" inputMode="numeric" placeholder={placeholder} value={digitsOf(value)} onChange={(e) => onChange(digitsOf(e.target.value))} />
         {suffix ? <span className="si-suf">{suffix}</span> : null}
       </div>
       <button type="button" className="si-btn" aria-label={plusLabel} onClick={inc}>+</button>
@@ -402,14 +408,13 @@ export default function DealBreakdown({
     const firstPlan = base.find((s) => s.origin === "plan");
     return base.map((s) => {
       if (s.origin !== "plan") return s;
+      const ex = (name, value, quantity, cycle) => ({ id: rid(), label: "", size: "", quantity: "", cycle: "", closePeriod: "", example: { name, value, quantity, cycle } });
       if (firstPlan && s.id === firstPlan.id) {
-        return { ...s, sizes: [
-          { id: rid(), label: "Big", size: "", quantity: "", cycle: "", closePeriod: "" },
-          { id: rid(), label: "Medium", size: "", quantity: "", cycle: "", closePeriod: "" },
-          { id: rid(), label: "Small", size: "", quantity: "", cycle: "", closePeriod: "" },
-        ] };
+        // Gray example deal lines (placeholders only): they teach the model but carry no
+        // real values, so they never count toward the total and never persist.
+        return { ...s, sizes: [ex("ABC", "1000000", "2", "10"), ex("XYZ", "500000", "4", "6"), ex("", "100000", "5", "4")] };
       }
-      return { ...s, sizes: [{ id: rid(), label: "", size: "", quantity: "", cycle: "", closePeriod: "" }] };
+      return { ...s, sizes: [{ id: rid(), label: "", size: "", quantity: "", cycle: "", closePeriod: "", example: null }] };
     });
   });
   // Monotonic id source seeded above every loaded id, so new rows/components never
@@ -473,6 +478,21 @@ export default function DealBreakdown({
   };
   const doSaveRef = useRef(doSave);
   doSaveRef.current = doSave;
+
+  // Advancing forward is a deliberate act of acceptance: it always persists, even for a
+  // first-run user who never edited a seeded row. Gray scaffold examples never persist,
+  // so a never-edited advance saves the real (non-scaffold) state, which is what
+  // distinguishes it from a genuine glance-and-leave (which stays case A / NULL).
+  const advance = () => {
+    const real = edited ? sections : buildSections(plan, null);
+    onPersistRef.current(serialize(real, { targetPct, stretchPct, totalQuota, placements }));
+    dirtyRef.current = false;
+    setDirty(false);
+    setSavedAt(new Date());
+    onContinue({ sections: real, planRevenue, customRevenue });
+  };
+  const advanceRef = useRef(advance);
+  advanceRef.current = advance;
 
   // Debounced save on any edit.
   useEffect(() => {
@@ -635,22 +655,24 @@ export default function DealBreakdown({
           </div>
         )}
 
-        {s.sizes.map((r) => (
-          <div key={r.id} className="dbk-row">
+        {s.sizes.map((r) => {
+          const ex = r.example || null; // gray example placeholders on first-run rows
+          return (
+          <div key={r.id} className={`dbk-row${isPristineExample(r) ? " example" : ""}`}>
             <div className="c-label">
-              <input className="dbk-label-inp" type="text" placeholder="Name"
+              <input className="dbk-label-inp" type="text" placeholder={ex && ex.name ? ex.name : "Name"}
                 value={r.label && r.label.trim() ? r.label : sizeWord(bands[r.id])}
                 onChange={(e) => patchRow(s.id, r.id, { label: e.target.value })} />
             </div>
             <div className="c-size">
-              <input className="dbk-field money" type="text" inputMode="numeric" placeholder="Deal value"
+              <input className="dbk-field money" type="text" inputMode="numeric" placeholder={ex && ex.value ? moneyDisplay(ex.value) : "Deal value"}
                 value={moneyDisplay(r.size)} onChange={(e) => patchRow(s.id, r.id, { size: digitsOf(e.target.value) })} />
             </div>
             <div className="c-qty">
-              <StepInput value={r.quantity} onChange={(v) => patchRow(s.id, r.id, { quantity: v })} minusLabel="One fewer deal" plusLabel="One more deal" />
+              <StepInput value={r.quantity} placeholder={ex ? ex.quantity : ""} onChange={(v) => patchRow(s.id, r.id, { quantity: v })} minusLabel="One fewer deal" plusLabel="One more deal" />
             </div>
             <div className="c-cycle">
-              <StepInput value={r.cycle} onChange={(v) => patchRow(s.id, r.id, { cycle: v })} suffix="mo" unset={r.cycle === ""} minusLabel="One fewer month" plusLabel="One more month" />
+              <StepInput value={r.cycle} placeholder={ex ? ex.cycle : ""} onChange={(v) => patchRow(s.id, r.id, { cycle: v })} suffix="mo" unset={r.cycle === ""} minusLabel="One fewer month" plusLabel="One more month" />
             </div>
             <div className="c-close">
               <select className={`dbk-cp-select${r.closePeriod === "" ? " unset" : ""}`} value={r.closePeriod}
@@ -668,7 +690,8 @@ export default function DealBreakdown({
               <button type="button" className="dbk-rm" aria-label="Delete this deal line" title="Delete this deal line" onClick={() => removeRow(s.id, r.id)}>×</button>
             </div>
           </div>
-        ))}
+          );
+        })}
 
         <button className="dbk-add-size" type="button" onClick={() => addRow(s.id)}>Add a deal</button>
 
@@ -693,7 +716,9 @@ export default function DealBreakdown({
     const xpx = (pos) => (pos - axisLo) * PXM;
     combGeomRef.current = { todayX: xpx(todayIdx) };
     const months = []; for (let m = axisLo; m < period.P; m++) months.push(m);
-    const maxSize = Math.max(1, ...placed.map((d) => d.size), 1);
+    // Marker size carries the derived band (a separate signal from color, which is
+    // component). Big/Medium/Small are distinct sizes; a solo band uses one neutral size.
+    const markerPx = (band) => (band === "big" ? 20 : band === "small" ? 9 : band === "medium" ? 14 : 13);
     return (
       <div className="dbk-combined">
         <div className="dbk-combined-head">
@@ -715,7 +740,7 @@ export default function DealBreakdown({
                 const { startPos, closePos } = dealBar(d.lineClose, d.cycle);
                 const late = startPos < todayIdx;
                 const left = xpx(startPos), right = xpx(closePos);
-                const mk = 8 + Math.round(12 * (d.size / maxSize)); // literal graduated size marker
+                const mk = markerPx(d.band); // size by derived band; color stays by component
                 return (
                   <button key={d.id} type="button" className={`dbk-cbar${late ? " late" : ""}${selChip === d.id ? " sel" : ""}`}
                     style={{ top: i * 30, left, width: Math.max(right - left, 8), ...(late ? {} : { background: d.color }), borderColor: late ? undefined : d.color }}
@@ -776,11 +801,11 @@ export default function DealBreakdown({
 
       <div className="dbk-head">
         <div className="dbk-crumb">Strategy · Step 2</div>
-        <h1 className="dbk-title">Set Up Your Deal Tiers</h1>
+        <h1 className="dbk-title">List the Deals It Will Take</h1>
         <p className="dbk-sub">
-          Let's lay out the deals behind your stretch number. For each component of your plan, add the sizes of deal you
-          run, how many you expect, and roughly how long each takes to close. Add your own component if you plan work that
-          is not in your comp plan. We keep the running total against your stretch quota in view.
+          For each part of your plan, list the deals you think it takes to hit your stretch number: what each one is worth,
+          how many, how long each takes to close, and when you think it closes. We size and group them and build your
+          calendar from there. Add your own component for work that is not in your comp plan.
         </p>
       </div>
 
@@ -824,10 +849,9 @@ export default function DealBreakdown({
       {firstRun && (
         <div className="dbk-helper">
           <p>
-            Most reps close a mix of deal sizes over a year. A few big ones, some in the middle, a handful of small. Each
-            size tends to have its own rhythm: a big deal might close once or twice a year after a long cycle, while
-            smaller deals close faster and more often. We've set up your first component with a big, medium, and small
-            example to show the idea. Rename them, change the numbers, or delete any you don't need.
+            List each deal on its own line: a name, what it is worth, how many like it, how long it takes to close, and the
+            period you think it lands. The gray lines below are just examples to show the shape. Type over them, and we size
+            each deal, group them big to small, and lay them on your calendar from the close periods you pick.
           </p>
         </div>
       )}
@@ -841,7 +865,7 @@ export default function DealBreakdown({
       {renderCombinedTimeline()}
 
       <div className="dbk-cta-wrap">
-        <button className="dbk-cta" onClick={() => onContinue({ sections, planRevenue, customRevenue })}>
+        <button className="dbk-cta" onClick={() => advanceRef.current()}>
           <span className="dbk-cta-main">Save your plan of attack <span aria-hidden>→</span></span>
           <span className="dbk-cta-sub">Your deals and their timing are saved as you go</span>
         </button>
@@ -929,6 +953,8 @@ const CSS = `
 .dbk-rm{ width:26px; height:26px; border:none; border-radius:8px; background:none; color:var(--muted); font-size:19px; line-height:1; cursor:pointer; }
 .dbk-rm:hover{ background:#FBEBE6; color:#B0532A; }
 .dbk-mini-note{ font-size:12.5px; color:var(--muted); font-style:italic; margin-top:12px; padding-top:12px; border-top:1px dashed var(--border); line-height:1.5; }
+/* first-run gray example lines: muted so they read as placeholders, not real data */
+.dbk-row.example{ opacity:.62; }
 
 .dbk-add-size{ margin-top:10px; background:none; border:none; color:var(--carrot-dark); font-size:13.5px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; padding:4px 0; }
 .dbk-add-size:hover{ text-decoration:underline; }
