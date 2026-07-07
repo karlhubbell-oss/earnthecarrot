@@ -88,6 +88,7 @@ export default function AccountsImport({ authHeaders, onBack }) {
 
   return (
     <div style={{ paddingBottom: 60 }}>
+      <style>{`@keyframes ai-spin{to{transform:rotate(360deg)}}`}</style>
       {onBack && (
         <button onClick={onBack} style={{ background: "none", border: "none", color: "var(--carrot)", fontWeight: 700, fontSize: 18, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0, marginBottom: 8 }}>
           ‹ Back
@@ -103,13 +104,20 @@ export default function AccountsImport({ authHeaders, onBack }) {
       </p>
 
       <div style={{ ...card, marginTop: 18, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-        <label style={{ display: "inline-flex", alignItems: "center", gap: 10, background: "var(--carrot)", color: "white", fontFamily: "'DM Sans',sans-serif", fontWeight: 800, fontSize: 15, padding: "11px 18px", borderRadius: 12, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
-          {busy ? "Reading your file" : "Choose a CSV or Excel file"}
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 10, background: "var(--carrot)", color: "white", fontFamily: "'DM Sans',sans-serif", fontWeight: 800, fontSize: 15, padding: "11px 18px", borderRadius: 12, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1, pointerEvents: busy ? "none" : "auto" }}>
+          Choose a CSV or Excel file
           <input ref={fileRef} type="file" accept=".csv,.tsv,.xlsx,.xls,text/csv" onChange={onFile} disabled={busy} style={{ display: "none" }} />
         </label>
-        <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, color: "var(--muted)" }}>
-          I detect the account name column on my own and keep every other column as is.
-        </span>
+        {busy ? (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 10, fontFamily: "'DM Sans',sans-serif", fontSize: 14.5, fontWeight: 700, color: "var(--carrot-dark)" }}>
+            <span style={{ width: 18, height: 18, border: "2.5px solid var(--carrot-light)", borderTopColor: "var(--carrot)", borderRadius: "50%", display: "inline-block", animation: "ai-spin .7s linear infinite" }} />
+            Reading your accounts, hang tight.
+          </span>
+        ) : (
+          <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, color: "var(--muted)" }}>
+            I detect the account name column on my own and keep every other column as is.
+          </span>
+        )}
       </div>
 
       {error && (
@@ -123,6 +131,9 @@ export default function AccountsImport({ authHeaders, onBack }) {
           </div>
           <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, color: "#2D6A4F", marginTop: 6, lineHeight: 1.55 }}>
             Name column: <b>{summary.nameColumn || "none"}</b>{summary.nameColumnGuessed ? " (my best guess, please check it)" : ""}.<br />
+            {summary.statusColumn
+              ? <>Customer status from <b>{summary.statusColumn}</b>: {summary.customerCount} already {summary.customerCount === 1 ? "a customer" : "customers"}, {summary.prospectCount} {summary.prospectCount === 1 ? "prospect" : "prospects"}.<br /></>
+              : <>No customer status column found, so I set everyone to prospect for now.<br /></>}
             Columns detected: {(summary.columnsDetected || []).join(", ") || "none"}.<br />
             {(summary.rowsSkipped || []).length > 0 && <>Skipped {summary.rowsSkipped.length} {summary.rowsSkipped.length === 1 ? "row" : "rows"}: {summary.rowsSkipped.map((s) => `row ${s.row} (${s.reason})`).join(", ")}.<br /></>}
             {(summary.warnings || []).length > 0 && <>Flagged {summary.warnings.length}: {summary.warnings.map((w) => `row ${w.row} (${w.reason})`).join(", ")}.</>}

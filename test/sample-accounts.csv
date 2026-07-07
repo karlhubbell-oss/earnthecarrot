@@ -1,39 +1,106 @@
-Account Name,HQ City,HQ State,Annual Revenue,Employees,Industry,ERP System,,Notes
-Acme Industrial,Austin,TX,"$1,200,000",50,Manufacturing,SAP,,
-Globex Corp,Denver,CO,"$4,450,000","2,200",Healthcare,Oracle,,warm intro via CFO
-Initech,Boston,MA,"526,000",,Logistics,NetSuite,,renewal Q3
-Umbra Health,Chicago,IL,N/A,"12,000",Retail,Dynamics 365,,cold
-Northwind Traders,Seattle,WA,,220,SaaS,Infor,,
-Stark Manufacturing,Atlanta,GA,"$375,000",235,Energy,,,warm intro via CFO
-Wayne Logistics,Miami,FL,"$7,200,000","7,200",Construction,Sage,,renewal Q3
-Soylent Foods,Reno,NV,"$5,450,000",,Finance,Epicor,,cold
-,,,,,,,,
-Hooli,Austin,TX,"604,000","12,000",Manufacturing,SAP,,
-Pied Piper,Denver,CO,N/A,245,Healthcare,Oracle,,warm intro via CFO
-Vandelay Imports,Boston,MA,,420,Logistics,NetSuite,,renewal Q3
-Cyberdyne Systems,Chicago,IL,"$575,000","3,200",Retail,Dynamics 365,,cold
-Wonka Industries,Seattle,WA,"$4,200,000",,SaaS,Infor,,
-"Smith, Jones & Co",Portland,OR,"$4,000,000",800,Legal,Oracle,,"says ""call me Q4"""
-Tyrell Corp,Atlanta,GA,"$6,450,000","12,000",Energy,,,warm intro via CFO
-Massive Dynamic,Miami,FL,"682,000",270,Construction,Sage,,renewal Q3
-Gekko & Co,Reno,NV,N/A,605,Finance,Epicor,,cold
-Bluth Company,Austin,TX,,"8,200",Manufacturing,SAP,,
-Prestige Worldwide,Denver,CO,"$375,000",,Healthcare,Oracle,,warm intro via CFO
-Duff Beverages,Boston,MA,"$1,200,000","12,000",Logistics,NetSuite,,renewal Q3
-Oscorp,Chicago,IL,"$7,450,000",295,Retail,Dynamics 365,,cold
-Aperture Labs,Seattle,WA,"760,000",790,SaaS,Infor,,
-,Fresno,CA,"$900,000",150,Agriculture,SAP,,no name in export
-Black Mesa,Atlanta,GA,N/A,"4,200",Energy,,,warm intro via CFO
-Nakatomi Trading,Miami,FL,,,Construction,Sage,,renewal Q3
-Weyland Corp,Reno,NV,"$575,000","12,000",Finance,Epicor,,cold
-Monarch Sciences,Austin,TX,"$7,200,000",320,Manufacturing,SAP,,
-Sirius Cybernetics,Denver,CO,"$3,450,000",975,Healthcare,Oracle,,warm intro via CFO
-Zorg Industries,Boston,MA,"838,000","9,200",Logistics,NetSuite,,renewal Q3
-Los Pollos Holdings,Chicago,IL,N/A,,Retail,Dynamics 365,,cold
-Sterling Cooper,Seattle,WA,,"12,000",SaaS,Infor,,
+Account Name,HQ City,HQ State,Annual Revenue,Employees,Industry,Current Client,ERP System,,Notes
+Acme Industrial,Austin,TX,"$1,200,000",50,Manufacturing,Yes,SAP,,
+Globex Corp,Denver,CO,"$4,450,000","2,200",Healthcare,,Oracle,,warm intro via CFO
+Initech,Boston,MA,"526,000",,Logistics,Prospect,NetSuite,,renewal Q3
+Umbra Health,Chicago,IL,N/A,"12,000",Retail,Customer,Dynamics 365,,cold
+Northwind Traders,Seattle,WA,,220,SaaS,false,Infor,,
+Stark Manufacturing,Atlanta,GA,"$375,000",85,Energy,No,,,warm intro via CFO
+Wayne Logistics,Miami,FL,"$7,200,000","7,200",Construction,Yes,Sage,,renewal Q3
+Soylent Foods,Reno,NV,"$5,450,000",,Finance,Prospect,Epicor,,cold
+Hooli,Austin,TX,"604,000","12,000",Manufacturing,N,SAP,,
+Pied Piper,Denver,CO,N/A,245,Healthcare,Customer,Oracle,,warm intro via CFO
+Vandelay Imports,Boston,MA,,120,Logistics,No,NetSuite,,renewal Q3
+,,,,,,,,,
+Cyberdyne Systems,Chicago,IL,"$575,000","3,200",Retail,,Dynamics 365,,cold
+Wonka Industries,Seattle,WA,"$4,200,000",,SaaS,Yes,Infor,,
+Tyrell Corp,Atlanta,GA,"$6,450,000","12,000",Energy,N,,,warm intro via CFO
+Massive Dynamic,Miami,FL,"682,000",270,Construction,false,Sage,,renewal Q3
+Gekko & Co,Reno,NV,N/A,155,Finance,Customer,Epicor,,cold
+Bluth Company,Austin,TX,,"8,200",Manufacturing,,SAP,,
+Prestige Worldwide,Denver,CO,"$375,000",,Healthcare,Prospect,Oracle,,warm intro via CFO
+Duff Beverages,Boston,MA,"$1,200,000","12,000",Logistics,Yes,NetSuite,,renewal Q3
+Oscorp,Chicago,IL,"$7,450,000",295,Retail,false,Dynamics 365,,cold
+Aperture Labs,Seattle,WA,"760,000",190,SaaS,No,Infor,,
+Black Mesa,Atlanta,GA,N/A,"4,200",Energy,Customer,,,warm intro via CFO
+Nakatomi Trading,Miami,FL,,,Construction,Prospect,Sage,,renewal Q3
+Weyland Corp,Reno,NV,"$575,000","12,000",Finance,N,Epicor,,cold
+Monarch Sciences,Austin,TX,"$7,200,000",320,Manufacturing,Yes,SAP,,
+Sirius Cybernetics,Denver,CO,"$3,450,000",225,Healthcare,No,Oracle,,warm intro via CFO
+Zorg Industries,Boston,MA,"838,000","9,200",Logistics,,NetSuite,,renewal Q3
+Los Pollos Holdings,Chicago,IL,N/A,,Retail,Customer,Dynamics 365,,cold
+Sterling Cooper,Seattle,WA,,"12,000",SaaS,N,Infor,,
+Dunder Mifflin,Atlanta,GA,"$375,000",345,Energy,false,,,warm intro via CFO
+Wernham Hogg,Miami,FL,"$4,200,000",260,Construction,Yes,Sage,,renewal Q3
+Cybertech,Reno,NV,"$4,450,000","5,200",Finance,,Epicor,,cold
+Omni Consumer,Austin,TX,"916,000",,Manufacturing,Prospect,SAP,,
+Virtucon,Denver,CO,N/A,"12,000",Healthcare,N,Oracle,,warm intro via CFO
+Acme Industrial 2,Boston,MA,,370,Logistics,Client,NetSuite,,renewal Q3
+Globex Corp 2,Chicago,IL,"$575,000",295,Retail,No,Dynamics 365,,cold
+Initech 2,Seattle,WA,"$1,200,000","1,200",SaaS,,Infor,,
+Umbra Health 2,Atlanta,GA,"$5,450,000",,Energy,Y,,,warm intro via CFO
+Northwind Traders 2,Miami,FL,"994,000","12,000",Construction,N,Sage,,renewal Q3
+Stark Manufacturing 2,Reno,NV,N/A,395,Finance,false,Epicor,,cold
+"Smith, Jones & Co",Austin,TX,,330,Manufacturing,Client,SAP,,
+Soylent Foods 2,Denver,CO,"$375,000","6,200",Healthcare,,Oracle,,warm intro via CFO
+Hooli 2,Boston,MA,"$7,200,000",,Logistics,Prospect,NetSuite,,renewal Q3
+Pied Piper 2,Chicago,IL,"$6,450,000","12,000",Retail,Y,Dynamics 365,,cold
+Vandelay Imports 2,Seattle,WA,"1072,000",420,SaaS,false,Infor,,
+Cyberdyne Systems 2,Atlanta,GA,N/A,365,Energy,No,,,warm intro via CFO
+Wonka Industries 2,Miami,FL,,"2,200",Construction,Client,Sage,,renewal Q3
+Tyrell Corp 2,Reno,NV,"$575,000",,Finance,Prospect,Epicor,,cold
+Massive Dynamic 2,Austin,TX,"$4,200,000","12,000",Manufacturing,N,SAP,,
+Gekko & Co 2,Denver,CO,"$7,450,000",445,Healthcare,Y,Oracle,,warm intro via CFO
+Bluth Company 2,Boston,MA,"1150,000",400,Logistics,No,NetSuite,,renewal Q3
+Prestige Worldwide 2,Chicago,IL,N/A,"7,200",Retail,,Dynamics 365,,cold
+Duff Beverages 2,Seattle,WA,,,SaaS,Client,Infor,,
+Oscorp 2,Atlanta,GA,"$375,000","12,000",Energy,N,,,warm intro via CFO
+Aperture Labs 2,Miami,FL,"$1,200,000",470,Construction,false,Sage,,renewal Q3
+,Reno,NV,"$3,450,000",435,Finance,Y,Epicor,,cold
+Nakatomi Trading 2,Austin,TX,"1228,000","3,200",Manufacturing,,SAP,,
+Weyland Corp 2,Denver,CO,N/A,,Healthcare,Prospect,Oracle,,warm intro via CFO
+Monarch Sciences 2,Boston,MA,,"12,000",Logistics,Client,NetSuite,,renewal Q3
+Sirius Cybernetics 2,Chicago,IL,"$575,000",495,Retail,false,Dynamics 365,,cold
+Zorg Industries 2,Seattle,WA,"$7,200,000",470,SaaS,No,Infor,,
+,,,,,,,,,
+Los Pollos Holdings 2,Atlanta,GA,"$4,450,000","8,200",Energy,Y,,,warm intro via CFO
+Sterling Cooper 2,Miami,FL,"1306,000",,Construction,Prospect,Sage,,renewal Q3
+Dunder Mifflin 2,Reno,NV,N/A,"12,000",Finance,N,Epicor,,cold
+Wernham Hogg 2,Austin,TX,,520,Manufacturing,Client,SAP,,
+Cybertech 2,Denver,CO,"$375,000",505,Healthcare,No,Oracle,,warm intro via CFO
+Omni Consumer 2,Boston,MA,"$4,200,000","4,200",Logistics,,NetSuite,,renewal Q3
+Virtucon 2,Chicago,IL,"$5,450,000",,Retail,Prospect,Dynamics 365,,cold
+Acme Industrial 3,Seattle,WA,"1384,000","12,000",SaaS,True,Infor,,
+Globex Corp 3,Atlanta,GA,N/A,545,Energy,false,,,warm intro via CFO
+Initech 3,Miami,FL,,540,Construction,No,Sage,,renewal Q3
+Umbra Health 3,Reno,NV,"$575,000","9,200",Finance,current client,Epicor,,cold
+Northwind Traders 3,Austin,TX,"$1,200,000",,Manufacturing,Prospect,SAP,,
+Stark Manufacturing 3,Denver,CO,"$6,450,000","12,000",Healthcare,N,Oracle,,warm intro via CFO
+Wayne Logistics 3,Boston,MA,"1462,000",570,Logistics,True,NetSuite,,renewal Q3
+Soylent Foods 3,Chicago,IL,N/A,575,Retail,No,Dynamics 365,,cold
+Hooli 3,Seattle,WA,,"5,200",SaaS,,Infor,,
+Pied Piper 3,Atlanta,GA,"$375,000",,Energy,current client,,,warm intro via CFO
+Vandelay Imports 3,Miami,FL,"$7,200,000","12,000",Construction,N,Sage,,renewal Q3
+Cyberdyne Systems 3,Reno,NV,"$7,450,000",595,Finance,false,Epicor,,cold
+Wonka Industries 3,Austin,TX,"1540,000",610,Manufacturing,True,SAP,,
 
-Dunder Mifflin,Atlanta,GA,"$375,000",345,Energy,,,warm intro via CFO
-Prospect A,Miami,FL,"$4,200,000",1160,Construction,Sage,,renewal Q3
-Prospect B,Reno,NV,"$4,450,000","5,200",Finance,Epicor,,cold
-Prospect C,Austin,TX,"916,000",,Manufacturing,SAP,,
-Prospect D,Denver,CO,N/A,"12,000",Healthcare,Oracle,,warm intro via CFO
+Tyrell Corp 3,Denver,CO,N/A,"1,200",Healthcare,,Oracle,,warm intro via CFO
+Massive Dynamic 3,Boston,MA,,,Logistics,Prospect,NetSuite,,renewal Q3
+Gekko & Co 3,Chicago,IL,"$575,000","12,000",Retail,current client,Dynamics 365,,cold
+Bluth Company 3,Seattle,WA,"$4,200,000",620,SaaS,false,Infor,,
+Prestige Worldwide 3,Atlanta,GA,"$3,450,000",645,Energy,No,,,warm intro via CFO
+Duff Beverages 3,Miami,FL,"1618,000","6,200",Construction,True,Sage,,renewal Q3
+Oscorp 3,Reno,NV,N/A,,Finance,Prospect,Epicor,,cold
+Aperture Labs 3,Austin,TX,,"12,000",Manufacturing,N,SAP,,
+Black Mesa 3,Denver,CO,"$375,000",645,Healthcare,current client,Oracle,,warm intro via CFO
+Nakatomi Trading 3,Boston,MA,"$1,200,000",680,Logistics,No,NetSuite,,renewal Q3
+Weyland Corp 3,Chicago,IL,"$4,450,000","2,200",Retail,,Dynamics 365,,cold
+Monarch Sciences 3,Seattle,WA,"1696,000",,SaaS,True,Infor,,
+Sirius Cybernetics 3,Atlanta,GA,N/A,"12,000",Energy,N,,,warm intro via CFO
+Zorg Industries 3,Miami,FL,,670,Construction,false,Sage,,renewal Q3
+Los Pollos Holdings 3,Reno,NV,"$575,000",715,Finance,current client,Epicor,,cold
+Sterling Cooper 3,Austin,TX,"$7,200,000","7,200",Manufacturing,,SAP,,
+Dunder Mifflin 3,Denver,CO,"$5,450,000",,Healthcare,Prospect,Oracle,,warm intro via CFO
+Wernham Hogg 3,Boston,MA,"1774,000","12,000",Logistics,True,NetSuite,,renewal Q3
+Cybertech 3,Chicago,IL,N/A,695,Retail,false,Dynamics 365,,cold
+Omni Consumer 3,Seattle,WA,,750,SaaS,No,Infor,,
+Virtucon 3,Atlanta,GA,"$375,000","3,200",Energy,,,,warm intro via CFO

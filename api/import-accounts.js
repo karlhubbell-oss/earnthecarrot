@@ -55,7 +55,7 @@ export default async function handler(req, res) {
       const accountId = randomUUID();
       await sql`
         INSERT INTO accounts (id, rep_id, name, customer_status, parent_account_id, source_document_id)
-        VALUES (${accountId}, ${repId}, ${acct.name}, 'prospect', NULL, ${sourceDocId})`;
+        VALUES (${accountId}, ${repId}, ${acct.name}, ${acct.customer_status || "prospect"}, NULL, ${sourceDocId})`;
       created++;
       for (const f of acct.fields) {
         await sql`
@@ -64,6 +64,7 @@ export default async function handler(req, res) {
       }
     }
 
+    const customerCount = parsed.accounts.filter((a) => a.customer_status === "customer").length;
     return res.status(200).json({
       ok: true,
       sourceDocId,
@@ -71,6 +72,9 @@ export default async function handler(req, res) {
       columnsDetected: parsed.columns,
       nameColumn: parsed.nameColumn,
       nameColumnGuessed: parsed.nameColumnGuessed,
+      statusColumn: parsed.statusColumn,
+      customerCount,
+      prospectCount: created - customerCount,
       rowsSkipped: parsed.skipped,
       warnings: parsed.warnings,
     });
