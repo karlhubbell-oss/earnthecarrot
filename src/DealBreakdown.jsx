@@ -237,9 +237,11 @@ function deriveSizeBands(lines) {
   clusters.forEach((set, ci) => { for (const l of withVal) if (set.has(l.value)) band[l.id] = labelAt(ci); });
   return band;
 }
-// The size word shown for a band (the derived Gantt label and a line's default name).
+// The size word for a band. Big/Medium/Small when values cluster into distinct sizes;
+// blank when they collapse to one band (a big-deals-only rep gets no generic word, the
+// rep uses the deal's own name instead).
 function sizeWord(band) {
-  return band === "big" ? "Big" : band === "medium" ? "Medium" : band === "small" ? "Small" : "Deal";
+  return band === "big" ? "Big" : band === "medium" ? "Medium" : band === "small" ? "Small" : "";
 }
 
 // ── timeline model (Blocks 1 and 3) ─────────────────────────────────────────
@@ -255,9 +257,10 @@ function expandDeals(sections, bands) {
     const color = typeStyle(comp.type, comp.origin).fg;
     for (const row of comp.sizes) {
       const q = num(row.quantity);
-      const band = (bands && bands[row.id]) || null;
-      const sizeLabel = sizeWord(band); // DERIVED size word (from value clustering), not entered
-      const lineName = row.label && row.label.trim() ? row.label : sizeLabel; // editable name, defaults to the size word
+      const band = (bands && bands[row.id]) || null; // derived, plan-wide (for color/marker)
+      // Display label: the rep's name if set, else the derived size word, else blank (a
+      // solo-band deal with no name shows just its value, never a generic word).
+      const sizeLabel = row.label && row.label.trim() ? row.label : sizeWord(band);
       const lineClose = row.closePeriod === "" || row.closePeriod == null ? null : num(row.closePeriod);
       for (let i = 0; i < q; i++) {
         deals.push({
@@ -268,7 +271,6 @@ function expandDeals(sections, bands) {
           color,
           band,
           sizeLabel,
-          lineName,
           size: num(row.size),
           cycle: num(row.cycle),
           lineClose,
@@ -318,6 +320,22 @@ function dealBar(closePoint, cycle) {
   const closePos = closePoint + 1;
   const startPos = closePos - Math.max(cycle, 0);
   return { startPos, closePos };
+}
+// Close-period choices for a deal line's dropdown, at the plan's tracking cadence
+// (quarters if the plan tracks quarterly, otherwise months). A close is stored as the
+// month index of the period; you cannot close in a month that has already passed.
+function periodOptions(period, todayIdx) {
+  const startM = Math.max(0, Math.floor(todayIdx));
+  const opts = [];
+  if (period.quarterly) {
+    for (const qe of [2, 5, 8, 11]) {
+      if (qe < startM || qe >= period.P) continue;
+      opts.push({ value: qe, label: "Q" + (Math.floor(qe / 3) + 1) + (period.P > 12 ? " '" + String((period.startY || 0) + Math.floor((period.startMo + qe) / 12)).slice(2) : "") });
+    }
+  } else {
+    for (let m = startM; m < period.P; m++) opts.push({ value: m, label: monthLabel(period, m) });
+  }
+  return opts;
 }
 
 // ── small controls ─────────────────────────────────────────────────────────
@@ -419,11 +437,9 @@ export default function DealBreakdown({
   // picks a close period (Increment B) or places them by hand. We do not fabricate a
   // close date, same "no invented assumptions" rule as the rest of the screen.
 
-  const closeOf = (chipId) => { const p = placements[chipId]; return p && p.close_point != null ? p.close_point : null; };
+  // Placements now hold only the per-deal NAME (the close period lives on the deal line).
   const nameOf = (chipId) => { const p = placements[chipId]; return p && p.name ? p.name : ""; };
-  const setClose = (chipId, cp) => { setEdited(true); setPlacements((p) => ({ ...p, [chipId]: { close_point: cp, name: (p[chipId] && p[chipId].name) || "" } })); };
-  const benchChip = (chipId) => { setEdited(true); setPlacements((p) => ({ ...p, [chipId]: { close_point: null, name: (p[chipId] && p[chipId].name) || "" } })); };
-  const setName = (chipId, name) => { setEdited(true); setPlacements((p) => ({ ...p, [chipId]: { close_point: (p[chipId] && p[chipId].close_point != null) ? p[chipId].close_point : null, name } })); };
+  const setName = (chipId, name) => { setEdited(true); setPlacements((p) => ({ ...p, [chipId]: { ...(p[chipId] || {}), name } })); };
 
   // Combined-timeline scroll geometry, so the today marker can stay fixed while scrolling.
   const combScrollRef = useRef(null);
@@ -500,6 +516,21 @@ export default function DealBreakdown({
   const patchRow = (sid, rid, patch) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: s.sizes.map((r) => (r.id === rid ? { ...r, ...patch } : r)) } : s))); };
   const addRow = (sid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: [...s.sizes, { id: newId(), label: "", size: "", quantity: "", cycle: "", closePeriod: "" }] } : s))); };
   const removeRow = (sid, rid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: s.sizes.filter((r) => r.id !== rid) } : s))); };
+  // Copy a deal line right below it: value, quantity, cycle, and close period carry over;
+  // the NAME resets (a copy must never inherit a real name, which would collide on the
+  // future CRM-slot join). Fast path for "same deal, different close period."
+  const duplicateRow = (sid, rid) => {
+    const sec = sections.find((s) => s.id === sid);
+    const orig = sec && sec.sizes.find((r) => r.id === rid);
+    if (!orig) return;
+    setEdited(true);
+    setSections((ss) => ss.map((s) => {
+      if (s.id !== sid) return s;
+      const idx = s.sizes.findIndex((r) => r.id === rid);
+      const copy = { id: newId(), label: "", size: orig.size, quantity: orig.quantity, cycle: orig.cycle, closePeriod: orig.closePeriod };
+      return { ...s, sizes: [...s.sizes.slice(0, idx + 1), copy, ...s.sizes.slice(idx + 1)] };
+    }));
+  };
   const addComponent = () => { setEdited(true); setSections((ss) => [...ss, { id: newId(), type: "", origin: "custom", quota: null, sizes: [] }]); };
   const removeComponent = (sid) => { setEdited(true); setSections((ss) => ss.filter((s) => s.id !== sid)); };
 
@@ -517,58 +548,35 @@ export default function DealBreakdown({
 
   // Per-component mini-timeline (Blocks 2-3): the component's own chips on a small month
   // axis. Bars run backward from a close point; a start before today is loud late.
+  // Read-only per-component calendar. Bars build themselves from each line's close period
+  // and cycle; there is no bench and no tap-to-place. Click a bar to name that deal.
   const renderMiniTimeline = (s) => {
     const compDeals = deals.filter((d) => d.componentId === s.id);
     if (compDeals.length === 0) return null;
+    const placed = compDeals.filter((d) => d.cycle > 0 && d.lineClose != null);
+    const unscheduled = compDeals.length - placed.length;
+    if (placed.length === 0) {
+      return <div className="dbk-mini"><div className="dbk-mini-note">Give each line a sales cycle and a close period and the calendar builds itself here.</div></div>;
+    }
     const maxCycle = Math.max(1, ...compDeals.map((d) => d.cycle || 0));
     const axisLo = Math.min(Math.floor(todayIdx) - 1, period.P - maxCycle - 1);
     const span = Math.max(1, period.P - axisLo);
     const x = (pos) => ((pos - axisLo) / span) * 100;
     const months = []; for (let m = axisLo; m < period.P; m++) months.push(m);
-    // Only deals with a real cycle can be bars; a cycle-less deal has no bar length and
-    // waits on the bench (never scattered on the axis) until a cycle is set on its row.
-    const cycled = compDeals.filter((d) => d.cycle > 0);
-    const noCycle = compDeals.filter((d) => d.cycle <= 0);
-    const placed = cycled.filter((d) => closeOf(d.id) != null);
-    const bench = cycled.filter((d) => closeOf(d.id) == null);
-    const lateCount = placed.filter((d) => dealBar(closeOf(d.id), d.cycle).startPos < todayIdx).length;
-    const minClose = Math.floor(todayIdx); // cannot close before the current month
-    const localSel = compDeals.some((d) => d.id === selChip) ? selChip : null;
+    const lateCount = placed.filter((d) => dealBar(d.lineClose, d.cycle).startPos < todayIdx).length;
     return (
       <div className="dbk-mini">
         <div className="dbk-mini-head">
           <span className="dbk-mini-title">These deals on your calendar</span>
           {lateCount > 0 && <span className="dbk-mini-late">{lateCount === 1 ? "1 already late" : `${lateCount} already late`}</span>}
         </div>
-        {localSel ? (
-          <div className="dbk-selbar">Tap a highlighted month to set the close for the deal you picked. Its details are open below.</div>
-        ) : (
-          <div className="dbk-selbar muted">Tap a deal, then tap a month to place it.</div>
-        )}
-        {(bench.length > 0 || noCycle.length > 0) && (
-          <div className="dbk-bench">
-            <span className="dbk-bench-lbl">Bench</span>
-            {bench.map((d) => (
-              <button key={d.id} type="button" className={`dbk-pill${selChip === d.id ? " sel" : ""}`} style={{ borderColor: d.color, color: d.color }} onClick={() => setSelChip(selChip === d.id ? null : d.id)}>{d.sizeLabel} {fmt(d.size)}</button>
-            ))}
-            {noCycle.map((d) => (
-              <span key={d.id} className="dbk-pill nocycle" title="Add a sales cycle length to place this deal">{d.sizeLabel} {fmt(d.size)}</span>
-            ))}
-          </div>
-        )}
-        {noCycle.length > 0 && (
-          <div className="dbk-nocycle-note">Add a sales cycle length to these rows to place them on your calendar.</div>
-        )}
         <div className="dbk-months">
-          {months.map((m) => (
-            <button key={m} type="button" className={`dbk-cell${localSel ? " target" : ""}${m < minClose ? " past" : ""}`} disabled={!localSel || m < minClose} onClick={() => localSel && setClose(localSel, m)}>{monthLabel(period, m)}</button>
-          ))}
+          {months.map((m) => (<span key={m} className={`dbk-cell${m < Math.floor(todayIdx) ? " past" : ""}`}>{monthLabel(period, m)}</span>))}
         </div>
         <div className="dbk-bars" style={{ height: Math.max(placed.length, 1) * 32 + 4 }}>
           <div className="dbk-today2" style={{ left: Math.max(0, Math.min(100, x(todayIdx))) + "%" }}><span>Today</span></div>
           {placed.map((d, i) => {
-            const cp = closeOf(d.id);
-            const { startPos, closePos } = dealBar(cp, d.cycle);
+            const { startPos, closePos } = dealBar(d.lineClose, d.cycle);
             const late = startPos < todayIdx;
             const leftRaw = x(startPos), rightRaw = x(closePos);
             const left = Math.max(0, leftRaw), right = Math.min(100, rightRaw);
@@ -578,13 +586,16 @@ export default function DealBreakdown({
                 className={`dbk-bar${late ? " late" : ""}${offLeft ? " offleft" : ""}${selChip === d.id ? " sel" : ""}`}
                 style={{ top: i * 32, left: left + "%", width: Math.max(right - left, 3) + "%", ...(late ? {} : { background: d.color }), borderColor: late ? undefined : d.color }}
                 onClick={() => setSelChip(selChip === d.id ? null : d.id)}
-                title={`${d.sizeLabel} ${fmt(d.size)}, ${d.cycle || 0} month cycle, closes ${monthLabel(period, cp)}`}>
-                <span className="dbk-bar-lbl">{d.sizeLabel} {fmt(d.size)}</span>
+                title={`${d.sizeLabel ? d.sizeLabel + " " : ""}${fmt(d.size)}, ${d.cycle} month cycle, closes ${monthLabel(period, d.lineClose)}`}>
+                <span className="dbk-bar-lbl">{d.sizeLabel ? d.sizeLabel + " " : ""}{fmt(d.size)}</span>
                 {late && <span className="dbk-bar-late">late</span>}
               </button>
             );
           })}
         </div>
+        {unscheduled > 0 && (
+          <div className="dbk-nocycle-note">{unscheduled === 1 ? "1 deal is not on the calendar yet" : `${unscheduled} deals are not on the calendar yet`}. Give each line a sales cycle and a close period.</div>
+        )}
       </div>
     );
   };
@@ -618,6 +629,7 @@ export default function DealBreakdown({
             <span className="c-size">Deal Value <InfoDot text="The dollar amount of one deal on this line. We size and group your deals from these values, and the total is value times quantity." /></span>
             <span className="c-qty">Deal Quantity</span>
             <span className="c-cycle">Sales Cycle Length</span>
+            <span className="c-close">Close Period</span>
             <span className="c-rev">Total Revenue</span>
             <span className="c-rm" />
           </div>
@@ -640,12 +652,25 @@ export default function DealBreakdown({
             <div className="c-cycle">
               <StepInput value={r.cycle} onChange={(v) => patchRow(s.id, r.id, { cycle: v })} suffix="mo" unset={r.cycle === ""} minusLabel="One fewer month" plusLabel="One more month" />
             </div>
+            <div className="c-close">
+              <select className={`dbk-cp-select${r.closePeriod === "" ? " unset" : ""}`} value={r.closePeriod}
+                onChange={(e) => patchRow(s.id, r.id, { closePeriod: e.target.value })}>
+                <option value="">Pick a period</option>
+                {periodOptions(period, todayIdx).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                {r.closePeriod !== "" && !periodOptions(period, todayIdx).some((o) => String(o.value) === String(r.closePeriod)) ? <option value={r.closePeriod}>{monthLabel(period, num(r.closePeriod))}</option> : null}
+              </select>
+            </div>
             <div className="c-rev"><span className="dbk-rev" title={`${num(r.quantity)} × ${fmt(num(r.size))}`}>{fmt(rowRevenue(r))}</span></div>
-            <div className="c-rm"><button type="button" className="dbk-rm" aria-label="Remove this size" onClick={() => removeRow(s.id, r.id)}>×</button></div>
+            <div className="c-rm">
+              <button type="button" className="dbk-dup" aria-label="Copy this deal line" title="Copy this deal line" onClick={() => duplicateRow(s.id, r.id)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+              </button>
+              <button type="button" className="dbk-rm" aria-label="Delete this deal line" title="Delete this deal line" onClick={() => removeRow(s.id, r.id)}>×</button>
+            </div>
           </div>
         ))}
 
-        <button className="dbk-add-size" type="button" onClick={() => addRow(s.id)}>Add a size</button>
+        <button className="dbk-add-size" type="button" onClick={() => addRow(s.id)}>Add a deal</button>
 
         {renderMiniTimeline(s)}
       </div>
@@ -654,49 +679,40 @@ export default function DealBreakdown({
 
   // Combined timeline (Block 4): all placeable chips on one shared, scrolling axis with
   // a fixed today marker. The bar mechanic is the same as the per-component view.
+  // Combined read-only calendar: every deal from every component on one scrolling axis,
+  // fixed today marker. Bars build from each line's close period; click a bar to name it.
   const renderCombinedTimeline = () => {
     if (deals.length === 0) return null;
-    const cycled = deals.filter((d) => d.cycle > 0);
-    const placed = cycled.filter((d) => closeOf(d.id) != null);
-    const noCycleCount = deals.filter((d) => d.cycle <= 0).length;
-    const benchCount = cycled.filter((d) => closeOf(d.id) == null).length;
-    const off = noCycleCount + benchCount;
-    const maxCycle = Math.max(1, ...cycled.map((d) => d.cycle));
-    const starts = placed.map((d) => dealBar(closeOf(d.id), d.cycle).startPos);
+    const placed = deals.filter((d) => d.cycle > 0 && d.lineClose != null);
+    const off = deals.length - placed.length;
+    const maxCycle = Math.max(1, ...deals.map((d) => d.cycle || 0));
+    const starts = placed.map((d) => dealBar(d.lineClose, d.cycle).startPos);
     const axisLo = Math.floor(Math.min(todayIdx - 1, period.P - maxCycle - 1, ...(starts.length ? starts : [0]), 0));
     const PXM = 66; // pixels per month
     const totalPx = (period.P - axisLo) * PXM;
     const xpx = (pos) => (pos - axisLo) * PXM;
     combGeomRef.current = { todayX: xpx(todayIdx) };
     const months = []; for (let m = axisLo; m < period.P; m++) months.push(m);
-    const minClose = Math.floor(todayIdx);
-    const maxSize = Math.max(1, ...cycled.map((d) => d.size));
-    const localSel = cycled.some((d) => d.id === selChip) ? selChip : null;
+    const maxSize = Math.max(1, ...placed.map((d) => d.size), 1);
     return (
       <div className="dbk-combined">
         <div className="dbk-combined-head">
           <h2 className="dbk-combined-title">Your whole year on one calendar</h2>
-          <p className="dbk-combined-sub">Every deal from every component competes for the same months. Scroll to see the longer deals reach back in time, and watch the today line.</p>
+          <p className="dbk-combined-sub">Every deal from every component on the same months. It builds from the close periods you pick in the lists above. Scroll to see the longer deals reach back in time, and watch the today line.</p>
         </div>
         {off > 0 && (
           <div className="dbk-offcal">
-            {off === 1 ? "1 deal is not on your calendar yet." : `${off} deals are not on your calendar yet.`}
-            {noCycleCount > 0 ? ` Add a sales cycle length to those rows to place them.` : ""}
-            {benchCount > 0 ? ` ${benchCount === 1 ? "One is" : `${benchCount} are`} waiting on a component bench for a close month.` : ""}
+            {off === 1 ? "1 deal is not on your calendar yet." : `${off} deals are not on your calendar yet.`} Give each line a sales cycle and a close period to place it.
           </div>
         )}
         <div className="dbk-cscroll" ref={combScrollRef} onScroll={positionCombToday}>
           <div className="dbk-ccanvas" style={{ width: totalPx }}>
             <div className="dbk-cmonths">
-              {months.map((m) => (
-                <button key={m} type="button" style={{ width: PXM }} className={`dbk-ccell${localSel ? " target" : ""}${m < minClose ? " past" : ""}`}
-                  disabled={!localSel || m < minClose} onClick={() => localSel && setClose(localSel, m)}>{monthLabel(period, m)}</button>
-              ))}
+              {months.map((m) => (<span key={m} style={{ width: PXM }} className={`dbk-ccell${m < Math.floor(todayIdx) ? " past" : ""}`}>{monthLabel(period, m)}</span>))}
             </div>
             <div className="dbk-cbars" style={{ height: Math.max(placed.length, 1) * 30 + 8 }}>
               {placed.map((d, i) => {
-                const cp = closeOf(d.id);
-                const { startPos, closePos } = dealBar(cp, d.cycle);
+                const { startPos, closePos } = dealBar(d.lineClose, d.cycle);
                 const late = startPos < todayIdx;
                 const left = xpx(startPos), right = xpx(closePos);
                 const mk = 8 + Math.round(12 * (d.size / maxSize)); // literal graduated size marker
@@ -704,9 +720,9 @@ export default function DealBreakdown({
                   <button key={d.id} type="button" className={`dbk-cbar${late ? " late" : ""}${selChip === d.id ? " sel" : ""}`}
                     style={{ top: i * 30, left, width: Math.max(right - left, 8), ...(late ? {} : { background: d.color }), borderColor: late ? undefined : d.color }}
                     onClick={() => setSelChip(selChip === d.id ? null : d.id)}
-                    title={`${d.componentType}, ${d.sizeLabel} ${fmt(d.size)}, ${d.cycle} month cycle, closes ${monthLabel(period, cp)}`}>
+                    title={`${d.componentType}, ${d.sizeLabel ? d.sizeLabel + " " : ""}${fmt(d.size)}, ${d.cycle} month cycle, closes ${monthLabel(period, d.lineClose)}`}>
                     <span className="dbk-cmk" style={{ width: mk, height: mk, borderColor: late ? "#8E2A20" : d.color }} />
-                    <span className="dbk-cbar-lbl">{d.sizeLabel} {fmt(d.size)}</span>
+                    <span className="dbk-cbar-lbl">{d.sizeLabel ? d.sizeLabel + " " : ""}{fmt(d.size)}</span>
                     {late && <span className="dbk-cbar-late">late</span>}
                   </button>
                 );
@@ -719,36 +735,35 @@ export default function DealBreakdown({
     );
   };
 
-  // Chip panel (Block 5): facts read-only, one editable name. Opens for the selected chip
-  // from either timeline. Numbers are never edited here; the tiers stay source of truth.
+  // Chip panel: facts read-only, one editable name. Opens for a clicked bar. Numbers and
+  // the close period live in the deal line above; only the per-deal name is set here.
   const renderChipPanel = () => {
     const d = deals.find((x) => x.id === selChip);
     if (!d) return null;
-    const cp = closeOf(d.id);
+    const cp = d.lineClose;
     const bar = cp != null && d.cycle > 0 ? dealBar(cp, d.cycle) : null;
     const late = bar ? bar.startPos < todayIdx : false;
-    const status = d.cycle <= 0 ? "Needs a sales cycle length" : cp == null ? "On the bench" : late ? "Already late to start" : "On track";
+    const status = d.cycle <= 0 ? "Needs a sales cycle length" : cp == null ? "Needs a close period" : late ? "Already late to start" : "On track";
     const Fact = ({ label, value }) => (<div className="dbk-fact"><span className="dbk-fact-l">{label}</span><span className="dbk-fact-v">{value}</span></div>);
     return (
       <div className="dbk-panel">
         <div className="dbk-panel-head">
-          <span className="dbk-panel-title" style={{ color: d.color }}>{d.sizeLabel} {fmt(d.size)}</span>
+          <span className="dbk-panel-title" style={{ color: d.color }}>{d.sizeLabel ? d.sizeLabel + " " : ""}{fmt(d.size)}</span>
           <button type="button" className="dbk-panel-x" aria-label="Close" onClick={() => setSelChip(null)}>×</button>
         </div>
         <div className="dbk-panel-facts">
           <Fact label="Component" value={d.componentType} />
-          <Fact label="Size label" value={d.sizeLabel} />
-          <Fact label="Typical size" value={fmt(d.size)} />
+          <Fact label="Size band" value={d.sizeLabel || "single band"} />
+          <Fact label="Deal value" value={fmt(d.size)} />
           <Fact label="Sales cycle" value={d.cycle > 0 ? `${d.cycle} months` : "not set"} />
-          <Fact label="Closes" value={cp != null ? monthLabel(period, cp) : "unplaced"} />
+          <Fact label="Closes" value={cp != null ? monthLabel(period, cp) : "not set"} />
           <Fact label="Starts" value={bar ? monthLabel(period, bar.startPos) : "n/a"} />
           <Fact label="Status" value={<span className={late ? "dbk-fact-late" : ""}>{status}</span>} />
         </div>
         <label className="dbk-panel-namelbl">Name this deal</label>
         <input className="dbk-panel-name" type="text" placeholder="TBD" value={nameOf(d.id)} onChange={(e) => setName(d.id, e.target.value)} />
-        <div className="dbk-panel-note">A name is just a label to help you find this deal. The size, cycle, and count live in the tier above.</div>
+        <div className="dbk-panel-note">A name is just a label to help you find this deal. The value, cycle, count, and close period live in the deal line above.</div>
         <div className="dbk-panel-actions">
-          {cp != null && <button type="button" className="dbk-panel-bench" onClick={() => benchChip(d.id)}>Send to bench</button>}
           <button type="button" className="dbk-panel-done" onClick={() => setSelChip(null)}>Done</button>
         </div>
       </div>
@@ -881,7 +896,7 @@ const CSS = `
 .dbk-sec-remove{ margin-left:auto; background:none; border:1.5px solid var(--border); border-radius:9px; padding:5px 12px; font-size:12.5px; font-weight:600; color:var(--muted); cursor:pointer; font-family:'DM Sans',sans-serif; }
 .dbk-sec-remove:hover{ border-color:#C86B4B; color:#B0532A; }
 
-.dbk-rowhead, .dbk-row{ display:grid; grid-template-columns:minmax(104px,0.85fr) minmax(120px,1fr) 126px minmax(104px,0.8fr) minmax(110px,1fr) 32px; gap:12px; align-items:center; }
+.dbk-rowhead, .dbk-row{ display:grid; grid-template-columns:minmax(96px,0.85fr) minmax(104px,0.9fr) 116px minmax(92px,0.7fr) minmax(116px,0.95fr) minmax(96px,0.8fr) 58px; gap:11px; align-items:center; }
 .dbk-rowhead{ padding:8px 4px 6px; border-bottom:1px solid var(--border); margin-top:6px; }
 .dbk-rowhead span{ font-size:10px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; color:var(--muted); }
 .dbk-rowhead .c-rev{ text-align:right; }
@@ -903,10 +918,17 @@ const CSS = `
 .dbk-stepinput .si-mid input:focus{ outline:none; }
 .dbk-stepinput .si-suf{ font-size:12.5px; color:var(--muted); font-weight:600; }
 .dbk-stepinput.unset .si-suf{ color:#C39A5F; }
+.dbk-cp-select{ width:100%; border:1.5px solid var(--border); border-radius:10px; background:#fff; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:700; color:var(--ink); padding:9px 8px; cursor:pointer; }
+.dbk-cp-select:focus{ outline:none; border-color:var(--carrot); }
+.dbk-cp-select.unset{ border-color:#E6C79E; background:#FFFBF3; color:var(--muted); font-weight:600; }
 .c-rev{ text-align:right; }
 .dbk-rev{ font-family:'Playfair Display',serif; font-size:18px; font-weight:900; color:var(--carrot-dark); white-space:nowrap; }
+.c-rm{ display:flex; align-items:center; justify-content:flex-end; gap:3px; }
+.dbk-dup{ display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border:none; border-radius:8px; background:none; color:var(--muted); cursor:pointer; }
+.dbk-dup:hover{ background:var(--carrot-light); color:var(--carrot-dark); }
 .dbk-rm{ width:26px; height:26px; border:none; border-radius:8px; background:none; color:var(--muted); font-size:19px; line-height:1; cursor:pointer; }
 .dbk-rm:hover{ background:#FBEBE6; color:#B0532A; }
+.dbk-mini-note{ font-size:12.5px; color:var(--muted); font-style:italic; margin-top:12px; padding-top:12px; border-top:1px dashed var(--border); line-height:1.5; }
 
 .dbk-add-size{ margin-top:10px; background:none; border:none; color:var(--carrot-dark); font-size:13.5px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; padding:4px 0; }
 .dbk-add-size:hover{ text-decoration:underline; }
@@ -1012,7 +1034,7 @@ const CSS = `
   .dbk-grand{ position:static; }
   .dbk-rowhead{ display:none; }
   .dbk-row{ grid-template-columns:1fr 1fr; gap:9px 12px; }
-  .c-label{ grid-column:1 / -1; }
+  .c-label, .c-close{ grid-column:1 / -1; }
   .c-rev{ text-align:left; }
 }
 `;
