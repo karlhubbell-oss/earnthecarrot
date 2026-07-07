@@ -60,20 +60,6 @@ const VISUAL = {
   },
 };
 const typeStyle = (type, origin) => (origin === "custom" ? VISUAL.typeColor._default : VISUAL.typeColor[type] || VISUAL.typeColor._default);
-function sizeBucket(rank, total) {
-  if (total <= 1) return "solo";
-  const q = rank / (total - 1);
-  if (q <= 0.34) return "large";
-  if (q <= 0.67) return "medium";
-  return "small";
-}
-// Default size-tier label from a row's rank within its component (largest size = Big).
-// Used only when a row has no rep-set label, so it stays live until the rep renames it.
-function labelByRank(rank, total) {
-  if (total <= 1) return "Big";
-  const b = sizeBucket(rank, total);
-  return b === "large" ? "Big" : b === "medium" ? "Medium" : "Small";
-}
 function CustomIcon({ color }) {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -106,7 +92,22 @@ function sizeFromStored(t) {
 // v4 grouped, v1 component/band, and v2/v3 flat tiers are all handled.
 function extractStored(stored) {
   if (!stored) return [];
-  // v4 grouped components (carry a `sizes` array)
+  // v6 free deal list (components carry a `deals` array). name -> label, value -> size.
+  if (Array.isArray(stored.components) && stored.components.some((c) => Array.isArray(c.deals))) {
+    return stored.components.map((c) => ({
+      type: c.type || c.name || "",
+      origin: c.origin || null,
+      sizes: (Array.isArray(c.deals) ? c.deals : []).map((d) => ({
+        id: d.id,
+        label: typeof d.name === "string" ? d.name : "",
+        size: d.value == null ? "" : String(num(d.value)),
+        quantity: num(d.quantity),
+        cycle: d.cycle_months == null ? "" : String(d.cycle_months),
+        closePeriod: d.close_period == null ? "" : String(d.close_period),
+      })),
+    }));
+  }
+  // v4/v5 grouped components (carry a `sizes` array)
   if (Array.isArray(stored.components) && stored.components.some((c) => Array.isArray(c.sizes))) {
     return stored.components.map((c) => ({
       type: c.type || c.name || "",
@@ -162,7 +163,7 @@ function buildSections(plan, stored) {
   let sid = 0, rid = 0;
   // Reuse a row's stored id so chip ids stay stable across reloads. Only rows that never
   // had one (v1/v2/v3 conversions, scaffold) get a fresh sequential id.
-  const withRowIds = (rows) => rows.map((r) => ({ id: r.id || `row-${rid++}`, label: r.label || "", size: r.size === "0" ? "" : r.size, quantity: r.quantity == null ? "" : String(num(r.quantity)), cycle: r.cycle }));
+  const withRowIds = (rows) => rows.map((r) => ({ id: r.id || `row-${rid++}`, label: r.label || "", size: r.size === "0" ? "" : r.size, quantity: r.quantity == null ? "" : String(num(r.quantity)), cycle: r.cycle, closePeriod: r.closePeriod || "" }));
 
   const planNames = new Set(planComps.map((c) => c.name));
   for (const pc of planComps) {
@@ -185,39 +186,88 @@ function maxIdNum(sections) {
   return m;
 }
 
+// A pristine example row is a first-run gray placeholder the rep never touched. It has
+// example placeholder data but no real values, and must never be saved or summed.
+function isPristineExample(r) {
+  return !!r.example && !r.label && !r.size && (r.quantity === "" || r.quantity == null) && !r.cycle && (r.closePeriod === "" || r.closePeriod == null);
+}
+
 function serialize(sections, ctx) {
   return {
-    version: 5,
+    version: 6,
     target_pct: ctx.targetPct,
     stretch_pct: ctx.stretchPct,
     total_quota: ctx.totalQuota,
+    // Free deal list per component. Internal state keeps the v5 field names; the v6 shape
+    // maps label -> name (the editable deal name) and size -> value (the dollar amount),
+    // and adds close_period (the line's picked period; null = unset, deals on the bench).
     components: sections.map((s) => ({
       type: s.type || null,
       origin: s.origin,
       quota: s.origin === "plan" ? s.quota : null,
-      sizes: s.sizes.map((r) => ({ id: r.id, label: r.label || "", size: r.size === "" ? null : num(r.size), quantity: num(r.quantity), cycle_months: r.cycle === "" ? null : num(r.cycle) })),
+      deals: s.sizes.filter((r) => !isPristineExample(r)).map((r) => ({
+        id: r.id,
+        name: r.label || "",
+        value: r.size === "" ? null : num(r.size),
+        quantity: num(r.quantity),
+        cycle_months: r.cycle === "" ? null : num(r.cycle),
+        close_period: r.closePeriod === "" || r.closePeriod == null ? null : num(r.closePeriod),
+      })),
     })),
     // Timeline placements keyed by stable chip id. Missing = unplaced, missing name = TBD.
     placements: ctx.placements || {},
   };
 }
 
+// Derive size bands by clustering deal-line VALUES plan-wide (relative, not fixed dollar
+// thresholds). A tight spread (or one value) collapses to a single band; otherwise split
+// at the largest relative gaps into up to three bands, biggest values = "big". The rep
+// declares no tiers; this is what the Gantt labels and colors by. Returns lineId -> band.
+function deriveSizeBands(lines) {
+  const withVal = lines.filter((l) => l.value > 0);
+  if (!withVal.length) return {};
+  const vals = [...new Set(withVal.map((l) => l.value))].sort((a, b) => a - b);
+  const band = {};
+  if (vals.length === 1 || vals[vals.length - 1] <= vals[0] * 1.6) {
+    for (const l of withVal) band[l.id] = "solo";
+    return band;
+  }
+  const gaps = [];
+  for (let i = 1; i < vals.length; i++) gaps.push({ i, ratio: vals[i] / vals[i - 1] });
+  const splits = gaps.filter((g) => g.ratio > 1.3).sort((a, b) => b.ratio - a.ratio).slice(0, 2).map((g) => g.i).sort((a, b) => a - b);
+  const bounds = [0, ...splits, vals.length];
+  const clusters = [];
+  for (let c = 0; c < bounds.length - 1; c++) clusters.push(new Set(vals.slice(bounds[c], bounds[c + 1])));
+  const n = clusters.length;
+  const labelAt = (ci) => (n === 1 ? "solo" : n === 2 ? (ci === 0 ? "small" : "big") : ci === 0 ? "small" : ci === 1 ? "medium" : "big");
+  clusters.forEach((set, ci) => { for (const l of withVal) if (set.has(l.value)) band[l.id] = labelAt(ci); });
+  return band;
+}
+// The size word for a band. Big/Medium/Small when values cluster into distinct sizes;
+// blank when they collapse to one band (a big-deals-only rep gets no generic word, the
+// rep uses the deal's own name instead).
+function sizeWord(band) {
+  return band === "big" ? "Big" : band === "medium" ? "Medium" : band === "small" ? "Small" : "";
+}
+
 // ── timeline model (Blocks 1 and 3) ─────────────────────────────────────────
-// The timeline READS tiers and never writes deal economics back. Each size row expands
+// The timeline READS the deal lines and never writes economics back. Each line expands
 // into individual deal chips; a chip is a bar whose length is its cycle and whose start
 // is computed backward from a rep-set close point; a start before today is late.
 
 // Expand every size row into its individual deal chips with STABLE ids, so an unchanged
 // chip keeps its id (and therefore its placement and name) when tiers re-expand.
-function expandDeals(sections) {
+function expandDeals(sections, bands) {
   const deals = [];
   for (const comp of sections) {
     const color = typeStyle(comp.type, comp.origin).fg;
-    const order = [...comp.sizes].sort((a, b) => num(b.size) - num(a.size));
-    const rank = {}; order.forEach((r, i) => { rank[r.id] = i; });
     for (const row of comp.sizes) {
       const q = num(row.quantity);
-      const sizeLabel = row.label && row.label.trim() ? row.label : labelByRank(rank[row.id] || 0, comp.sizes.length);
+      const band = (bands && bands[row.id]) || null; // derived, plan-wide (for color/marker)
+      // Display label: the rep's name if set, else the derived size word, else blank (a
+      // solo-band deal with no name shows just its value, never a generic word).
+      const sizeLabel = row.label && row.label.trim() ? row.label : sizeWord(band);
+      const lineClose = row.closePeriod === "" || row.closePeriod == null ? null : num(row.closePeriod);
       for (let i = 0; i < q; i++) {
         deals.push({
           id: `${comp.id}#${row.id}#${i}`,
@@ -225,9 +275,11 @@ function expandDeals(sections) {
           componentType: comp.type || "Untagged",
           origin: comp.origin,
           color,
+          band,
           sizeLabel,
           size: num(row.size),
           cycle: num(row.cycle),
+          lineClose,
         });
       }
     }
@@ -275,34 +327,28 @@ function dealBar(closePoint, cycle) {
   const startPos = closePos - Math.max(cycle, 0);
   return { startPos, closePos };
 }
-
-// Deterministic opening spread of close points across the remaining window, per component
-// (shorter cycles close earlier). NOT Coach. Named so smarter placement can replace it.
-function defaultArrangement(deals, period, todayIdx) {
-  const placements = {};
-  const lastClose = period.P - 1;
-  const firstClose = Math.min(Math.max(Math.ceil(todayIdx), 0), lastClose);
-  const byComp = {};
-  // Only deals with a real cycle can be laid on the axis. A cycle-less deal has no bar
-  // length, so it is never auto-spread; it waits on the bench until a cycle is set.
-  for (const d of deals) { if (d.cycle <= 0) continue; (byComp[d.componentId] = byComp[d.componentId] || []).push(d); }
-  for (const cid of Object.keys(byComp)) {
-    const list = byComp[cid].slice().sort((a, b) => a.cycle - b.cycle);
-    const n = list.length;
-    list.forEach((d, i) => {
-      const cp = n <= 1 ? Math.round((firstClose + lastClose) / 2)
-        : Math.round(firstClose + (i / (n - 1)) * (lastClose - firstClose));
-      placements[d.id] = { close_point: Math.min(Math.max(cp, firstClose), lastClose), name: "" };
-    });
+// Close-period choices for a deal line's dropdown, at the plan's tracking cadence
+// (quarters if the plan tracks quarterly, otherwise months). A close is stored as the
+// month index of the period; you cannot close in a month that has already passed.
+function periodOptions(period, todayIdx) {
+  const startM = Math.max(0, Math.floor(todayIdx));
+  const opts = [];
+  if (period.quarterly) {
+    for (const qe of [2, 5, 8, 11]) {
+      if (qe < startM || qe >= period.P) continue;
+      opts.push({ value: qe, label: "Q" + (Math.floor(qe / 3) + 1) + (period.P > 12 ? " '" + String((period.startY || 0) + Math.floor((period.startMo + qe) / 12)).slice(2) : "") });
+    }
+  } else {
+    for (let m = startM; m < period.P; m++) opts.push({ value: m, label: monthLabel(period, m) });
   }
-  return placements;
+  return opts;
 }
 
 // ── small controls ─────────────────────────────────────────────────────────
 // Type-or-step numeric control: the rep can type a number OR nudge with the -/+
 // buttons. `value` is a string; "" means unset (rendered blank, never as a "0"),
 // so a field that needs input reads as empty rather than a real zero.
-function StepInput({ value, onChange, suffix = null, unset = false, minusLabel, plusLabel }) {
+function StepInput({ value, onChange, suffix = null, unset = false, placeholder = "", minusLabel, plusLabel }) {
   const n = num(value);
   const dec = () => onChange(value === "" ? "" : String(Math.max(0, n - 1)));
   const inc = () => onChange(String(n + 1));
@@ -310,7 +356,7 @@ function StepInput({ value, onChange, suffix = null, unset = false, minusLabel, 
     <div className={`dbk-stepinput${unset ? " unset" : ""}`}>
       <button type="button" className="si-btn" aria-label={minusLabel} onClick={dec}>−</button>
       <div className="si-mid">
-        <input type="text" inputMode="numeric" value={digitsOf(value)} onChange={(e) => onChange(digitsOf(e.target.value))} />
+        <input type="text" inputMode="numeric" placeholder={placeholder} value={digitsOf(value)} onChange={(e) => onChange(digitsOf(e.target.value))} />
         {suffix ? <span className="si-suf">{suffix}</span> : null}
       </div>
       <button type="button" className="si-btn" aria-label={plusLabel} onClick={inc}>+</button>
@@ -362,14 +408,13 @@ export default function DealBreakdown({
     const firstPlan = base.find((s) => s.origin === "plan");
     return base.map((s) => {
       if (s.origin !== "plan") return s;
+      const ex = (name, value, quantity, cycle) => ({ id: rid(), label: "", size: "", quantity: "", cycle: "", closePeriod: "", example: { name, value, quantity, cycle } });
       if (firstPlan && s.id === firstPlan.id) {
-        return { ...s, sizes: [
-          { id: rid(), label: "Big", size: "", quantity: "", cycle: "" },
-          { id: rid(), label: "Medium", size: "", quantity: "", cycle: "" },
-          { id: rid(), label: "Small", size: "", quantity: "", cycle: "" },
-        ] };
+        // Gray example deal lines (placeholders only): they teach the model but carry no
+        // real values, so they never count toward the total and never persist.
+        return { ...s, sizes: [ex("ABC", "1000000", "2", "10"), ex("XYZ", "500000", "4", "6"), ex("", "100000", "5", "4")] };
       }
-      return { ...s, sizes: [{ id: rid(), label: "", size: "", quantity: "", cycle: "" }] };
+      return { ...s, sizes: [{ id: rid(), label: "", size: "", quantity: "", cycle: "", closePeriod: "", example: null }] };
     });
   });
   // Monotonic id source seeded above every loaded id, so new rows/components never
@@ -385,28 +430,21 @@ export default function DealBreakdown({
   const period = useMemo(() => planPeriod(plan), [plan]);
   const today = useMemo(() => new Date(), []);
   const todayIdx = monthIndexOf(period, today);
-  const deals = useMemo(() => expandDeals(sections), [sections]);
+  // Size bands are derived plan-wide by clustering all deal-line values (not entered).
+  const bands = useMemo(() => deriveSizeBands(sections.flatMap((s) => s.sizes.map((r) => ({ id: r.id, value: num(r.size) })))), [sections]);
+  const deals = useMemo(() => expandDeals(sections, bands), [sections, bands]);
 
-  // placements: chipId -> { close_point (null = bench), name }. Loaded from v5.
+  // placements: chipId -> { close_point (null = bench), name }. Loaded from stored.
   const [placements, setPlacements] = useState(() => (stored && stored.placements && typeof stored.placements === "object" ? { ...stored.placements } : {}));
   const [selChip, setSelChip] = useState(null);
 
-  // Default opening arrangement: materialize ONCE, the first time chips exist with no
-  // stored placements, so the timeline looks built. New chips after that go to the bench.
-  const arrangedRef = useRef(Object.keys(placements).length > 0);
-  useEffect(() => {
-    if (arrangedRef.current) return;
-    if (!deals.some((d) => d.cycle > 0)) return; // wait until something is placeable
-    arrangedRef.current = true;
-    setEdited(true);
-    setPlacements(defaultArrangement(deals, period, todayIdx));
-  }, [deals, period, todayIdx]);
+  // No auto-arrangement: a fresh or edited line's deals sit on the bench until the rep
+  // picks a close period (Increment B) or places them by hand. We do not fabricate a
+  // close date, same "no invented assumptions" rule as the rest of the screen.
 
-  const closeOf = (chipId) => { const p = placements[chipId]; return p && p.close_point != null ? p.close_point : null; };
+  // Placements now hold only the per-deal NAME (the close period lives on the deal line).
   const nameOf = (chipId) => { const p = placements[chipId]; return p && p.name ? p.name : ""; };
-  const setClose = (chipId, cp) => { setEdited(true); setPlacements((p) => ({ ...p, [chipId]: { close_point: cp, name: (p[chipId] && p[chipId].name) || "" } })); };
-  const benchChip = (chipId) => { setEdited(true); setPlacements((p) => ({ ...p, [chipId]: { close_point: null, name: (p[chipId] && p[chipId].name) || "" } })); };
-  const setName = (chipId, name) => { setEdited(true); setPlacements((p) => ({ ...p, [chipId]: { close_point: (p[chipId] && p[chipId].close_point != null) ? p[chipId].close_point : null, name } })); };
+  const setName = (chipId, name) => { setEdited(true); setPlacements((p) => ({ ...p, [chipId]: { ...(p[chipId] || {}), name } })); };
 
   // Combined-timeline scroll geometry, so the today marker can stay fixed while scrolling.
   const combScrollRef = useRef(null);
@@ -440,6 +478,21 @@ export default function DealBreakdown({
   };
   const doSaveRef = useRef(doSave);
   doSaveRef.current = doSave;
+
+  // Advancing forward is a deliberate act of acceptance: it always persists, even for a
+  // first-run user who never edited a seeded row. Gray scaffold examples never persist,
+  // so a never-edited advance saves the real (non-scaffold) state, which is what
+  // distinguishes it from a genuine glance-and-leave (which stays case A / NULL).
+  const advance = () => {
+    const real = edited ? sections : buildSections(plan, null);
+    onPersistRef.current(serialize(real, { targetPct, stretchPct, totalQuota, placements }));
+    dirtyRef.current = false;
+    setDirty(false);
+    setSavedAt(new Date());
+    onContinue({ sections: real, planRevenue, customRevenue });
+  };
+  const advanceRef = useRef(advance);
+  advanceRef.current = advance;
 
   // Debounced save on any edit.
   useEffect(() => {
@@ -481,8 +534,23 @@ export default function DealBreakdown({
   // ── edit helpers (each marks the screen edited, which unlocks persistence) ──
   const patchSection = (sid, patch) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, ...patch } : s))); };
   const patchRow = (sid, rid, patch) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: s.sizes.map((r) => (r.id === rid ? { ...r, ...patch } : r)) } : s))); };
-  const addRow = (sid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: [...s.sizes, { id: newId(), label: "", size: "", quantity: "", cycle: "" }] } : s))); };
+  const addRow = (sid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: [...s.sizes, { id: newId(), label: "", size: "", quantity: "", cycle: "", closePeriod: "" }] } : s))); };
   const removeRow = (sid, rid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: s.sizes.filter((r) => r.id !== rid) } : s))); };
+  // Copy a deal line right below it: value, quantity, cycle, and close period carry over;
+  // the NAME resets (a copy must never inherit a real name, which would collide on the
+  // future CRM-slot join). Fast path for "same deal, different close period."
+  const duplicateRow = (sid, rid) => {
+    const sec = sections.find((s) => s.id === sid);
+    const orig = sec && sec.sizes.find((r) => r.id === rid);
+    if (!orig) return;
+    setEdited(true);
+    setSections((ss) => ss.map((s) => {
+      if (s.id !== sid) return s;
+      const idx = s.sizes.findIndex((r) => r.id === rid);
+      const copy = { id: newId(), label: "", size: orig.size, quantity: orig.quantity, cycle: orig.cycle, closePeriod: orig.closePeriod };
+      return { ...s, sizes: [...s.sizes.slice(0, idx + 1), copy, ...s.sizes.slice(idx + 1)] };
+    }));
+  };
   const addComponent = () => { setEdited(true); setSections((ss) => [...ss, { id: newId(), type: "", origin: "custom", quota: null, sizes: [] }]); };
   const removeComponent = (sid) => { setEdited(true); setSections((ss) => ss.filter((s) => s.id !== sid)); };
 
@@ -500,58 +568,35 @@ export default function DealBreakdown({
 
   // Per-component mini-timeline (Blocks 2-3): the component's own chips on a small month
   // axis. Bars run backward from a close point; a start before today is loud late.
+  // Read-only per-component calendar. Bars build themselves from each line's close period
+  // and cycle; there is no bench and no tap-to-place. Click a bar to name that deal.
   const renderMiniTimeline = (s) => {
     const compDeals = deals.filter((d) => d.componentId === s.id);
     if (compDeals.length === 0) return null;
+    const placed = compDeals.filter((d) => d.cycle > 0 && d.lineClose != null);
+    const unscheduled = compDeals.length - placed.length;
+    if (placed.length === 0) {
+      return <div className="dbk-mini"><div className="dbk-mini-note">Give each line a sales cycle and a close period and the calendar builds itself here.</div></div>;
+    }
     const maxCycle = Math.max(1, ...compDeals.map((d) => d.cycle || 0));
     const axisLo = Math.min(Math.floor(todayIdx) - 1, period.P - maxCycle - 1);
     const span = Math.max(1, period.P - axisLo);
     const x = (pos) => ((pos - axisLo) / span) * 100;
     const months = []; for (let m = axisLo; m < period.P; m++) months.push(m);
-    // Only deals with a real cycle can be bars; a cycle-less deal has no bar length and
-    // waits on the bench (never scattered on the axis) until a cycle is set on its row.
-    const cycled = compDeals.filter((d) => d.cycle > 0);
-    const noCycle = compDeals.filter((d) => d.cycle <= 0);
-    const placed = cycled.filter((d) => closeOf(d.id) != null);
-    const bench = cycled.filter((d) => closeOf(d.id) == null);
-    const lateCount = placed.filter((d) => dealBar(closeOf(d.id), d.cycle).startPos < todayIdx).length;
-    const minClose = Math.floor(todayIdx); // cannot close before the current month
-    const localSel = compDeals.some((d) => d.id === selChip) ? selChip : null;
+    const lateCount = placed.filter((d) => dealBar(d.lineClose, d.cycle).startPos < todayIdx).length;
     return (
       <div className="dbk-mini">
         <div className="dbk-mini-head">
           <span className="dbk-mini-title">These deals on your calendar</span>
           {lateCount > 0 && <span className="dbk-mini-late">{lateCount === 1 ? "1 already late" : `${lateCount} already late`}</span>}
         </div>
-        {localSel ? (
-          <div className="dbk-selbar">Tap a highlighted month to set the close for the deal you picked. Its details are open below.</div>
-        ) : (
-          <div className="dbk-selbar muted">Tap a deal, then tap a month to place it.</div>
-        )}
-        {(bench.length > 0 || noCycle.length > 0) && (
-          <div className="dbk-bench">
-            <span className="dbk-bench-lbl">Bench</span>
-            {bench.map((d) => (
-              <button key={d.id} type="button" className={`dbk-pill${selChip === d.id ? " sel" : ""}`} style={{ borderColor: d.color, color: d.color }} onClick={() => setSelChip(selChip === d.id ? null : d.id)}>{d.sizeLabel} {fmt(d.size)}</button>
-            ))}
-            {noCycle.map((d) => (
-              <span key={d.id} className="dbk-pill nocycle" title="Add a sales cycle length to place this deal">{d.sizeLabel} {fmt(d.size)}</span>
-            ))}
-          </div>
-        )}
-        {noCycle.length > 0 && (
-          <div className="dbk-nocycle-note">Add a sales cycle length to these rows to place them on your calendar.</div>
-        )}
         <div className="dbk-months">
-          {months.map((m) => (
-            <button key={m} type="button" className={`dbk-cell${localSel ? " target" : ""}${m < minClose ? " past" : ""}`} disabled={!localSel || m < minClose} onClick={() => localSel && setClose(localSel, m)}>{monthLabel(period, m)}</button>
-          ))}
+          {months.map((m) => (<span key={m} className={`dbk-cell${m < Math.floor(todayIdx) ? " past" : ""}`}>{monthLabel(period, m)}</span>))}
         </div>
         <div className="dbk-bars" style={{ height: Math.max(placed.length, 1) * 32 + 4 }}>
           <div className="dbk-today2" style={{ left: Math.max(0, Math.min(100, x(todayIdx))) + "%" }}><span>Today</span></div>
           {placed.map((d, i) => {
-            const cp = closeOf(d.id);
-            const { startPos, closePos } = dealBar(cp, d.cycle);
+            const { startPos, closePos } = dealBar(d.lineClose, d.cycle);
             const late = startPos < todayIdx;
             const leftRaw = x(startPos), rightRaw = x(closePos);
             const left = Math.max(0, leftRaw), right = Math.min(100, rightRaw);
@@ -561,21 +606,22 @@ export default function DealBreakdown({
                 className={`dbk-bar${late ? " late" : ""}${offLeft ? " offleft" : ""}${selChip === d.id ? " sel" : ""}`}
                 style={{ top: i * 32, left: left + "%", width: Math.max(right - left, 3) + "%", ...(late ? {} : { background: d.color }), borderColor: late ? undefined : d.color }}
                 onClick={() => setSelChip(selChip === d.id ? null : d.id)}
-                title={`${d.sizeLabel} ${fmt(d.size)}, ${d.cycle || 0} month cycle, closes ${monthLabel(period, cp)}`}>
-                <span className="dbk-bar-lbl">{d.sizeLabel} {fmt(d.size)}</span>
+                title={`${d.sizeLabel ? d.sizeLabel + " " : ""}${fmt(d.size)}, ${d.cycle} month cycle, closes ${monthLabel(period, d.lineClose)}`}>
+                <span className="dbk-bar-lbl">{d.sizeLabel ? d.sizeLabel + " " : ""}{fmt(d.size)}</span>
                 {late && <span className="dbk-bar-late">late</span>}
               </button>
             );
           })}
         </div>
+        {unscheduled > 0 && (
+          <div className="dbk-nocycle-note">{unscheduled === 1 ? "1 deal is not on the calendar yet" : `${unscheduled} deals are not on the calendar yet`}. Give each line a sales cycle and a close period.</div>
+        )}
       </div>
     );
   };
 
   const renderSection = (s) => {
     const st = typeStyle(s.type, s.origin);
-    const order = [...s.sizes].sort((a, b) => num(b.size) - num(a.size));
-    const rank = {}; order.forEach((r, i) => { rank[r.id] = i; });
     return (
       <div key={s.id} className="dbk-sec" style={{ borderLeft: `4px solid ${st.fg}` }}>
         <div className="dbk-sec-head">
@@ -599,38 +645,55 @@ export default function DealBreakdown({
 
         {s.sizes.length > 0 && (
           <div className="dbk-rowhead">
-            <span className="c-label">Size Label</span>
-            <span className="c-size">Typical Deal Size <InfoDot text="Roughly what one deal in this tier is worth. We do the exact math from here." /></span>
+            <span className="c-label">Name</span>
+            <span className="c-size">Deal Value <InfoDot text="The dollar amount of one deal on this line. We size and group your deals from these values, and the total is value times quantity." /></span>
             <span className="c-qty">Deal Quantity</span>
             <span className="c-cycle">Sales Cycle Length</span>
+            <span className="c-close">Close Period</span>
             <span className="c-rev">Total Revenue</span>
             <span className="c-rm" />
           </div>
         )}
 
-        {s.sizes.map((r) => (
-          <div key={r.id} className="dbk-row">
+        {s.sizes.map((r) => {
+          const ex = r.example || null; // gray example placeholders on first-run rows
+          return (
+          <div key={r.id} className={`dbk-row${isPristineExample(r) ? " example" : ""}`}>
             <div className="c-label">
-              <input className="dbk-label-inp" type="text" placeholder="Label"
-                value={r.label && r.label.trim() ? r.label : labelByRank(rank[r.id] || 0, s.sizes.length)}
+              <input className="dbk-label-inp" type="text" placeholder={ex && ex.name ? ex.name : "Name"}
+                value={r.label && r.label.trim() ? r.label : sizeWord(bands[r.id])}
                 onChange={(e) => patchRow(s.id, r.id, { label: e.target.value })} />
             </div>
             <div className="c-size">
-              <input className="dbk-field money" type="text" inputMode="numeric" placeholder="Typical deal size"
+              <input className="dbk-field money" type="text" inputMode="numeric" placeholder={ex && ex.value ? moneyDisplay(ex.value) : "Deal value"}
                 value={moneyDisplay(r.size)} onChange={(e) => patchRow(s.id, r.id, { size: digitsOf(e.target.value) })} />
             </div>
             <div className="c-qty">
-              <StepInput value={r.quantity} onChange={(v) => patchRow(s.id, r.id, { quantity: v })} minusLabel="One fewer deal" plusLabel="One more deal" />
+              <StepInput value={r.quantity} placeholder={ex ? ex.quantity : ""} onChange={(v) => patchRow(s.id, r.id, { quantity: v })} minusLabel="One fewer deal" plusLabel="One more deal" />
             </div>
             <div className="c-cycle">
-              <StepInput value={r.cycle} onChange={(v) => patchRow(s.id, r.id, { cycle: v })} suffix="mo" unset={r.cycle === ""} minusLabel="One fewer month" plusLabel="One more month" />
+              <StepInput value={r.cycle} placeholder={ex ? ex.cycle : ""} onChange={(v) => patchRow(s.id, r.id, { cycle: v })} suffix="mo" unset={r.cycle === ""} minusLabel="One fewer month" plusLabel="One more month" />
+            </div>
+            <div className="c-close">
+              <select className={`dbk-cp-select${r.closePeriod === "" ? " unset" : ""}`} value={r.closePeriod}
+                onChange={(e) => patchRow(s.id, r.id, { closePeriod: e.target.value })}>
+                <option value="">Pick a period</option>
+                {periodOptions(period, todayIdx).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                {r.closePeriod !== "" && !periodOptions(period, todayIdx).some((o) => String(o.value) === String(r.closePeriod)) ? <option value={r.closePeriod}>{monthLabel(period, num(r.closePeriod))}</option> : null}
+              </select>
             </div>
             <div className="c-rev"><span className="dbk-rev" title={`${num(r.quantity)} × ${fmt(num(r.size))}`}>{fmt(rowRevenue(r))}</span></div>
-            <div className="c-rm"><button type="button" className="dbk-rm" aria-label="Remove this size" onClick={() => removeRow(s.id, r.id)}>×</button></div>
+            <div className="c-rm">
+              <button type="button" className="dbk-dup" aria-label="Copy this deal line" title="Copy this deal line" onClick={() => duplicateRow(s.id, r.id)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+              </button>
+              <button type="button" className="dbk-rm" aria-label="Delete this deal line" title="Delete this deal line" onClick={() => removeRow(s.id, r.id)}>×</button>
+            </div>
           </div>
-        ))}
+          );
+        })}
 
-        <button className="dbk-add-size" type="button" onClick={() => addRow(s.id)}>Add a size</button>
+        <button className="dbk-add-size" type="button" onClick={() => addRow(s.id)}>Add a deal</button>
 
         {renderMiniTimeline(s)}
       </div>
@@ -639,59 +702,52 @@ export default function DealBreakdown({
 
   // Combined timeline (Block 4): all placeable chips on one shared, scrolling axis with
   // a fixed today marker. The bar mechanic is the same as the per-component view.
+  // Combined read-only calendar: every deal from every component on one scrolling axis,
+  // fixed today marker. Bars build from each line's close period; click a bar to name it.
   const renderCombinedTimeline = () => {
     if (deals.length === 0) return null;
-    const cycled = deals.filter((d) => d.cycle > 0);
-    const placed = cycled.filter((d) => closeOf(d.id) != null);
-    const noCycleCount = deals.filter((d) => d.cycle <= 0).length;
-    const benchCount = cycled.filter((d) => closeOf(d.id) == null).length;
-    const off = noCycleCount + benchCount;
-    const maxCycle = Math.max(1, ...cycled.map((d) => d.cycle));
-    const starts = placed.map((d) => dealBar(closeOf(d.id), d.cycle).startPos);
+    const placed = deals.filter((d) => d.cycle > 0 && d.lineClose != null);
+    const off = deals.length - placed.length;
+    const maxCycle = Math.max(1, ...deals.map((d) => d.cycle || 0));
+    const starts = placed.map((d) => dealBar(d.lineClose, d.cycle).startPos);
     const axisLo = Math.floor(Math.min(todayIdx - 1, period.P - maxCycle - 1, ...(starts.length ? starts : [0]), 0));
     const PXM = 66; // pixels per month
     const totalPx = (period.P - axisLo) * PXM;
     const xpx = (pos) => (pos - axisLo) * PXM;
     combGeomRef.current = { todayX: xpx(todayIdx) };
     const months = []; for (let m = axisLo; m < period.P; m++) months.push(m);
-    const minClose = Math.floor(todayIdx);
-    const maxSize = Math.max(1, ...cycled.map((d) => d.size));
-    const localSel = cycled.some((d) => d.id === selChip) ? selChip : null;
+    // Marker size carries the derived band (a separate signal from color, which is
+    // component). Big/Medium/Small are distinct sizes; a solo band uses one neutral size.
+    const markerPx = (band) => (band === "big" ? 20 : band === "small" ? 9 : band === "medium" ? 14 : 13);
     return (
       <div className="dbk-combined">
         <div className="dbk-combined-head">
           <h2 className="dbk-combined-title">Your whole year on one calendar</h2>
-          <p className="dbk-combined-sub">Every deal from every component competes for the same months. Scroll to see the longer deals reach back in time, and watch the today line.</p>
+          <p className="dbk-combined-sub">Every deal from every component on the same months. It builds from the close periods you pick in the lists above. Scroll to see the longer deals reach back in time, and watch the today line.</p>
         </div>
         {off > 0 && (
           <div className="dbk-offcal">
-            {off === 1 ? "1 deal is not on your calendar yet." : `${off} deals are not on your calendar yet.`}
-            {noCycleCount > 0 ? ` Add a sales cycle length to those rows to place them.` : ""}
-            {benchCount > 0 ? ` ${benchCount === 1 ? "One is" : `${benchCount} are`} waiting on a component bench for a close month.` : ""}
+            {off === 1 ? "1 deal is not on your calendar yet." : `${off} deals are not on your calendar yet.`} Give each line a sales cycle and a close period to place it.
           </div>
         )}
         <div className="dbk-cscroll" ref={combScrollRef} onScroll={positionCombToday}>
           <div className="dbk-ccanvas" style={{ width: totalPx }}>
             <div className="dbk-cmonths">
-              {months.map((m) => (
-                <button key={m} type="button" style={{ width: PXM }} className={`dbk-ccell${localSel ? " target" : ""}${m < minClose ? " past" : ""}`}
-                  disabled={!localSel || m < minClose} onClick={() => localSel && setClose(localSel, m)}>{monthLabel(period, m)}</button>
-              ))}
+              {months.map((m) => (<span key={m} style={{ width: PXM }} className={`dbk-ccell${m < Math.floor(todayIdx) ? " past" : ""}`}>{monthLabel(period, m)}</span>))}
             </div>
             <div className="dbk-cbars" style={{ height: Math.max(placed.length, 1) * 30 + 8 }}>
               {placed.map((d, i) => {
-                const cp = closeOf(d.id);
-                const { startPos, closePos } = dealBar(cp, d.cycle);
+                const { startPos, closePos } = dealBar(d.lineClose, d.cycle);
                 const late = startPos < todayIdx;
                 const left = xpx(startPos), right = xpx(closePos);
-                const mk = 8 + Math.round(12 * (d.size / maxSize)); // literal graduated size marker
+                const mk = markerPx(d.band); // size by derived band; color stays by component
                 return (
                   <button key={d.id} type="button" className={`dbk-cbar${late ? " late" : ""}${selChip === d.id ? " sel" : ""}`}
                     style={{ top: i * 30, left, width: Math.max(right - left, 8), ...(late ? {} : { background: d.color }), borderColor: late ? undefined : d.color }}
                     onClick={() => setSelChip(selChip === d.id ? null : d.id)}
-                    title={`${d.componentType}, ${d.sizeLabel} ${fmt(d.size)}, ${d.cycle} month cycle, closes ${monthLabel(period, cp)}`}>
+                    title={`${d.componentType}, ${d.sizeLabel ? d.sizeLabel + " " : ""}${fmt(d.size)}, ${d.cycle} month cycle, closes ${monthLabel(period, d.lineClose)}`}>
                     <span className="dbk-cmk" style={{ width: mk, height: mk, borderColor: late ? "#8E2A20" : d.color }} />
-                    <span className="dbk-cbar-lbl">{d.sizeLabel} {fmt(d.size)}</span>
+                    <span className="dbk-cbar-lbl">{d.sizeLabel ? d.sizeLabel + " " : ""}{fmt(d.size)}</span>
                     {late && <span className="dbk-cbar-late">late</span>}
                   </button>
                 );
@@ -704,36 +760,35 @@ export default function DealBreakdown({
     );
   };
 
-  // Chip panel (Block 5): facts read-only, one editable name. Opens for the selected chip
-  // from either timeline. Numbers are never edited here; the tiers stay source of truth.
+  // Chip panel: facts read-only, one editable name. Opens for a clicked bar. Numbers and
+  // the close period live in the deal line above; only the per-deal name is set here.
   const renderChipPanel = () => {
     const d = deals.find((x) => x.id === selChip);
     if (!d) return null;
-    const cp = closeOf(d.id);
+    const cp = d.lineClose;
     const bar = cp != null && d.cycle > 0 ? dealBar(cp, d.cycle) : null;
     const late = bar ? bar.startPos < todayIdx : false;
-    const status = d.cycle <= 0 ? "Needs a sales cycle length" : cp == null ? "On the bench" : late ? "Already late to start" : "On track";
+    const status = d.cycle <= 0 ? "Needs a sales cycle length" : cp == null ? "Needs a close period" : late ? "Already late to start" : "On track";
     const Fact = ({ label, value }) => (<div className="dbk-fact"><span className="dbk-fact-l">{label}</span><span className="dbk-fact-v">{value}</span></div>);
     return (
       <div className="dbk-panel">
         <div className="dbk-panel-head">
-          <span className="dbk-panel-title" style={{ color: d.color }}>{d.sizeLabel} {fmt(d.size)}</span>
+          <span className="dbk-panel-title" style={{ color: d.color }}>{d.sizeLabel ? d.sizeLabel + " " : ""}{fmt(d.size)}</span>
           <button type="button" className="dbk-panel-x" aria-label="Close" onClick={() => setSelChip(null)}>×</button>
         </div>
         <div className="dbk-panel-facts">
           <Fact label="Component" value={d.componentType} />
-          <Fact label="Size label" value={d.sizeLabel} />
-          <Fact label="Typical size" value={fmt(d.size)} />
+          <Fact label="Size band" value={d.sizeLabel || "single band"} />
+          <Fact label="Deal value" value={fmt(d.size)} />
           <Fact label="Sales cycle" value={d.cycle > 0 ? `${d.cycle} months` : "not set"} />
-          <Fact label="Closes" value={cp != null ? monthLabel(period, cp) : "unplaced"} />
+          <Fact label="Closes" value={cp != null ? monthLabel(period, cp) : "not set"} />
           <Fact label="Starts" value={bar ? monthLabel(period, bar.startPos) : "n/a"} />
           <Fact label="Status" value={<span className={late ? "dbk-fact-late" : ""}>{status}</span>} />
         </div>
         <label className="dbk-panel-namelbl">Name this deal</label>
         <input className="dbk-panel-name" type="text" placeholder="TBD" value={nameOf(d.id)} onChange={(e) => setName(d.id, e.target.value)} />
-        <div className="dbk-panel-note">A name is just a label to help you find this deal. The size, cycle, and count live in the tier above.</div>
+        <div className="dbk-panel-note">A name is just a label to help you find this deal. The value, cycle, count, and close period live in the deal line above.</div>
         <div className="dbk-panel-actions">
-          {cp != null && <button type="button" className="dbk-panel-bench" onClick={() => benchChip(d.id)}>Send to bench</button>}
           <button type="button" className="dbk-panel-done" onClick={() => setSelChip(null)}>Done</button>
         </div>
       </div>
@@ -746,11 +801,11 @@ export default function DealBreakdown({
 
       <div className="dbk-head">
         <div className="dbk-crumb">Strategy · Step 2</div>
-        <h1 className="dbk-title">Set Up Your Deal Tiers</h1>
+        <h1 className="dbk-title">List the Deals It Will Take</h1>
         <p className="dbk-sub">
-          Let's lay out the deals behind your stretch number. For each component of your plan, add the sizes of deal you
-          run, how many you expect, and roughly how long each takes to close. Add your own component if you plan work that
-          is not in your comp plan. We keep the running total against your stretch quota in view.
+          For each part of your plan, list the deals you think it takes to hit your stretch number: what each one is worth,
+          how many, how long each takes to close, and when you think it closes. We size and group them and build your
+          calendar from there. Add your own component for work that is not in your comp plan.
         </p>
       </div>
 
@@ -794,10 +849,9 @@ export default function DealBreakdown({
       {firstRun && (
         <div className="dbk-helper">
           <p>
-            Most reps close a mix of deal sizes over a year. A few big ones, some in the middle, a handful of small. Each
-            size tends to have its own rhythm: a big deal might close once or twice a year after a long cycle, while
-            smaller deals close faster and more often. We've set up your first component with a big, medium, and small
-            example to show the idea. Rename them, change the numbers, or delete any you don't need.
+            List each deal on its own line: a name, what it is worth, how many like it, how long it takes to close, and the
+            period you think it lands. The gray lines below are just examples to show the shape. Type over them, and we size
+            each deal, group them big to small, and lay them on your calendar from the close periods you pick.
           </p>
         </div>
       )}
@@ -811,7 +865,7 @@ export default function DealBreakdown({
       {renderCombinedTimeline()}
 
       <div className="dbk-cta-wrap">
-        <button className="dbk-cta" onClick={() => onContinue({ sections, planRevenue, customRevenue })}>
+        <button className="dbk-cta" onClick={() => advanceRef.current()}>
           <span className="dbk-cta-main">Save your plan of attack <span aria-hidden>→</span></span>
           <span className="dbk-cta-sub">Your deals and their timing are saved as you go</span>
         </button>
@@ -866,7 +920,7 @@ const CSS = `
 .dbk-sec-remove{ margin-left:auto; background:none; border:1.5px solid var(--border); border-radius:9px; padding:5px 12px; font-size:12.5px; font-weight:600; color:var(--muted); cursor:pointer; font-family:'DM Sans',sans-serif; }
 .dbk-sec-remove:hover{ border-color:#C86B4B; color:#B0532A; }
 
-.dbk-rowhead, .dbk-row{ display:grid; grid-template-columns:minmax(104px,0.85fr) minmax(120px,1fr) 126px minmax(104px,0.8fr) minmax(110px,1fr) 32px; gap:12px; align-items:center; }
+.dbk-rowhead, .dbk-row{ display:grid; grid-template-columns:minmax(96px,0.85fr) minmax(104px,0.9fr) 116px minmax(92px,0.7fr) minmax(116px,0.95fr) minmax(96px,0.8fr) 58px; gap:11px; align-items:center; }
 .dbk-rowhead{ padding:8px 4px 6px; border-bottom:1px solid var(--border); margin-top:6px; }
 .dbk-rowhead span{ font-size:10px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; color:var(--muted); }
 .dbk-rowhead .c-rev{ text-align:right; }
@@ -888,10 +942,19 @@ const CSS = `
 .dbk-stepinput .si-mid input:focus{ outline:none; }
 .dbk-stepinput .si-suf{ font-size:12.5px; color:var(--muted); font-weight:600; }
 .dbk-stepinput.unset .si-suf{ color:#C39A5F; }
+.dbk-cp-select{ width:100%; border:1.5px solid var(--border); border-radius:10px; background:#fff; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:700; color:var(--ink); padding:9px 8px; cursor:pointer; }
+.dbk-cp-select:focus{ outline:none; border-color:var(--carrot); }
+.dbk-cp-select.unset{ border-color:#E6C79E; background:#FFFBF3; color:var(--muted); font-weight:600; }
 .c-rev{ text-align:right; }
 .dbk-rev{ font-family:'Playfair Display',serif; font-size:18px; font-weight:900; color:var(--carrot-dark); white-space:nowrap; }
+.c-rm{ display:flex; align-items:center; justify-content:flex-end; gap:3px; }
+.dbk-dup{ display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border:none; border-radius:8px; background:none; color:var(--muted); cursor:pointer; }
+.dbk-dup:hover{ background:var(--carrot-light); color:var(--carrot-dark); }
 .dbk-rm{ width:26px; height:26px; border:none; border-radius:8px; background:none; color:var(--muted); font-size:19px; line-height:1; cursor:pointer; }
 .dbk-rm:hover{ background:#FBEBE6; color:#B0532A; }
+.dbk-mini-note{ font-size:12.5px; color:var(--muted); font-style:italic; margin-top:12px; padding-top:12px; border-top:1px dashed var(--border); line-height:1.5; }
+/* first-run gray example lines: muted so they read as placeholders, not real data */
+.dbk-row.example{ opacity:.62; }
 
 .dbk-add-size{ margin-top:10px; background:none; border:none; color:var(--carrot-dark); font-size:13.5px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; padding:4px 0; }
 .dbk-add-size:hover{ text-decoration:underline; }
@@ -997,7 +1060,7 @@ const CSS = `
   .dbk-grand{ position:static; }
   .dbk-rowhead{ display:none; }
   .dbk-row{ grid-template-columns:1fr 1fr; gap:9px 12px; }
-  .c-label{ grid-column:1 / -1; }
+  .c-label, .c-close{ grid-column:1 / -1; }
   .c-rev{ text-align:left; }
 }
 `;
