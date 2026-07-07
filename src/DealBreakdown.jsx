@@ -874,6 +874,21 @@ export default function DealBreakdown({
         </div>
       </div>
 
+      {/* TEACH: always-visible intro that frames the screen, between the year bar and the components */}
+      <div className="dbk-teach">
+        <p className="dbk-teach-lead">
+          This is where you visualize your year, the deals you need to close to hit your target and reach your stretch.
+        </p>
+        <p className="dbk-teach-body">
+          In each plan component, create the deals it'll take. I recommend thinking of them by size: big deals, medium, and
+          small. I've set a few up to start you off.
+        </p>
+        <p className="dbk-teach-body">
+          Rename any of them to a real opportunity, call it ABC Company instead of Big, if you know it. Then on the timeline
+          you'll see how long each deal takes and when you need to start prospecting to land it in time.
+        </p>
+      </div>
+
       {/* FIRST-RUN helper: supporting text only, appears and disappears with the scaffold */}
       {firstRun && (
         <div className="dbk-helper">
@@ -925,6 +940,13 @@ const CSS = `
 .dbk-grand-cap{ font-size:11px; color:#A7D6B5; letter-spacing:.04em; text-transform:uppercase; font-weight:600; margin-top:3px; }
 .dbk-recon{ font-size:12.5px; color:#CDE7D4; margin-top:11px; line-height:1.5; } .dbk-recon b{ color:#fff; }
 .dbk-custom-line{ font-size:12px; color:#EAD9C4; margin-top:9px; padding-top:9px; border-top:1px solid rgba(255,255,255,.16); line-height:1.5; } .dbk-custom-line b{ color:#FFE7C7; }
+
+/* teach: always-on framing between the year bar and the components. Lead reads as its own moment. */
+.dbk-teach{ margin:10px 2px 26px; }
+.dbk-teach-lead{ font-family:'Playfair Display',serif; font-size:22px; font-weight:800; line-height:1.28; color:var(--ink); margin:0; max-width:820px; }
+.dbk-teach-body{ font-size:15px; line-height:1.55; color:var(--muted); margin:13px 0 0; max-width:760px; }
+.dbk-teach-body + .dbk-teach-body{ margin-top:8px; }
+@media(min-width:760px){ .dbk-teach-lead{ font-size:26px; } .dbk-teach-body{ font-size:15.5px; } }
 
 /* first-run helper: soft supporting text, deliberately lighter than the cards */
 .dbk-helper{ background:#FBF6EF; border:1px solid #EFE3D2; border-radius:12px; padding:13px 16px; margin-bottom:16px; }
