@@ -2,16 +2,18 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from "re
 import { toEarningsPlan } from "./lib/planAdapter.js";
 
 /*
-  DealBreakdown - Strategy Step 2, deal tiers grouped by component.
+  DealBreakdown - Strategy Step 2, a free deal list grouped by component.
 
   Each component is a section: New Logo, Expansion, Renewal, and so on. Plan-derived
   components are read from the comp plan (origin "plan"), carry the plan quota, and
   cannot be renamed or deleted. A rep can also add their own component (origin
   "custom"): free-text name, renamable and deletable, no plan quota.
 
-  Inside a section, each SIZE ROW has four columns: Deal Size (a single dollar amount),
-  Deal Quantity (a stepper), Sales Cycle Length (whole months, stored for a later
-  build), and Total Revenue (Deal Size times Deal Quantity).
+  Inside a section is a free list of deal lines. ONE LINE IS ONE DEAL. Each line has a
+  Name (editable; defaults to the derived size word), a Deal Value, a Sales Cycle Length
+  (whole months), a Close Period (dropdown at the plan cadence), and Total Revenue (the
+  value). Several similar deals are separate lines (Copy makes another). Size grouping is
+  DERIVED from values by clustering; the calendar builds itself from the close periods.
 
   We reuse the real plan and engine: totalQuota comes from toEarningsPlan, and the plan
   work measures toward the rep's STRETCH quota with TARGET as a milestone tick. Custom
@@ -165,20 +167,47 @@ function buildSections(plan, stored) {
 
   const sections = [];
   let sid = 0, rid = 0;
-  // Reuse a row's stored id so chip ids stay stable across reloads. Only rows that never
-  // had one (v1/v2/v3 conversions, scaffold) get a fresh sequential id.
-  const withRowIds = (rows) => rows.map((r) => ({ id: r.id || `row-${rid++}`, label: r.label || "", nameTouched: !!r.nameTouched, size: r.size === "0" ? "" : r.size, quantity: r.quantity == null ? "" : String(num(r.quantity)), cycle: r.cycle, closePeriod: r.closePeriod || "" }));
+  // One line = one deal. A stored line with quantity N expands into N single-deal lines:
+  // line 0 keeps the stored id L (so its chip and placement carry over), lines 1..N-1 get
+  // the stable id `${L}~${k}`. Quantity is dropped. Rows with no stored id (v1/v2/v3) get a
+  // fresh sequential one. A quantity-0/empty line still yields one deal (its data is kept).
+  const finalizeRows = (rows) => rows.flatMap((r) => {
+    const id = r.id || `row-${rid++}`;
+    const base = { id, label: r.label || "", nameTouched: !!r.nameTouched, size: r.size === "0" ? "" : r.size, cycle: r.cycle, closePeriod: r.closePeriod || "" };
+    const q = Math.max(1, num(r.quantity));
+    return Array.from({ length: q }, (_, k) => ({ ...base, id: k === 0 ? id : `${id}~${k}` }));
+  });
 
   const planNames = new Set(planComps.map((c) => c.name));
   for (const pc of planComps) {
     const s = byType.get(pc.name);
-    sections.push({ id: `sec-${sid++}`, type: pc.name, origin: "plan", quota: pc.quota, sizes: withRowIds(s ? s.sizes : []) });
+    sections.push({ id: `sec-${sid++}`, type: pc.name, origin: "plan", quota: pc.quota, sizes: finalizeRows(s ? s.sizes : []) });
   }
   for (const s of storedSecs) {
     if (planNames.has(s.type)) continue; // already placed as a plan section
-    sections.push({ id: `sec-${sid++}`, type: s.type || "Custom component", origin: "custom", quota: null, sizes: withRowIds(s.sizes) });
+    sections.push({ id: `sec-${sid++}`, type: s.type || "Custom component", origin: "custom", quota: null, sizes: finalizeRows(s.sizes) });
   }
   return sections;
+}
+
+// Re-key placements from the old quantity model (chip = sec#line#index) to one-deal-per-
+// line (chip = sec#lineId#0): sec#L#k -> sec#(k==0 ? L : `${L}~${k}`)#0. This matches the
+// finalizeRows expansion, preserving each deal's placement/name by stable id. Idempotent
+// once expanded (v7 keys already end in #0 with the expanded line ids).
+function migratePlacements(placements) {
+  if (!placements || typeof placements !== "object") return {};
+  const out = {};
+  for (const key of Object.keys(placements)) {
+    const parts = String(key).split("#");
+    if (parts.length === 3) {
+      const [sec, line, idx] = parts;
+      const k = Number(idx);
+      out[`${sec}#${k > 0 ? `${line}~${k}` : line}#0`] = placements[key];
+    } else {
+      out[key] = placements[key];
+    }
+  }
+  return out;
 }
 
 // Largest numeric suffix across all section and row ids. New ids are seeded above this,
@@ -193,18 +222,17 @@ function maxIdNum(sections) {
 // A pristine example row is a first-run gray placeholder the rep never touched. It has
 // example placeholder data but no real values, and must never be saved or summed.
 function isPristineExample(r) {
-  return !!r.example && !r.label && !r.size && (r.quantity === "" || r.quantity == null) && !r.cycle && (r.closePeriod === "" || r.closePeriod == null);
+  return !!r.example && !r.label && !r.size && !r.cycle && (r.closePeriod === "" || r.closePeriod == null);
 }
 
 function serialize(sections, ctx) {
   return {
-    version: 6,
+    version: 7,
     target_pct: ctx.targetPct,
     stretch_pct: ctx.stretchPct,
     total_quota: ctx.totalQuota,
-    // Free deal list per component. Internal state keeps the v5 field names; the v6 shape
-    // maps label -> name (the editable deal name) and size -> value (the dollar amount),
-    // and adds close_period (the line's picked period; null = unset, deals on the bench).
+    // Free deal list per component. One line = one deal (no quantity). Internal state keeps
+    // the v5 field names; the v7 shape maps label -> name and size -> value.
     components: sections.map((s) => ({
       type: s.type || null,
       origin: s.origin,
@@ -214,12 +242,11 @@ function serialize(sections, ctx) {
         name: r.label || "",
         name_touched: !!r.nameTouched, // once true, name sticks and is never re-derived
         value: r.size === "" ? null : num(r.size),
-        quantity: num(r.quantity),
         cycle_months: r.cycle === "" ? null : num(r.cycle),
         close_period: r.closePeriod === "" || r.closePeriod == null ? null : num(r.closePeriod),
       })),
     })),
-    // Timeline placements keyed by stable chip id. Missing = unplaced, missing name = TBD.
+    // Timeline placements keyed by stable chip id (sec#lineId#0). Missing name = TBD.
     placements: ctx.placements || {},
   };
 }
@@ -260,34 +287,33 @@ function sizeWord(band) {
 // into individual deal chips; a chip is a bar whose length is its cycle and whose start
 // is computed backward from a rep-set close point; a start before today is late.
 
-// Expand every size row into its individual deal chips with STABLE ids, so an unchanged
-// chip keeps its id (and therefore its placement and name) when tiers re-expand.
+// One line is one deal, so each row expands into exactly one chip with a STABLE id
+// (component#lineId#0), keeping its placement and name across edits. Pristine gray
+// example rows produce no chips.
 function expandDeals(sections, bands) {
   const deals = [];
   for (const comp of sections) {
     const color = typeStyle(comp.type, comp.origin).fg;
     for (const row of comp.sizes) {
-      const q = num(row.quantity);
+      if (isPristineExample(row)) continue;
       const band = (bands && bands[row.id]) || null; // derived from VALUE, plan-wide (for marker/grouping/color)
       // Display label is decoupled from size: once the rep touches the name it sticks
       // (even if cleared); until then it shows the derived size word. The band above is
       // always from value, so a renamed deal keeps its size marker and grouping.
       const sizeLabel = row.nameTouched ? (row.label || "") : sizeWord(band);
       const lineClose = row.closePeriod === "" || row.closePeriod == null ? null : num(row.closePeriod);
-      for (let i = 0; i < q; i++) {
-        deals.push({
-          id: `${comp.id}#${row.id}#${i}`,
-          componentId: comp.id,
-          componentType: comp.type || "Untagged",
-          origin: comp.origin,
-          color,
-          band,
-          sizeLabel,
-          size: num(row.size),
-          cycle: num(row.cycle),
-          lineClose,
-        });
-      }
+      deals.push({
+        id: `${comp.id}#${row.id}#0`,
+        componentId: comp.id,
+        componentType: comp.type || "Untagged",
+        origin: comp.origin,
+        color,
+        band,
+        sizeLabel,
+        size: num(row.size),
+        cycle: num(row.cycle),
+        lineClose,
+      });
     }
   }
   return deals;
@@ -415,13 +441,13 @@ export default function DealBreakdown({
     const firstPlan = base.find((s) => s.origin === "plan");
     return base.map((s) => {
       if (s.origin !== "plan") return s;
-      const ex = (name, value, quantity, cycle) => ({ id: rid(), label: "", nameTouched: false, size: "", quantity: "", cycle: "", closePeriod: "", example: { name, value, quantity, cycle } });
+      const ex = (name, value, cycle) => ({ id: rid(), label: "", nameTouched: false, size: "", cycle: "", closePeriod: "", example: { name, value, cycle } });
       if (firstPlan && s.id === firstPlan.id) {
         // Gray example deal lines (placeholders only): they teach the model but carry no
         // real values, so they never count toward the total and never persist.
-        return { ...s, sizes: [ex("ABC", "1000000", "2", "10"), ex("XYZ", "500000", "4", "6"), ex("", "100000", "5", "4")] };
+        return { ...s, sizes: [ex("ABC", "1000000", "10"), ex("XYZ", "500000", "6"), ex("", "100000", "4")] };
       }
-      return { ...s, sizes: [{ id: rid(), label: "", nameTouched: false, size: "", quantity: "", cycle: "", closePeriod: "", example: null }] };
+      return { ...s, sizes: [{ id: rid(), label: "", nameTouched: false, size: "", cycle: "", closePeriod: "", example: null }] };
     });
   });
   // Monotonic id source seeded above every loaded id, so new rows/components never
@@ -442,7 +468,7 @@ export default function DealBreakdown({
   const deals = useMemo(() => expandDeals(sections, bands), [sections, bands]);
 
   // placements: chipId -> { close_point (null = bench), name }. Loaded from stored.
-  const [placements, setPlacements] = useState(() => (stored && stored.placements && typeof stored.placements === "object" ? { ...stored.placements } : {}));
+  const [placements, setPlacements] = useState(() => migratePlacements(stored && stored.placements));
   const [selChip, setSelChip] = useState(null);
 
   // No auto-arrangement: a fresh or edited line's deals sit on the bench until the rep
@@ -541,7 +567,7 @@ export default function DealBreakdown({
   // ── edit helpers (each marks the screen edited, which unlocks persistence) ──
   const patchSection = (sid, patch) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, ...patch } : s))); };
   const patchRow = (sid, rid, patch) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: s.sizes.map((r) => (r.id === rid ? { ...r, ...patch } : r)) } : s))); };
-  const addRow = (sid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: [...s.sizes, { id: newId(), label: "", nameTouched: false, size: "", quantity: "", cycle: "", closePeriod: "" }] } : s))); };
+  const addRow = (sid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: [...s.sizes, { id: newId(), label: "", nameTouched: false, size: "", cycle: "", closePeriod: "" }] } : s))); };
   const removeRow = (sid, rid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: s.sizes.filter((r) => r.id !== rid) } : s))); };
   // Copy a deal line right below it: value, quantity, cycle, and close period carry over;
   // the NAME resets (a copy must never inherit a real name, which would collide on the
@@ -554,7 +580,7 @@ export default function DealBreakdown({
     setSections((ss) => ss.map((s) => {
       if (s.id !== sid) return s;
       const idx = s.sizes.findIndex((r) => r.id === rid);
-      const copy = { id: newId(), label: "", nameTouched: false, size: orig.size, quantity: orig.quantity, cycle: orig.cycle, closePeriod: orig.closePeriod };
+      const copy = { id: newId(), label: "", nameTouched: false, size: orig.size, cycle: orig.cycle, closePeriod: orig.closePeriod };
       return { ...s, sizes: [...s.sizes.slice(0, idx + 1), copy, ...s.sizes.slice(idx + 1)] };
     }));
   };
@@ -562,7 +588,7 @@ export default function DealBreakdown({
   const removeComponent = (sid) => { setEdited(true); setSections((ss) => ss.filter((s) => s.id !== sid)); };
 
   // ── derived math ───────────────────────────────────────────────────────
-  const rowRevenue = (r) => num(r.size) * num(r.quantity);
+  const rowRevenue = (r) => num(r.size); // one line = one deal; total revenue is its value
   const sectionRevenue = (s) => s.sizes.reduce((n, r) => n + rowRevenue(r), 0);
   // Plan revenue drives the meter and reconciliation. Custom revenue is tracked
   // separately so it never breaks the plan based math.
@@ -653,8 +679,7 @@ export default function DealBreakdown({
         {s.sizes.length > 0 && (
           <div className="dbk-rowhead">
             <span className="c-label">Name</span>
-            <span className="c-size">Deal Value <InfoDot text="The dollar amount of one deal on this line. We size and group your deals from these values, and the total is value times quantity." /></span>
-            <span className="c-qty">Deal Quantity</span>
+            <span className="c-size">Deal Value <InfoDot text="The dollar amount of one deal. One line is one deal; we size and group your deals from these values. Need several like it? Use Copy or add another line." /></span>
             <span className="c-cycle">Sales Cycle Length</span>
             <span className="c-close">Close Period</span>
             <span className="c-rev">Total Revenue</span>
@@ -676,9 +701,6 @@ export default function DealBreakdown({
               <input className="dbk-field money" type="text" inputMode="numeric" placeholder={ex && ex.value ? moneyDisplay(ex.value) : "Deal value"}
                 value={moneyDisplay(r.size)} onChange={(e) => patchRow(s.id, r.id, { size: digitsOf(e.target.value) })} />
             </div>
-            <div className="c-qty">
-              <StepInput value={r.quantity} placeholder={ex ? ex.quantity : ""} onChange={(v) => patchRow(s.id, r.id, { quantity: v })} minusLabel="One fewer deal" plusLabel="One more deal" />
-            </div>
             <div className="c-cycle">
               <StepInput value={r.cycle} placeholder={ex ? ex.cycle : ""} onChange={(v) => patchRow(s.id, r.id, { cycle: v })} suffix="mo" unset={r.cycle === ""} minusLabel="One fewer month" plusLabel="One more month" />
             </div>
@@ -689,7 +711,7 @@ export default function DealBreakdown({
                 {periodOptions(period).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
-            <div className="c-rev"><span className="dbk-rev" title={`${num(r.quantity)} × ${fmt(num(r.size))}`}>{fmt(rowRevenue(r))}</span></div>
+            <div className="c-rev"><span className="dbk-rev">{fmt(rowRevenue(r))}</span></div>
             <div className="c-rm">
               <button type="button" className="dbk-dup" aria-label="Copy this deal line" title="Copy this deal line" onClick={() => duplicateRow(s.id, r.id)}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
@@ -927,7 +949,7 @@ const CSS = `
 .dbk-sec-remove{ margin-left:auto; background:none; border:1.5px solid var(--border); border-radius:9px; padding:5px 12px; font-size:12.5px; font-weight:600; color:var(--muted); cursor:pointer; font-family:'DM Sans',sans-serif; }
 .dbk-sec-remove:hover{ border-color:#C86B4B; color:#B0532A; }
 
-.dbk-rowhead, .dbk-row{ display:grid; grid-template-columns:minmax(96px,0.85fr) minmax(104px,0.9fr) 116px minmax(92px,0.7fr) minmax(116px,0.95fr) minmax(96px,0.8fr) 58px; gap:11px; align-items:center; }
+.dbk-rowhead, .dbk-row{ display:grid; grid-template-columns:minmax(110px,1fr) minmax(110px,1fr) minmax(100px,0.8fr) minmax(120px,1fr) minmax(100px,0.85fr) 58px; gap:12px; align-items:center; }
 .dbk-rowhead{ padding:8px 4px 6px; border-bottom:1px solid var(--border); margin-top:6px; }
 .dbk-rowhead span{ font-size:10px; letter-spacing:.05em; text-transform:uppercase; font-weight:700; color:var(--muted); }
 .dbk-rowhead .c-rev{ text-align:right; }
