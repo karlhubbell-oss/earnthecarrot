@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Area, AreaChart, Label } from "recharts";
 import SeeWhatMoreIsWorth from "./SeeWhatMoreIsWorth";
 import DealBreakdown from "./DealBreakdown";
+import AccountsImport from "./AccountsImport";
 import PayoutCurveScreen from "./PayoutCurve";
 import { toEarningsPlan } from "./lib/planAdapter";
 import { computeEarnings } from "./lib/earnings";
@@ -1273,7 +1274,8 @@ export default function App() {
   const TOPBAR_H = 72;
   const railW = railCollapsed ? 64 : 234;
   const compAreaScreens = ["comp_dashboard", "comp_documents", "plan_summary", "coach_take", "payout_curve"];
-  const railActiveArea = compAreaScreens.indexOf(screen) >= 0 ? "comp" : null;
+  const accountAreaScreens = ["accounts_import"];
+  const railActiveArea = compAreaScreens.indexOf(screen) >= 0 ? "comp" : accountAreaScreens.indexOf(screen) >= 0 ? "accounts" : null;
   const railIcon = {
     comp: <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z M14 3v5h5 M9 13h6 M9 17h4" />,
     accounts: <path d="M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16 M15 9h3a2 2 0 0 1 2 2v10 M8 7h3 M8 11h3 M8 15h3" />,
@@ -1288,8 +1290,8 @@ export default function App() {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}>{railIcon[name]}</svg>
   );
   const RAIL_AREAS = [
-    { key: "comp", label: "Comp Plan", active: true },
-    { key: "accounts", label: "Account Strategies", active: false },
+    { key: "comp", label: "Comp Plan", active: true, dest: "comp_dashboard" },
+    { key: "accounts", label: "Account Strategies", active: true, dest: "accounts_import" },
     { key: "territory", label: "Territory Strategies", active: false },
     { key: "qbr", label: "QBR", active: false },
     { key: "goals", label: "Goals & Carrots", active: false },
@@ -1304,7 +1306,7 @@ export default function App() {
       {RAIL_AREAS.map((a) => {
         const isActive = a.active && railActiveArea === a.key;
         return (
-          <button key={a.key} disabled={!a.active} onClick={a.active ? () => goFlow("comp_dashboard") : undefined} title={a.label}
+          <button key={a.key} disabled={!a.active} onClick={a.active ? () => goFlow(a.dest) : undefined} title={a.label}
             style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 12px", border: "none", borderRadius: 10, cursor: a.active ? "pointer" : "default", fontFamily: "'DM Sans',sans-serif", fontSize: 16, fontWeight: 700, textAlign: "left", background: isActive ? "var(--carrot-light)" : "transparent", color: !a.active ? "var(--muted)" : (isActive ? "var(--carrot-dark)" : "var(--ink)"), opacity: a.active ? 1 : 0.7 }}>
             {railSvg(a.key)}
             {!railCollapsed && <span style={{ flex: 1 }}>{a.label}</span>}
@@ -2372,6 +2374,21 @@ export default function App() {
         onBack={() => goFlow("earnings_goals")}
         onContinue={() => {}}
       />
+    );
+  }
+
+  // ══ ACCOUNT PRIORITIZATION (increment 1: import + list) ════════════════
+  if (screen === "accounts_import") {
+    return (
+      <div className="hb-wrap" style={{ paddingTop: TOPBAR_H, paddingLeft: railW }}>
+        <style>{S}</style>
+        <style>{HOME_STYLES}</style>
+        {renderTopBar(true)}
+        {renderRail()}
+        <div className="hb-main" style={{ maxWidth: 1160, marginLeft: `max(${railW}px, calc((100vw - 1160px) / 2))`, marginRight: "auto" }}>
+          <AccountsImport authHeaders={authHeaders} onBack={() => goFlow("home_base")} />
+        </div>
+      </div>
     );
   }
 

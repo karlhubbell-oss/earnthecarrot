@@ -137,6 +137,38 @@ export default async function handler(req, res) {
     await sql`CREATE INDEX IF NOT EXISTS usage_events_rep_created_idx ON usage_events (rep_id, created_at)`;
     await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS daily_op_limit integer DEFAULT 25`;
 
+    // Account Prioritization, increment 1 (foundation). Accounts are the root record
+    // per rep; their imported columns live as append-only field facts (same spirit as
+    // compensation_facts) so future rep edits and weekly research just append, never
+    // overwrite. Imported columns vary per rep and per file, so they are NOT baked into
+    // fixed account columns. FK-ordered: accounts (self-ref for future hierarchy) then
+    // account_fields.
+    await sql`
+      CREATE TABLE IF NOT EXISTS accounts (
+        id text PRIMARY KEY,
+        rep_id text REFERENCES reps(id),
+        name text,
+        customer_status text DEFAULT 'prospect',
+        parent_account_id text REFERENCES accounts(id),
+        source_document_id text,
+        created_at timestamptz DEFAULT now()
+      )`;
+    await sql`
+      CREATE TABLE IF NOT EXISTS account_fields (
+        id text PRIMARY KEY,
+        account_id text REFERENCES accounts(id),
+        rep_id text REFERENCES reps(id),
+        field_name text,
+        value_text text,
+        value_numeric numeric,
+        source text,
+        received_at timestamptz,
+        created_at timestamptz DEFAULT now()
+      )`;
+    await sql`CREATE INDEX IF NOT EXISTS accounts_rep_idx ON accounts (rep_id, created_at)`;
+    await sql`CREATE INDEX IF NOT EXISTS account_fields_account_idx ON account_fields (account_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS account_fields_rep_idx ON account_fields (rep_id)`;
+
     const tables = tableNames.map((t) => ({ table: t, status: existing.has(t) ? "already existed" : "created" }));
     return res.status(200).json({ ok: true, tables, migrations: [
       "compensation_plans.coach_take jsonb",
@@ -148,6 +180,8 @@ export default async function handler(req, res) {
       "reps.deal_plan jsonb",
       "usage_events table (+rep_created_idx)",
       "reps.daily_op_limit integer (default 25)",
+      "accounts table (+accounts_rep_idx)",
+      "account_fields table (+account/rep idxs)",
     ] });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err && err.message ? err.message : err) });
