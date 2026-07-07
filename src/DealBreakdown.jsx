@@ -60,20 +60,6 @@ const VISUAL = {
   },
 };
 const typeStyle = (type, origin) => (origin === "custom" ? VISUAL.typeColor._default : VISUAL.typeColor[type] || VISUAL.typeColor._default);
-function sizeBucket(rank, total) {
-  if (total <= 1) return "solo";
-  const q = rank / (total - 1);
-  if (q <= 0.34) return "large";
-  if (q <= 0.67) return "medium";
-  return "small";
-}
-// Default size-tier label from a row's rank within its component (largest size = Big).
-// Used only when a row has no rep-set label, so it stays live until the rep renames it.
-function labelByRank(rank, total) {
-  if (total <= 1) return "Big";
-  const b = sizeBucket(rank, total);
-  return b === "large" ? "Big" : b === "medium" ? "Medium" : "Small";
-}
 function CustomIcon({ color }) {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -106,7 +92,22 @@ function sizeFromStored(t) {
 // v4 grouped, v1 component/band, and v2/v3 flat tiers are all handled.
 function extractStored(stored) {
   if (!stored) return [];
-  // v4 grouped components (carry a `sizes` array)
+  // v6 free deal list (components carry a `deals` array). name -> label, value -> size.
+  if (Array.isArray(stored.components) && stored.components.some((c) => Array.isArray(c.deals))) {
+    return stored.components.map((c) => ({
+      type: c.type || c.name || "",
+      origin: c.origin || null,
+      sizes: (Array.isArray(c.deals) ? c.deals : []).map((d) => ({
+        id: d.id,
+        label: typeof d.name === "string" ? d.name : "",
+        size: d.value == null ? "" : String(num(d.value)),
+        quantity: num(d.quantity),
+        cycle: d.cycle_months == null ? "" : String(d.cycle_months),
+        closePeriod: d.close_period == null ? "" : String(d.close_period),
+      })),
+    }));
+  }
+  // v4/v5 grouped components (carry a `sizes` array)
   if (Array.isArray(stored.components) && stored.components.some((c) => Array.isArray(c.sizes))) {
     return stored.components.map((c) => ({
       type: c.type || c.name || "",
@@ -162,7 +163,7 @@ function buildSections(plan, stored) {
   let sid = 0, rid = 0;
   // Reuse a row's stored id so chip ids stay stable across reloads. Only rows that never
   // had one (v1/v2/v3 conversions, scaffold) get a fresh sequential id.
-  const withRowIds = (rows) => rows.map((r) => ({ id: r.id || `row-${rid++}`, label: r.label || "", size: r.size === "0" ? "" : r.size, quantity: r.quantity == null ? "" : String(num(r.quantity)), cycle: r.cycle }));
+  const withRowIds = (rows) => rows.map((r) => ({ id: r.id || `row-${rid++}`, label: r.label || "", size: r.size === "0" ? "" : r.size, quantity: r.quantity == null ? "" : String(num(r.quantity)), cycle: r.cycle, closePeriod: r.closePeriod || "" }));
 
   const planNames = new Set(planComps.map((c) => c.name));
   for (const pc of planComps) {
@@ -187,37 +188,77 @@ function maxIdNum(sections) {
 
 function serialize(sections, ctx) {
   return {
-    version: 5,
+    version: 6,
     target_pct: ctx.targetPct,
     stretch_pct: ctx.stretchPct,
     total_quota: ctx.totalQuota,
+    // Free deal list per component. Internal state keeps the v5 field names; the v6 shape
+    // maps label -> name (the editable deal name) and size -> value (the dollar amount),
+    // and adds close_period (the line's picked period; null = unset, deals on the bench).
     components: sections.map((s) => ({
       type: s.type || null,
       origin: s.origin,
       quota: s.origin === "plan" ? s.quota : null,
-      sizes: s.sizes.map((r) => ({ id: r.id, label: r.label || "", size: r.size === "" ? null : num(r.size), quantity: num(r.quantity), cycle_months: r.cycle === "" ? null : num(r.cycle) })),
+      deals: s.sizes.map((r) => ({
+        id: r.id,
+        name: r.label || "",
+        value: r.size === "" ? null : num(r.size),
+        quantity: num(r.quantity),
+        cycle_months: r.cycle === "" ? null : num(r.cycle),
+        close_period: r.closePeriod === "" || r.closePeriod == null ? null : num(r.closePeriod),
+      })),
     })),
     // Timeline placements keyed by stable chip id. Missing = unplaced, missing name = TBD.
     placements: ctx.placements || {},
   };
 }
 
+// Derive size bands by clustering deal-line VALUES plan-wide (relative, not fixed dollar
+// thresholds). A tight spread (or one value) collapses to a single band; otherwise split
+// at the largest relative gaps into up to three bands, biggest values = "big". The rep
+// declares no tiers; this is what the Gantt labels and colors by. Returns lineId -> band.
+function deriveSizeBands(lines) {
+  const withVal = lines.filter((l) => l.value > 0);
+  if (!withVal.length) return {};
+  const vals = [...new Set(withVal.map((l) => l.value))].sort((a, b) => a - b);
+  const band = {};
+  if (vals.length === 1 || vals[vals.length - 1] <= vals[0] * 1.6) {
+    for (const l of withVal) band[l.id] = "solo";
+    return band;
+  }
+  const gaps = [];
+  for (let i = 1; i < vals.length; i++) gaps.push({ i, ratio: vals[i] / vals[i - 1] });
+  const splits = gaps.filter((g) => g.ratio > 1.3).sort((a, b) => b.ratio - a.ratio).slice(0, 2).map((g) => g.i).sort((a, b) => a - b);
+  const bounds = [0, ...splits, vals.length];
+  const clusters = [];
+  for (let c = 0; c < bounds.length - 1; c++) clusters.push(new Set(vals.slice(bounds[c], bounds[c + 1])));
+  const n = clusters.length;
+  const labelAt = (ci) => (n === 1 ? "solo" : n === 2 ? (ci === 0 ? "small" : "big") : ci === 0 ? "small" : ci === 1 ? "medium" : "big");
+  clusters.forEach((set, ci) => { for (const l of withVal) if (set.has(l.value)) band[l.id] = labelAt(ci); });
+  return band;
+}
+// The size word shown for a band (the derived Gantt label and a line's default name).
+function sizeWord(band) {
+  return band === "big" ? "Big" : band === "medium" ? "Medium" : band === "small" ? "Small" : "Deal";
+}
+
 // ── timeline model (Blocks 1 and 3) ─────────────────────────────────────────
-// The timeline READS tiers and never writes deal economics back. Each size row expands
+// The timeline READS the deal lines and never writes economics back. Each line expands
 // into individual deal chips; a chip is a bar whose length is its cycle and whose start
 // is computed backward from a rep-set close point; a start before today is late.
 
 // Expand every size row into its individual deal chips with STABLE ids, so an unchanged
 // chip keeps its id (and therefore its placement and name) when tiers re-expand.
-function expandDeals(sections) {
+function expandDeals(sections, bands) {
   const deals = [];
   for (const comp of sections) {
     const color = typeStyle(comp.type, comp.origin).fg;
-    const order = [...comp.sizes].sort((a, b) => num(b.size) - num(a.size));
-    const rank = {}; order.forEach((r, i) => { rank[r.id] = i; });
     for (const row of comp.sizes) {
       const q = num(row.quantity);
-      const sizeLabel = row.label && row.label.trim() ? row.label : labelByRank(rank[row.id] || 0, comp.sizes.length);
+      const band = (bands && bands[row.id]) || null;
+      const sizeLabel = sizeWord(band); // DERIVED size word (from value clustering), not entered
+      const lineName = row.label && row.label.trim() ? row.label : sizeLabel; // editable name, defaults to the size word
+      const lineClose = row.closePeriod === "" || row.closePeriod == null ? null : num(row.closePeriod);
       for (let i = 0; i < q; i++) {
         deals.push({
           id: `${comp.id}#${row.id}#${i}`,
@@ -225,9 +266,12 @@ function expandDeals(sections) {
           componentType: comp.type || "Untagged",
           origin: comp.origin,
           color,
+          band,
           sizeLabel,
+          lineName,
           size: num(row.size),
           cycle: num(row.cycle),
+          lineClose,
         });
       }
     }
@@ -274,28 +318,6 @@ function dealBar(closePoint, cycle) {
   const closePos = closePoint + 1;
   const startPos = closePos - Math.max(cycle, 0);
   return { startPos, closePos };
-}
-
-// Deterministic opening spread of close points across the remaining window, per component
-// (shorter cycles close earlier). NOT Coach. Named so smarter placement can replace it.
-function defaultArrangement(deals, period, todayIdx) {
-  const placements = {};
-  const lastClose = period.P - 1;
-  const firstClose = Math.min(Math.max(Math.ceil(todayIdx), 0), lastClose);
-  const byComp = {};
-  // Only deals with a real cycle can be laid on the axis. A cycle-less deal has no bar
-  // length, so it is never auto-spread; it waits on the bench until a cycle is set.
-  for (const d of deals) { if (d.cycle <= 0) continue; (byComp[d.componentId] = byComp[d.componentId] || []).push(d); }
-  for (const cid of Object.keys(byComp)) {
-    const list = byComp[cid].slice().sort((a, b) => a.cycle - b.cycle);
-    const n = list.length;
-    list.forEach((d, i) => {
-      const cp = n <= 1 ? Math.round((firstClose + lastClose) / 2)
-        : Math.round(firstClose + (i / (n - 1)) * (lastClose - firstClose));
-      placements[d.id] = { close_point: Math.min(Math.max(cp, firstClose), lastClose), name: "" };
-    });
-  }
-  return placements;
 }
 
 // ── small controls ─────────────────────────────────────────────────────────
@@ -364,12 +386,12 @@ export default function DealBreakdown({
       if (s.origin !== "plan") return s;
       if (firstPlan && s.id === firstPlan.id) {
         return { ...s, sizes: [
-          { id: rid(), label: "Big", size: "", quantity: "", cycle: "" },
-          { id: rid(), label: "Medium", size: "", quantity: "", cycle: "" },
-          { id: rid(), label: "Small", size: "", quantity: "", cycle: "" },
+          { id: rid(), label: "Big", size: "", quantity: "", cycle: "", closePeriod: "" },
+          { id: rid(), label: "Medium", size: "", quantity: "", cycle: "", closePeriod: "" },
+          { id: rid(), label: "Small", size: "", quantity: "", cycle: "", closePeriod: "" },
         ] };
       }
-      return { ...s, sizes: [{ id: rid(), label: "", size: "", quantity: "", cycle: "" }] };
+      return { ...s, sizes: [{ id: rid(), label: "", size: "", quantity: "", cycle: "", closePeriod: "" }] };
     });
   });
   // Monotonic id source seeded above every loaded id, so new rows/components never
@@ -385,22 +407,17 @@ export default function DealBreakdown({
   const period = useMemo(() => planPeriod(plan), [plan]);
   const today = useMemo(() => new Date(), []);
   const todayIdx = monthIndexOf(period, today);
-  const deals = useMemo(() => expandDeals(sections), [sections]);
+  // Size bands are derived plan-wide by clustering all deal-line values (not entered).
+  const bands = useMemo(() => deriveSizeBands(sections.flatMap((s) => s.sizes.map((r) => ({ id: r.id, value: num(r.size) })))), [sections]);
+  const deals = useMemo(() => expandDeals(sections, bands), [sections, bands]);
 
-  // placements: chipId -> { close_point (null = bench), name }. Loaded from v5.
+  // placements: chipId -> { close_point (null = bench), name }. Loaded from stored.
   const [placements, setPlacements] = useState(() => (stored && stored.placements && typeof stored.placements === "object" ? { ...stored.placements } : {}));
   const [selChip, setSelChip] = useState(null);
 
-  // Default opening arrangement: materialize ONCE, the first time chips exist with no
-  // stored placements, so the timeline looks built. New chips after that go to the bench.
-  const arrangedRef = useRef(Object.keys(placements).length > 0);
-  useEffect(() => {
-    if (arrangedRef.current) return;
-    if (!deals.some((d) => d.cycle > 0)) return; // wait until something is placeable
-    arrangedRef.current = true;
-    setEdited(true);
-    setPlacements(defaultArrangement(deals, period, todayIdx));
-  }, [deals, period, todayIdx]);
+  // No auto-arrangement: a fresh or edited line's deals sit on the bench until the rep
+  // picks a close period (Increment B) or places them by hand. We do not fabricate a
+  // close date, same "no invented assumptions" rule as the rest of the screen.
 
   const closeOf = (chipId) => { const p = placements[chipId]; return p && p.close_point != null ? p.close_point : null; };
   const nameOf = (chipId) => { const p = placements[chipId]; return p && p.name ? p.name : ""; };
@@ -481,7 +498,7 @@ export default function DealBreakdown({
   // ── edit helpers (each marks the screen edited, which unlocks persistence) ──
   const patchSection = (sid, patch) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, ...patch } : s))); };
   const patchRow = (sid, rid, patch) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: s.sizes.map((r) => (r.id === rid ? { ...r, ...patch } : r)) } : s))); };
-  const addRow = (sid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: [...s.sizes, { id: newId(), label: "", size: "", quantity: "", cycle: "" }] } : s))); };
+  const addRow = (sid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: [...s.sizes, { id: newId(), label: "", size: "", quantity: "", cycle: "", closePeriod: "" }] } : s))); };
   const removeRow = (sid, rid) => { setEdited(true); setSections((ss) => ss.map((s) => (s.id === sid ? { ...s, sizes: s.sizes.filter((r) => r.id !== rid) } : s))); };
   const addComponent = () => { setEdited(true); setSections((ss) => [...ss, { id: newId(), type: "", origin: "custom", quota: null, sizes: [] }]); };
   const removeComponent = (sid) => { setEdited(true); setSections((ss) => ss.filter((s) => s.id !== sid)); };
@@ -574,8 +591,6 @@ export default function DealBreakdown({
 
   const renderSection = (s) => {
     const st = typeStyle(s.type, s.origin);
-    const order = [...s.sizes].sort((a, b) => num(b.size) - num(a.size));
-    const rank = {}; order.forEach((r, i) => { rank[r.id] = i; });
     return (
       <div key={s.id} className="dbk-sec" style={{ borderLeft: `4px solid ${st.fg}` }}>
         <div className="dbk-sec-head">
@@ -599,8 +614,8 @@ export default function DealBreakdown({
 
         {s.sizes.length > 0 && (
           <div className="dbk-rowhead">
-            <span className="c-label">Size Label</span>
-            <span className="c-size">Typical Deal Size <InfoDot text="Roughly what one deal in this tier is worth. We do the exact math from here." /></span>
+            <span className="c-label">Name</span>
+            <span className="c-size">Deal Value <InfoDot text="The dollar amount of one deal on this line. We size and group your deals from these values, and the total is value times quantity." /></span>
             <span className="c-qty">Deal Quantity</span>
             <span className="c-cycle">Sales Cycle Length</span>
             <span className="c-rev">Total Revenue</span>
@@ -611,12 +626,12 @@ export default function DealBreakdown({
         {s.sizes.map((r) => (
           <div key={r.id} className="dbk-row">
             <div className="c-label">
-              <input className="dbk-label-inp" type="text" placeholder="Label"
-                value={r.label && r.label.trim() ? r.label : labelByRank(rank[r.id] || 0, s.sizes.length)}
+              <input className="dbk-label-inp" type="text" placeholder="Name"
+                value={r.label && r.label.trim() ? r.label : sizeWord(bands[r.id])}
                 onChange={(e) => patchRow(s.id, r.id, { label: e.target.value })} />
             </div>
             <div className="c-size">
-              <input className="dbk-field money" type="text" inputMode="numeric" placeholder="Typical deal size"
+              <input className="dbk-field money" type="text" inputMode="numeric" placeholder="Deal value"
                 value={moneyDisplay(r.size)} onChange={(e) => patchRow(s.id, r.id, { size: digitsOf(e.target.value) })} />
             </div>
             <div className="c-qty">
