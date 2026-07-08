@@ -24,7 +24,7 @@ const fileToBase64 = (file) =>
 // currency. Real money formatting lands where a column is known to be money.
 const group = (n) => (n == null ? "" : Number(n).toLocaleString());
 
-export default function AccountsImport({ authHeaders, onBack }) {
+export default function AccountsImport({ authHeaders, onBack, onStartInterview }) {
   const [accounts, setAccounts] = useState([]);
   const [columns, setColumns] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -138,6 +138,17 @@ export default function AccountsImport({ authHeaders, onBack }) {
             {(summary.rowsSkipped || []).length > 0 && <>Skipped {summary.rowsSkipped.length} {summary.rowsSkipped.length === 1 ? "row" : "rows"}: {summary.rowsSkipped.map((s) => `row ${s.row} (${s.reason})`).join(", ")}.<br /></>}
             {(summary.warnings || []).length > 0 && <>Flagged {summary.warnings.length}: {summary.warnings.map((w) => `row ${w.row} (${w.reason})`).join(", ")}.</>}
           </div>
+        </div>
+      )}
+
+      {accounts.length > 0 && onStartInterview && (
+        <div style={{ ...card, marginTop: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", background: "#FBF6EF", borderColor: "#EFE3D2" }}>
+          <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14.5, color: "var(--ink)", lineHeight: 1.5 }}>
+            Your accounts are in. Next, let me read them and help you prioritize, your sweet spot, the metrics that matter, and your close rate.
+          </span>
+          <button onClick={onStartInterview} style={{ background: "var(--carrot)", color: "white", fontFamily: "'DM Sans',sans-serif", fontWeight: 800, fontSize: 15, padding: "11px 20px", borderRadius: 12, border: "none", cursor: "pointer", whiteSpace: "nowrap" }}>
+            Prioritize with Coach
+          </button>
         </div>
       )}
 

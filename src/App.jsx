@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, R
 import SeeWhatMoreIsWorth from "./SeeWhatMoreIsWorth";
 import DealBreakdown from "./DealBreakdown";
 import AccountsImport from "./AccountsImport";
+import AccountStrategy from "./AccountStrategy";
 import PayoutCurveScreen from "./PayoutCurve";
 import { toEarningsPlan } from "./lib/planAdapter";
 import { computeEarnings } from "./lib/earnings";
@@ -1274,7 +1275,7 @@ export default function App() {
   const TOPBAR_H = 72;
   const railW = railCollapsed ? 64 : 234;
   const compAreaScreens = ["comp_dashboard", "comp_documents", "plan_summary", "coach_take", "payout_curve"];
-  const accountAreaScreens = ["accounts_import"];
+  const accountAreaScreens = ["accounts_import", "accounts_interview"];
   const railActiveArea = compAreaScreens.indexOf(screen) >= 0 ? "comp" : accountAreaScreens.indexOf(screen) >= 0 ? "accounts" : null;
   const railIcon = {
     comp: <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z M14 3v5h5 M9 13h6 M9 17h4" />,
@@ -2386,7 +2387,22 @@ export default function App() {
         {renderTopBar(true)}
         {renderRail()}
         <div className="hb-main" style={{ maxWidth: 1160, marginLeft: `max(${railW}px, calc((100vw - 1160px) / 2))`, marginRight: "auto" }}>
-          <AccountsImport authHeaders={authHeaders} onBack={() => goFlow("home_base")} />
+          <AccountsImport authHeaders={authHeaders} onBack={() => goFlow("home_base")} onStartInterview={() => goFlow("accounts_interview")} />
+        </div>
+      </div>
+    );
+  }
+
+  // ══ ACCOUNT PRIORITIZATION (increment 2: Coach interview) ══════════════
+  if (screen === "accounts_interview") {
+    return (
+      <div className="hb-wrap" style={{ paddingTop: TOPBAR_H, paddingLeft: railW }}>
+        <style>{S}</style>
+        <style>{HOME_STYLES}</style>
+        {renderTopBar(true)}
+        {renderRail()}
+        <div className="hb-main" style={{ maxWidth: 1160, marginLeft: `max(${railW}px, calc((100vw - 1160px) / 2))`, marginRight: "auto" }}>
+          <AccountStrategy authHeaders={authHeaders} onBack={() => goFlow("accounts_import")} />
         </div>
       </div>
     );
