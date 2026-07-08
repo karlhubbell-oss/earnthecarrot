@@ -169,6 +169,12 @@ export default async function handler(req, res) {
     await sql`CREATE INDEX IF NOT EXISTS account_fields_account_idx ON account_fields (account_id)`;
     await sql`CREATE INDEX IF NOT EXISTS account_fields_rep_idx ON account_fields (rep_id)`;
 
+    // Account Prioritization, increment 2: the Coach interview output (ICP text, close
+    // rate, and the chosen metric set as portable metric objects with weights and
+    // reasoning). One set per rep in v1; jsonb keeps the metrics as portable, copyable
+    // objects for the future cross-rep and team-sharing cases. Non-destructive.
+    await sql`ALTER TABLE reps ADD COLUMN IF NOT EXISTS account_strategy jsonb`;
+
     const tables = tableNames.map((t) => ({ table: t, status: existing.has(t) ? "already existed" : "created" }));
     return res.status(200).json({ ok: true, tables, migrations: [
       "compensation_plans.coach_take jsonb",
@@ -182,6 +188,7 @@ export default async function handler(req, res) {
       "reps.daily_op_limit integer (default 25)",
       "accounts table (+accounts_rep_idx)",
       "account_fields table (+account/rep idxs)",
+      "reps.account_strategy jsonb",
     ] });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err && err.message ? err.message : err) });
